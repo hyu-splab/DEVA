@@ -7,18 +7,48 @@
     android:layout_height="match_parent"
     tools:context=".page.main.MainActivity">
 
+    <Button
+        android:id="@+id/buttonStart"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="32dp"
+        android:layout_marginBottom="13dp"
+        android:text="Start"
+        app:layout_constraintBottom_toTopOf="@+id/buttonStop"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/appBar"
+        app:layout_constraintVertical_bias="0.0" />
+
+    <Button
+        android:id="@+id/buttonStop"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:layout_marginEnd="315dp"
+        android:layout_marginBottom="511dp"
+        android:text="Stop"
+        app:layout_constraintBottom_toTopOf="@+id/navigation"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/buttonStart" />
+
     <FrameLayout
         android:id="@+id/main_container"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
+        android:layout_width="246dp"
+        android:layout_height="125dp"
         android:keepScreenOn="true"
         app:layout_behavior="@string/appbar_scrolling_view_behavior"
         app:layout_constraintBottom_toTopOf="@id/navigation"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.818"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/appBar"
+        app:layout_constraintVertical_bias="0.311"
         tools:context=".page.main.MainActivity"
-        tools:showIn="@layout/activity_main" />
+        tools:showIn="@layout/activity_main">
+
+    </FrameLayout>
 
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/appBar"

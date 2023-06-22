@@ -26,6 +26,7 @@ import org.tensorflow.lite.support.image.ops.ResizeWithCropOrPadOp;
 import org.tensorflow.lite.support.tensorbuffer.TensorBuffer;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -69,22 +70,27 @@ public class InnerAnalysis extends VideoAnalysis {
         Interpreter.Options options = new Interpreter.Options();
         options.setUseXNNPACK(true);
         options.setNumThreads(TF_THREAD_NUM);
-
         for (int i = 0; i < THREAD_NUM; i++) {
             try {
-                interpreterQueue.add(new Interpreter(FileUtil.loadMappedFile(context, modelFilename), options));
+                Interpreter temp = new Interpreter(FileUtil.loadMappedFile(context, modelFilename), options);
+                if (interpreterQueue.isEmpty()) {
+                    inputWidth = temp.getInputTensor(0).shape()[1];
+                    inputHeight = temp.getInputTensor(0).shape()[2];
+                    outputShape = temp.getOutputTensor(0).shape();
+                }
+                interpreterQueue.add(temp);
             } catch (IOException e) {
                 Log.w(I_TAG, String.format("Model failure:\n  %s", e.getMessage()));
             }
         }
 
-        try (Interpreter interpreter = interpreterQueue.peek()) {
+        /*try (Interpreter interpreter = interpreterQueue.peek()) {
             if (interpreter != null) {
                 inputWidth = interpreter.getInputTensor(0).shape()[1];
                 inputHeight = interpreter.getInputTensor(0).shape()[2];
                 outputShape = interpreter.getOutputTensor(0).shape();
             }
-        }
+        }*/
     }
 
     InnerFrame processFrame(Bitmap bitmap, int frameIndex, float scaleFactor) {
@@ -130,6 +136,7 @@ public class InnerAnalysis extends VideoAnalysis {
         float heightRatio = detectBitmap.getHeight() / (float) inputHeight;
 
         Interpreter interpreter;
+
         try {
             interpreter = interpreterQueue.poll(200, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {

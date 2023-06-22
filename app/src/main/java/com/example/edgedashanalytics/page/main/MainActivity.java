@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
 import android.media.MediaScannerConnection;
 import android.net.Uri;
 import android.net.wifi.WifiInfo;
@@ -12,10 +13,14 @@ import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.Message;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.Button;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -36,18 +41,29 @@ import com.example.edgedashanalytics.model.Video;
 import com.example.edgedashanalytics.page.adapter.ProcessingAdapter;
 import com.example.edgedashanalytics.page.adapter.RawAdapter;
 import com.example.edgedashanalytics.page.setting.SettingsActivity;
+import com.example.edgedashanalytics.util.connection.Connection;
+import com.example.edgedashanalytics.util.connection.Receiver;
+import com.example.edgedashanalytics.util.connection.Sender;
+import com.example.edgedashanalytics.util.connection.WorkerServer;
 import com.example.edgedashanalytics.util.dashcam.DashCam;
 import com.example.edgedashanalytics.util.file.FileManager;
 import com.example.edgedashanalytics.util.hardware.PowerMonitor;
+import com.example.edgedashanalytics.util.log.TimeLog;
 import com.example.edgedashanalytics.util.nearby.Endpoint;
 import com.example.edgedashanalytics.util.nearby.NearbyFragment;
 import com.example.edgedashanalytics.util.video.eventhandler.ProcessingVideosEventHandler;
 import com.example.edgedashanalytics.util.video.eventhandler.RawVideosEventHandler;
 import com.example.edgedashanalytics.util.video.eventhandler.ResultEventHandler;
+import com.example.edgedashanalytics.util.worker.FrameProcessor;
+import com.example.edgedashanalytics.util.worker.InnerProcessor;
+import com.example.edgedashanalytics.util.worker.WorkerThread;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.Locale;
 import java.util.function.Consumer;
@@ -99,6 +115,19 @@ public class MainActivity extends AppCompatActivity implements
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        findViewById(R.id.buttonStart).setOnClickListener(view -> {
+            Log.d(TAG, "Start");
+            Connection.runImageStreaming();
+        });
+
+        findViewById(R.id.buttonStop).setOnClickListener(view -> {
+            Log.d(TAG, "Test finished");
+            TimeLog.coordinator.writeLogs(getApplicationContext());
+            TimeLog.worker.writeLogs(getApplicationContext());
+        });
+
+        Connection.workerStart(getApplicationContext());
 
         checkPermissions();
         scanVideoDirectories();
@@ -246,6 +275,12 @@ public class MainActivity extends AppCompatActivity implements
         return true;
     }
 
+    private void unsupported(String name) {
+        String msg = name + " is currently unsupported";
+        Log.v(TAG, msg);
+        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
+    }
+
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         int itemId = item.getItemId();
@@ -256,14 +291,10 @@ public class MainActivity extends AppCompatActivity implements
             showNewFragmentAndHideOldFragment(connectionFragment);
             return true;
         } else if (itemId == R.id.action_download) {
-            Log.v(TAG, "Download button clicked");
-            Toast.makeText(this, "Starting download", Toast.LENGTH_SHORT).show();
-            DashCam.downloadTestVideosLoop(this);
+            unsupported("download");
             return true;
         } else if (itemId == R.id.action_clean) {
-            Log.v(TAG, "Clean button clicked");
-            Toast.makeText(this, "Cleaning directories", Toast.LENGTH_SHORT).show();
-            cleanDirectories();
+            unsupported("clean");
             return true;
         } else if (itemId == R.id.action_power) {
             Log.v(TAG, "Power button clicked");
@@ -280,18 +311,6 @@ public class MainActivity extends AppCompatActivity implements
             return true;
         }
         return super.onOptionsItemSelected(item);
-    }
-
-    private void cleanDirectories() {
-        SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(this);
-
-        if (pref.getBoolean(getString(R.string.remove_raw_key), false)) {
-            rawFragment.cleanRepository(this);
-        }
-
-        processingFragment.cleanRepository(this);
-        resultsFragment.cleanRepository();
-        FileManager.cleanDirectories(this);
     }
 
     private void checkWifiStrength() {

@@ -107,6 +107,18 @@ public abstract class VideoAnalysis {
         processVideo(inPath, outPath);
     }
 
+    public Frame analyse(Bitmap bitmap) {
+        /*ExecutorService frameExecutor = Executors.newFixedThreadPool(THREAD_NUM);
+        List<Frame> frames = Collections.synchronizedList(new ArrayList<>(1));
+        frameExecutor.execute(() -> frames.add(processFrame(
+                //Bitmap.createScaledBitmap(bitmap, scaledWidth, scaledHeight, false), k, scaleFactor)
+                bitmap, 1, 1.0f)
+        ));
+        */
+        setup(640, 480);
+        return processFrame(bitmap, 1, 1.0f);
+    }
+
     private void processVideo(String inPath, String outPath) {
         File videoFile = new File(inPath);
         String videoName = videoFile.getName();
