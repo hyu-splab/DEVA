@@ -12,6 +12,7 @@ import android.util.Log;
 import com.example.edgedashanalytics.util.log.TimeLog;
 import com.example.edgedashanalytics.util.video.analysis.Image2;
 import com.example.edgedashanalytics.util.video.analysis.Result2;
+import com.example.edgedashanalytics.util.worker.ProcessorThread;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -24,14 +25,13 @@ import java.net.Socket;
 public class WorkerServer {
     private static final String TAG = "WorkerServer";
     public static final int PORT = 5555;
-    private Handler outHandler, inHandler;
+    private Handler inHandler;
     private Thread thread;
 
     // We only need one instance of this server as it will 1 to 1 connect to the central device
     // so no need to provide additional information
 
-    public WorkerServer(Handler handler) {
-        this.outHandler = handler;
+    public WorkerServer() {
         thread = new WorkerServerThread();
         inHandler = null;
     }
@@ -60,26 +60,11 @@ public class WorkerServer {
                     inHandler = new Handler(Looper.myLooper()) {
                         @Override
                         public void handleMessage(Message msg) {
-                            WorkerMessage wMsg = null;
-                            switch (msg.what) {
-                                case 998:
-                                    // available message
-                                    wMsg = new WorkerMessage(WorkerMessage.Type.AVAILABLE, msg.obj);
-                                    break;
-
-                                case 999:
-                                    wMsg = new WorkerMessage(WorkerMessage.Type.RESULT, msg.obj);
-                                    break;
-
-                                default:
-                                    return;
-                            }
+                            WorkerMessage wMsg = new WorkerMessage(ProcessorThread.queue.size(), msg.obj);
                             try {
-                                if (wMsg.type == WorkerMessage.Type.RESULT)
-                                    TimeLog.worker.add(((Result2)msg.obj).frameNumber + ""); // Return Result to Coordinator
+                                TimeLog.worker.add(((Result2)msg.obj).frameNumber + ""); // Return Result to Coordinator
                                 outstream.writeObject(wMsg);
-                                if (wMsg.type == WorkerMessage.Type.RESULT)
-                                    TimeLog.worker.finish(((Result2)msg.obj).frameNumber + ""); // Finish
+                                TimeLog.worker.finish(((Result2)msg.obj).frameNumber + ""); // Finish
                             } catch (IOException e) {
                                 throw new RuntimeException(e);
                             }
@@ -97,11 +82,11 @@ public class WorkerServer {
 
                         //Log.d(TAG, "Worker start processing: " + image.frameNumber);
 
-                        Message msg = Message.obtain();
-                        msg.what = 999;
-                        msg.obj = image;
-
-                        outHandler.sendMessage(msg);
+                        try {
+                            ProcessorThread.queue.put(image);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
                     }
                 } catch (Exception e) {
                     e.printStackTrace();

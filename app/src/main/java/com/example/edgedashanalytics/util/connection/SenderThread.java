@@ -45,7 +45,7 @@ public class SenderThread extends Thread {
         handler = new Handler(Looper.myLooper()) {
             @Override
             public void handleMessage(Message inputMessage) {
-                score = Long.MAX_VALUE;
+                // score = Long.MAX_VALUE;
                 try {
                     //Log.d(TAG, "sending to the worker...");
                     TimeLog.coordinator.add(((Image2)inputMessage.obj).frameNumber + ""); // Send to Worker
@@ -85,19 +85,13 @@ public class SenderThread extends Thread {
             while (true) {
                 try {
                     WorkerMessage msg = (WorkerMessage) instream.readObject();
-                    switch (msg.type) {
-                        case AVAILABLE:
-                            score = (long) msg.msg;
-                            //Log.d(TAG, "device changed its score to " + score);
-                            break;
-                        case RESULT:
-                            Result2 res = (Result2) msg.msg;
-                            TimeLog.coordinator.finish(res.frameNumber + ""); // Finish
-                            //Log.d(TAG, "Got response from the server: isInner = "
-                                    //+ res.isInner + ", frameNumber = " + res.frameNumber);
-                            //Log.d(TAG, "frameNumber = " + res.frameNumber + ", msg = " + res.msg);
-                            break;
-                    }
+                    Result2 res = (Result2) msg.msg;
+                    score = msg.score;
+                    TimeLog.coordinator.finish(res.frameNumber + ""); // Finish
+                    //Log.d(TAG, "Got response from the server: isInner = "
+                            //+ res.isInner + ", frameNumber = " + res.frameNumber);
+                    //Log.d(TAG, "frameNumber = " + res.frameNumber + ", msg = " + res.msg);
+
                 } catch (Exception e) {
                     e.printStackTrace();
                 }

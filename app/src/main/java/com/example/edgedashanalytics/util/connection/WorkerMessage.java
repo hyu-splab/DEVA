@@ -3,16 +3,11 @@ package com.example.edgedashanalytics.util.connection;
 import java.io.Serializable;
 
 public class WorkerMessage implements Serializable {
-    enum Type {
-        AVAILABLE,
-        RESULT
-    }
-
-    Type type;
+    long score;
     Object msg;
 
-    public WorkerMessage(Type type, Object msg) {
-        this.type = type;
+    public WorkerMessage(long score, Object msg) {
+        this.score = score;
         this.msg = msg;
     }
 }

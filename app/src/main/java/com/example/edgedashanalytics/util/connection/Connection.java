@@ -63,7 +63,7 @@ public class Connection {
 
                 //Log.d(TAG, senders.size() + " worker(s), " + avail + " available, best score = " + bestScore);
 
-                if (sender == null) {
+                if (sender == null || bestScore >= 3) {
                     TimeLog.coordinator.addEmpty(totalCount + "", 3); // No-ops
                     // Uncomment this to include dropped frames
                     // TimeLog.coordinator.finish(totalCount + "");
@@ -117,7 +117,7 @@ public class Connection {
         p.put("pixel5", "192.168.68.145");
         p.put("lineage2", "192.168.68.72");
 
-        String[] workerList = {"self", "oppo", "oneplus"};
+        String[] workerList = {"self", "oppo"};
         for (String name : workerList) {
             Sender sender = new Sender(p.get(name));
             sender.run();
