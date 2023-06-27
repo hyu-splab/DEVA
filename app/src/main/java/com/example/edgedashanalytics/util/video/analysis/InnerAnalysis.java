@@ -83,14 +83,6 @@ public class InnerAnalysis extends VideoAnalysis {
                 Log.w(I_TAG, String.format("Model failure:\n  %s", e.getMessage()));
             }
         }
-
-        /*try (Interpreter interpreter = interpreterQueue.peek()) {
-            if (interpreter != null) {
-                inputWidth = interpreter.getInputTensor(0).shape()[1];
-                inputHeight = interpreter.getInputTensor(0).shape()[2];
-                outputShape = interpreter.getOutputTensor(0).shape();
-            }
-        }*/
     }
 
     InnerFrame processFrame(Bitmap bitmap, int frameIndex, float scaleFactor) {

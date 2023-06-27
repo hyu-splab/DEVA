@@ -25,6 +25,8 @@ public class WorkerThread extends Thread {
     private Context context;
     private static WorkerServer workerServer = null;
     public static final int N_THREAD = 2;
+
+    public static ProcessorThread[] pt;
     public WorkerThread(Context context) {
         this.context = context;
     }
@@ -32,8 +34,12 @@ public class WorkerThread extends Thread {
     @Override
     public void run() {
         ProcessorThread.context = context;
-        for (int i = 0; i < N_THREAD; i++)
-            new ProcessorThread().start();
+        pt = new ProcessorThread[N_THREAD];
+        for (int i = 0; i < N_THREAD; i++) {
+            pt[i] = new ProcessorThread();
+            pt[i].tid = i;
+            pt[i].start();
+        }
         workerServer = new WorkerServer();
         workerServer.run(); // note: this is not Thread.run()
 
@@ -43,7 +49,7 @@ public class WorkerThread extends Thread {
     private static Handler getHandler() {
         Handler handler = workerServer.getHandler();
         while (handler == null) {
-            Log.w(TAG, "workerServer handler is not ready!!");
+            //Log.w(TAG, "workerServer handler is not ready!!");
             try {
                 Thread.sleep(100);
             } catch (Exception e) { e.printStackTrace(); }

@@ -23,7 +23,7 @@ public class OuterProcessor extends FrameProcessor {
         Frame result = analyzer.analyse(frame);
         String resultString = JsonManager.writeToString(result);
 
-        Log.d(TAG, "Outer result = " + resultString);
+        //Log.d(TAG, "Outer result = " + resultString);
         return resultString;
     }
 }

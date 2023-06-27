@@ -13,6 +13,7 @@ import com.example.edgedashanalytics.util.log.TimeLog;
 import com.example.edgedashanalytics.util.video.analysis.Image2;
 import com.example.edgedashanalytics.util.video.analysis.Result2;
 import com.example.edgedashanalytics.util.worker.ProcessorThread;
+import com.example.edgedashanalytics.util.worker.WorkerThread;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -75,17 +76,24 @@ public class WorkerServer {
                 resThread.start();
 
                 try {
+                    int cnt = 0;
                     while (true) {
                         // start
                         Image2 image = (Image2) instream.readObject();
                         TimeLog.worker.start(image.frameNumber + ""); // Send to WorkerThread
+                        cnt++;
 
                         //Log.d(TAG, "Worker start processing: " + image.frameNumber);
 
-                        try {
-                            ProcessorThread.queue.put(image);
-                        } catch (Exception e) {
-                            e.printStackTrace();
+                        ProcessorThread.queue.add(image);
+
+                        if (cnt % 10 == 0) {
+                            StringBuilder sb = new StringBuilder();
+                            sb.append("Thread working progress: ");
+                            for (int i = 0; i < WorkerThread.N_THREAD; i++) {
+                                sb.append(WorkerThread.pt[i].workCount).append(" ");
+                            }
+                            Log.d(TAG, sb.toString());
                         }
                     }
                 } catch (Exception e) {

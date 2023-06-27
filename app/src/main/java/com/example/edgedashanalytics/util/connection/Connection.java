@@ -63,7 +63,7 @@ public class Connection {
 
                 //Log.d(TAG, senders.size() + " worker(s), " + avail + " available, best score = " + bestScore);
 
-                if (sender == null || bestScore >= 3) {
+                if (sender == null || bestScore >= 5) {
                     TimeLog.coordinator.addEmpty(totalCount + "", 3); // No-ops
                     // Uncomment this to include dropped frames
                     // TimeLog.coordinator.finish(totalCount + "");
@@ -86,8 +86,6 @@ public class Connection {
                 Image2 img = new Image2(isInner, /*isInner ? innerCount : outerCount*/ totalCount, (byte[]) inputMessage.obj);
                 senderMessage.obj = img;
                 senderHandler.sendMessage(senderMessage);
-                // Do not send to the same worker again until the worker notifies its state
-                sender.setScore(Long.MAX_VALUE);
 
                 if (totalCount % 10 == 0) {
                     Log.i(TAG, String.format("Processed: %d/%d (%d%%)", processed, totalCount, processed * 100 / totalCount));
@@ -117,7 +115,7 @@ public class Connection {
         p.put("pixel5", "192.168.68.145");
         p.put("lineage2", "192.168.68.72");
 
-        String[] workerList = {"self", "oppo"};
+        String[] workerList = {"self"};
         for (String name : workerList) {
             Sender sender = new Sender(p.get(name));
             sender.run();
