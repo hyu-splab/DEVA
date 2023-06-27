@@ -127,8 +127,6 @@ public class MainActivity extends AppCompatActivity implements
             TimeLog.worker.writeLogs(getApplicationContext());
         });
 
-        Connection.workerStart(getApplicationContext());
-
         checkPermissions();
         scanVideoDirectories();
         setToolBarAsTheAppBar();
@@ -137,6 +135,8 @@ public class MainActivity extends AppCompatActivity implements
         FileManager.initialiseDirectories();
         storeLogsInFile();
         DashCam.setup(this);
+
+        Connection.workerStart(getApplicationContext());
     }
 
     @Override

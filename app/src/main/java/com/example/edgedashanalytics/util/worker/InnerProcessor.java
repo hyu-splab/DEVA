@@ -11,11 +11,9 @@ import com.example.edgedashanalytics.util.video.analysis.InnerAnalysis;
 
 public class InnerProcessor extends FrameProcessor {
     private static final String TAG = "InnerProcessor";
-    static InnerAnalysis analyzer = null;
-    public InnerProcessor(Bitmap bitmap, Context context) {
+    public static InnerAnalysis analyzer;
+    public InnerProcessor(Bitmap bitmap) {
         super(bitmap);
-        if (analyzer == null)
-            analyzer = new InnerAnalysis(context);
     }
 
     @Override
@@ -23,7 +21,6 @@ public class InnerProcessor extends FrameProcessor {
         Frame result = analyzer.analyse(frame);
         String resultString = JsonManager.writeToString(result);
 
-        Log.d(TAG, "Inner result = " + resultString);
         return resultString;
     }
 }

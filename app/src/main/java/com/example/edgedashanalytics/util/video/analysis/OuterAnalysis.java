@@ -57,39 +57,41 @@ public class OuterAnalysis extends VideoAnalysis {
     public OuterAnalysis(Context context) {
         super(context);
 
-        if (!detectorQueue.isEmpty()) {
-            return;
-        }
+        synchronized (detectorQueue) {
+            if (!detectorQueue.isEmpty()) {
+                return;
+            }
 
-        String defaultModel = context.getString(R.string.default_object_model_key);
-        SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(context);
-        String modelFilename = pref.getString(context.getString(R.string.object_model_key), defaultModel);
+            String defaultModel = context.getString(R.string.default_object_model_key);
+            SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(context);
+            String modelFilename = pref.getString(context.getString(R.string.object_model_key), defaultModel);
 
-        BaseOptions baseOptions;
-        if (modelFilename.equals(defaultModel)) {
-            baseOptions = BaseOptions.builder().setNumThreads(TF_THREAD_NUM).useNnapi().build();
-        } else {
-            baseOptions = BaseOptions.builder().setNumThreads(TF_THREAD_NUM).build();
-        }
+            BaseOptions baseOptions;
+            if (modelFilename.equals(defaultModel)) {
+                baseOptions = BaseOptions.builder().setNumThreads(TF_THREAD_NUM).useNnapi().build();
+            } else {
+                baseOptions = BaseOptions.builder().setNumThreads(TF_THREAD_NUM).build();
+            }
 
-        ObjectDetector.ObjectDetectorOptions objectDetectorOptions = ObjectDetector.ObjectDetectorOptions.builder()
-                .setBaseOptions(baseOptions)
-                .setMaxResults(MAX_DETECTIONS)
-                .setScoreThreshold(MIN_SCORE)
-                .build();
+            ObjectDetector.ObjectDetectorOptions objectDetectorOptions = ObjectDetector.ObjectDetectorOptions.builder()
+                    .setBaseOptions(baseOptions)
+                    .setMaxResults(MAX_DETECTIONS)
+                    .setScoreThreshold(MIN_SCORE)
+                    .build();
 
-        try (Interpreter interpreter = new Interpreter(FileUtil.loadMappedFile(context, modelFilename))) {
-            inputSize = interpreter.getInputTensor(0).shape()[1];
-        } catch (IOException e) {
-            Log.w(I_TAG, String.format("Model failure:\n  %s", e.getMessage()));
-        }
-
-        for (int i = 0; i < THREAD_NUM; i++) {
-            try {
-                detectorQueue.add(ObjectDetector.createFromFileAndOptions(
-                        context, modelFilename, objectDetectorOptions));
+            try (Interpreter interpreter = new Interpreter(FileUtil.loadMappedFile(context, modelFilename))) {
+                inputSize = interpreter.getInputTensor(0).shape()[1];
             } catch (IOException e) {
                 Log.w(I_TAG, String.format("Model failure:\n  %s", e.getMessage()));
+            }
+
+            for (int i = 0; i < THREAD_NUM; i++) {
+                try {
+                    detectorQueue.add(ObjectDetector.createFromFileAndOptions(
+                            context, modelFilename, objectDetectorOptions));
+                } catch (IOException e) {
+                    Log.w(I_TAG, String.format("Model failure:\n  %s", e.getMessage()));
+                }
             }
         }
     }

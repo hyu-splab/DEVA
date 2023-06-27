@@ -1,5 +1,7 @@
 package com.example.edgedashanalytics.util.connection;
 
+import static com.example.edgedashanalytics.util.connection.Connection.totalCount;
+
 import android.annotation.SuppressLint;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -7,6 +9,8 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
+
+import com.example.edgedashanalytics.util.log.TimeLog;
 
 import org.tensorflow.lite.DataType;
 import org.tensorflow.lite.support.image.ImageProcessor;
@@ -50,8 +54,10 @@ public class ReceiverThread extends Thread {
             try {
                 while (true) {
                     byte[] data = (byte[]) instream.readObject();
-                    //Log.d(TAG, "data size = " + data.length);
-                    outstream.writeObject("ok");
+                    if (totalCount == 1)
+                        Connection.startTime = System.currentTimeMillis();
+
+                    //outstream.writeObject("ok");
 
                     Message msg = Message.obtain();
                     msg.what = msgCode;

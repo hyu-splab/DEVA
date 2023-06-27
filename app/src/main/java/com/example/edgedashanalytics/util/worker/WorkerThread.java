@@ -14,6 +14,8 @@ import android.util.Log;
 import com.example.edgedashanalytics.util.connection.WorkerServer;
 import com.example.edgedashanalytics.util.log.TimeLog;
 import com.example.edgedashanalytics.util.video.analysis.Image2;
+import com.example.edgedashanalytics.util.video.analysis.InnerAnalysis;
+import com.example.edgedashanalytics.util.video.analysis.OuterAnalysis;
 import com.example.edgedashanalytics.util.video.analysis.Result2;
 
 import java.io.ByteArrayInputStream;
@@ -33,7 +35,8 @@ public class WorkerThread extends Thread {
 
     @Override
     public void run() {
-        ProcessorThread.context = context;
+        InnerProcessor.analyzer = new InnerAnalysis(context);
+        OuterProcessor.analyzer = new OuterAnalysis(context);
         pt = new ProcessorThread[N_THREAD];
         for (int i = 0; i < N_THREAD; i++) {
             pt[i] = new ProcessorThread();

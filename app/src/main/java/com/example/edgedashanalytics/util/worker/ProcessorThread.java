@@ -1,6 +1,5 @@
 package com.example.edgedashanalytics.util.worker;
 
-import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Handler;
@@ -19,7 +18,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 public class ProcessorThread extends Thread {
     static public ArrayBlockingQueue<Image2> queue = new ArrayBlockingQueue<>(5);
-    static public Context context;
     static public Handler handler;
 
     public int tid = 0;
@@ -30,21 +28,19 @@ public class ProcessorThread extends Thread {
         FrameProcessor frameProcessor = null;
         while (true) {
             try {
-                Image2 img = queue.poll();
-                if (img == null) {
-                    Thread.sleep(10);
-                    continue;
-                }
+                Image2 img = queue.take();
+
                 TimeLog.worker.add(img.frameNumber + ""); // Uncompress
+
                 Bitmap bitmap = uncompress(img.data);
                 long frameNumber = img.frameNumber;
                 boolean isInner = img.isInner;
                 if (isInner)
-                    frameProcessor = new InnerProcessor(bitmap, context);
+                    frameProcessor = new InnerProcessor(bitmap);
                 else
-                    frameProcessor = new OuterProcessor(bitmap, context);
+                    frameProcessor = new OuterProcessor(bitmap);
 
-                TimeLog.worker.add(img.frameNumber + ""); // Run FrameProcessor
+                TimeLog.worker.add(img.frameNumber + ""); // Process Frame
                 String resultString = frameProcessor.run();
 
                 sendResult(isInner, frameNumber, resultString);

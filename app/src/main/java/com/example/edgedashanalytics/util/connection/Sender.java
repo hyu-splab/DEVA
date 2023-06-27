@@ -5,7 +5,7 @@ import android.os.Handler;
 public class Sender {
     public static final int port = 5555;
     private SenderThread thread;
-    private String ip;
+    public String ip;
 
     public Sender(String ip) {
         this.ip = ip;

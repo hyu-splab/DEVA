@@ -16,20 +16,15 @@ public class TimeLog {
 
     private static final String[] coordinatorColumns = {
             "Frame Number",
-            "Distribution Algorithm",
-            "Send to Communicator",
-            "Send to Worker",
+            "Distribute",
             "Wait for Result",
             "Total"
     };
     private static final String[] workerColumns = {
             "Frame Number",
-            "Send to WorkerThread",
-            "Notify Availability",
-            "Uncompress Bitmap",
-            "Run FrameProcessor",
-            "Start Sending Result",
-            "Return Result to Coordinator",
+            "Enqueue",
+            "Uncompress",
+            "Process Frame",
             "Total"
     };
 
@@ -122,8 +117,6 @@ public class TimeLog {
                         Log.d(TAG, "finish() hasn't been called for log '" + test.name + "' ");
                         continue;
                     }
-                    if (!isWorker)
-                        Log.d(TAG, "has " + test.checkPoints.size() + " columns");
                     sb.append(test.name).append(",");
                     ArrayList<Test.CheckPoint> cp = test.checkPoints;
                     earliest = Math.min(earliest, cp.get(0).timestamp);
@@ -187,6 +180,7 @@ public class TimeLog {
 
         public void add() {
             checkPoints.add(new CheckPoint());
+            //Log.d(TAG, name + ": checkpoint added at " + checkPoints.get(checkPoints.size() - 1).timestamp);
         }
 
         public void addEmpty() {
@@ -195,6 +189,7 @@ public class TimeLog {
 
         public void finish() {
             checkPoints.add(new CheckPoint());
+            //Log.d(TAG, name + ": checkpoint added at " + checkPoints.get(checkPoints.size() - 1).timestamp);
             isFinished = true;
         }
 

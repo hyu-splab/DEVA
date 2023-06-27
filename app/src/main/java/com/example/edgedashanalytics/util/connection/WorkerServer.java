@@ -63,9 +63,9 @@ public class WorkerServer {
                         public void handleMessage(Message msg) {
                             WorkerMessage wMsg = new WorkerMessage(ProcessorThread.queue.size(), msg.obj);
                             try {
-                                TimeLog.worker.add(((Result2)msg.obj).frameNumber + ""); // Return Result to Coordinator
+                                TimeLog.worker.finish(((Result2)msg.obj).frameNumber + ""); // Return Result
                                 outstream.writeObject(wMsg);
-                                TimeLog.worker.finish(((Result2)msg.obj).frameNumber + ""); // Finish
+                                outstream.flush();
                             } catch (IOException e) {
                                 throw new RuntimeException(e);
                             }
@@ -80,25 +80,23 @@ public class WorkerServer {
                     while (true) {
                         // start
                         Image2 image = (Image2) instream.readObject();
-                        TimeLog.worker.start(image.frameNumber + ""); // Send to WorkerThread
+                        TimeLog.worker.start(image.frameNumber + ""); // Enqueue
                         cnt++;
 
-                        //Log.d(TAG, "Worker start processing: " + image.frameNumber);
+                        ProcessorThread.queue.offer(image);
 
-                        ProcessorThread.queue.add(image);
-
-                        if (cnt % 10 == 0) {
+                        /*if (cnt % 10 == 0) {
                             StringBuilder sb = new StringBuilder();
                             sb.append("Thread working progress: ");
                             for (int i = 0; i < WorkerThread.N_THREAD; i++) {
                                 sb.append(WorkerThread.pt[i].workCount).append(" ");
                             }
                             Log.d(TAG, sb.toString());
-                        }
+                        }*/
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
-                    socket.close(); //소켓 해제
+                    socket.close();
                     throw new RuntimeException();
                 }
             } catch (Exception e) {

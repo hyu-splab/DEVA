@@ -17,8 +17,8 @@ import java.util.HashMap;
 public class Connection {
     private static final String TAG = "Connection";
     private static ArrayList<Sender> senders = new ArrayList<>();
-    private static long innerCount = 0, outerCount = 0, totalCount = 0, processed = 0;
-    private static long startTime;
+    public static long innerCount = 0, outerCount = 0, totalCount = 0, processed = 0;
+    public static long startTime;
     public static void runImageStreaming() {
         // Start streaming images
         // 1. Connect to the DashCam (a sender application on another Android phone)
@@ -36,43 +36,35 @@ public class Connection {
         Handler handler = new Handler(Looper.getMainLooper()) {
             @Override
             public void handleMessage(Message inputMessage) {
+                totalCount++;
+                TimeLog.coordinator.start(totalCount + ""); // Distribute
                 boolean isInner = (inputMessage.what == Receiver.IMAGE_INNER);
                 if (isInner)
                     innerCount++;
                 else
                     outerCount++;
-                if (totalCount == 0)
-                    startTime = System.currentTimeMillis();
-                totalCount++;
-
-                TimeLog.coordinator.start(totalCount + ""); // Distribution Algorithm
 
                 Sender sender = null;
                 long bestScore = Long.MAX_VALUE;
-                int avail = 0;
                 for (int i = 0; i < senders.size(); i++) {
                     Sender s = senders.get(i);
+                    //Log.d(TAG, "sender " + i + ": " + s.getScore());
                     long score = s.getScore();
-                    if (score != Long.MAX_VALUE)
-                        avail++;
                     if (score >= bestScore)
                         continue;
                     bestScore = score;
                     sender = s;
                 }
 
-                //Log.d(TAG, senders.size() + " worker(s), " + avail + " available, best score = " + bestScore);
-
-                if (sender == null || bestScore >= 5) {
-                    TimeLog.coordinator.addEmpty(totalCount + "", 3); // No-ops
+                if (sender == null || bestScore >= 3) {
+                    TimeLog.coordinator.addEmpty(totalCount + "", 1); // No-ops
                     // Uncomment this to include dropped frames
                     // TimeLog.coordinator.finish(totalCount + "");
                     return;
                 }
                 processed++;
 
-                TimeLog.coordinator.add(totalCount + ""); // Send to Communicator
-
+                sender.setScore(sender.getScore() + 1); // so that it doesn't send multiple items repeatedly
                 Handler senderHandler = sender.getHandler();
                 while (senderHandler == null) {
                     Log.w(TAG, "senderHandler is still null!!");
@@ -83,8 +75,7 @@ public class Connection {
                 }
                 Message senderMessage = Message.obtain();
                 senderMessage.what = 999;
-                Image2 img = new Image2(isInner, /*isInner ? innerCount : outerCount*/ totalCount, (byte[]) inputMessage.obj);
-                senderMessage.obj = img;
+                senderMessage.obj = new Image2(isInner, /*isInner ? innerCount : outerCount*/ totalCount, (byte[]) inputMessage.obj);
                 senderHandler.sendMessage(senderMessage);
 
                 if (totalCount % 10 == 0) {
@@ -115,7 +106,7 @@ public class Connection {
         p.put("pixel5", "192.168.68.145");
         p.put("lineage2", "192.168.68.72");
 
-        String[] workerList = {"self"};
+        String[] workerList = {"self", "oppo"};
         for (String name : workerList) {
             Sender sender = new Sender(p.get(name));
             sender.run();

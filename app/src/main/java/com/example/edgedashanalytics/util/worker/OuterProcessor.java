@@ -11,11 +11,9 @@ import com.example.edgedashanalytics.util.video.analysis.OuterAnalysis;
 
 public class OuterProcessor extends FrameProcessor {
     private static final String TAG = "OuterProcessor";
-    static OuterAnalysis analyzer;
-    public OuterProcessor(Bitmap bitmap, Context context) {
+    public static OuterAnalysis analyzer;
+    public OuterProcessor(Bitmap bitmap) {
         super(bitmap);
-        if (analyzer == null)
-            analyzer = new OuterAnalysis(context);
     }
 
     @Override
@@ -23,7 +21,6 @@ public class OuterProcessor extends FrameProcessor {
         Frame result = analyzer.analyse(frame);
         String resultString = JsonManager.writeToString(result);
 
-        //Log.d(TAG, "Outer result = " + resultString);
         return resultString;
     }
 }

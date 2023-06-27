@@ -47,12 +47,11 @@ public class SenderThread extends Thread {
             public void handleMessage(Message inputMessage) {
                 // score = Long.MAX_VALUE;
                 try {
-                    //Log.d(TAG, "sending to the worker...");
-                    TimeLog.coordinator.add(((Image2)inputMessage.obj).frameNumber + ""); // Send to Worker
-                    outstream.writeObject(inputMessage.obj);
-                    outstream.flush();
-                    outstream.reset();
+                    //Log.d(TAG, "sending to the worker: " + ip);
                     TimeLog.coordinator.add(((Image2)inputMessage.obj).frameNumber + ""); // Wait for Result
+                    outstream.writeObject(inputMessage.obj);
+                    //outstream.flush();
+                    outstream.reset();
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -62,6 +61,7 @@ public class SenderThread extends Thread {
         try {
             Log.d(TAG, "Trying to connect to worker: " + ip + ":" + port);
             socket = new Socket(ip, port);
+            Log.d(TAG, "connected to " + ip);
             score = 0;
             outstream = new ObjectOutputStream(socket.getOutputStream());
             instream = new ObjectInputStream(socket.getInputStream());

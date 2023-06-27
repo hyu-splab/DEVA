@@ -59,28 +59,30 @@ public class InnerAnalysis extends VideoAnalysis {
     public InnerAnalysis(Context context) {
         super(context);
 
-        if (!interpreterQueue.isEmpty()) {
-            return;
-        }
+        synchronized (interpreterQueue) {
+            if (!interpreterQueue.isEmpty()) {
+                return;
+            }
 
-        String defaultModel = context.getString(R.string.default_pose_model_key);
-        SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(context);
-        String modelFilename = pref.getString(context.getString(R.string.pose_model_key), defaultModel);
+            String defaultModel = context.getString(R.string.default_pose_model_key);
+            SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(context);
+            String modelFilename = pref.getString(context.getString(R.string.pose_model_key), defaultModel);
 
-        Interpreter.Options options = new Interpreter.Options();
-        options.setUseXNNPACK(true);
-        options.setNumThreads(TF_THREAD_NUM);
-        for (int i = 0; i < THREAD_NUM; i++) {
-            try {
-                Interpreter temp = new Interpreter(FileUtil.loadMappedFile(context, modelFilename), options);
-                if (interpreterQueue.isEmpty()) {
-                    inputWidth = temp.getInputTensor(0).shape()[1];
-                    inputHeight = temp.getInputTensor(0).shape()[2];
-                    outputShape = temp.getOutputTensor(0).shape();
+            Interpreter.Options options = new Interpreter.Options();
+            options.setUseXNNPACK(true);
+            options.setNumThreads(TF_THREAD_NUM);
+            for (int i = 0; i < THREAD_NUM; i++) {
+                try {
+                    Interpreter temp = new Interpreter(FileUtil.loadMappedFile(context, modelFilename), options);
+                    if (interpreterQueue.isEmpty()) {
+                        inputWidth = temp.getInputTensor(0).shape()[1];
+                        inputHeight = temp.getInputTensor(0).shape()[2];
+                        outputShape = temp.getOutputTensor(0).shape();
+                    }
+                    interpreterQueue.add(temp);
+                } catch (IOException e) {
+                    Log.w(I_TAG, String.format("Model failure:\n  %s", e.getMessage()));
                 }
-                interpreterQueue.add(temp);
-            } catch (IOException e) {
-                Log.w(I_TAG, String.format("Model failure:\n  %s", e.getMessage()));
             }
         }
     }
