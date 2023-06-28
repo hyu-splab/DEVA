@@ -3,6 +3,9 @@ package com.example.edgedashanalytics.util.log;
 import android.content.Context;
 import android.util.Log;
 
+import com.example.edgedashanalytics.util.connection.Connection;
+import com.example.edgedashanalytics.util.connection.WorkerServer;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.util.ArrayList;
@@ -149,9 +152,17 @@ public class TimeLog {
 
                 sb.append("summary,");
                 long totalTime = latest - earliest;
-                sb.append(finishedCount).append(",").append(totalTime).append(",")
-                        .append(String.format(Locale.getDefault(), "%.3f,%.3f\n",
-                                finishedCount * 1000.0 / totalTime, finishedCount * 500.0 / totalTime));
+                long innerCount = isWorker ? WorkerServer.innerCount : Connection.innerCount;
+                long outerCount = isWorker ? WorkerServer.outerCount : Connection.outerCount;
+                sb.append(isWorker ? finishedCount : Connection.totalCount).append(",");
+                if (!isWorker)
+                    sb.append(Connection.processed).append(",").append(Connection.dropped).append(",");
+                sb.append(totalTime).append(",")
+                        .append(String.format(Locale.getDefault(), "%.3f,",
+                                finishedCount * 1000.0 / totalTime))
+                        .append(innerCount + outerCount).append(",")
+                        .append(innerCount).append(",").append(outerCount).append("\n");
+
 
                 try (FileOutputStream stream = new FileOutputStream(file)) {
                     stream.write(sb.toString().getBytes());

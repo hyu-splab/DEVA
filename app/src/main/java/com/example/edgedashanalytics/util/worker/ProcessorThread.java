@@ -17,7 +17,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 public class ProcessorThread extends Thread {
-    static public ArrayBlockingQueue<Image2> queue = new ArrayBlockingQueue<>(5);
+    static public ArrayBlockingQueue<Image2> queue = new ArrayBlockingQueue<>(1000);
     static public Handler handler;
 
     public int tid = 0;

@@ -29,6 +29,8 @@ public class WorkerServer {
     private Handler inHandler;
     private Thread thread;
 
+    public static long innerCount = 0, outerCount = 0;
+
     // We only need one instance of this server as it will 1 to 1 connect to the central device
     // so no need to provide additional information
 
@@ -61,8 +63,14 @@ public class WorkerServer {
                     inHandler = new Handler(Looper.myLooper()) {
                         @Override
                         public void handleMessage(Message msg) {
-                            WorkerMessage wMsg = new WorkerMessage(ProcessorThread.queue.size(), msg.obj);
                             try {
+                                long score = ProcessorThread.queue.size();
+                                Result2 res = (Result2) msg.obj;
+                                if (res.isInner)
+                                    innerCount++;
+                                else
+                                    outerCount++;
+                                WorkerMessage wMsg = new WorkerMessage(score, res);
                                 TimeLog.worker.finish(((Result2)msg.obj).frameNumber + ""); // Return Result
                                 outstream.writeObject(wMsg);
                                 outstream.flush();

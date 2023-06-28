@@ -17,7 +17,7 @@ import java.util.HashMap;
 public class Connection {
     private static final String TAG = "Connection";
     private static ArrayList<Sender> senders = new ArrayList<>();
-    public static long innerCount = 0, outerCount = 0, totalCount = 0, processed = 0;
+    public static long innerCount = 0, outerCount = 0, totalCount = 0, processed = 0, dropped = 0;
     public static long startTime;
     public static void runImageStreaming() {
         // Start streaming images
@@ -56,13 +56,20 @@ public class Connection {
                     sender = s;
                 }
 
+                boolean useDropping = true;
+
+                //Log.d(TAG, "bestScore = " + bestScore);
+
                 if (sender == null || bestScore >= 3) {
-                    TimeLog.coordinator.addEmpty(totalCount + "", 1); // No-ops
                     // Uncomment this to include dropped frames
                     // TimeLog.coordinator.finish(totalCount + "");
-                    return;
+                    if (useDropping) {
+                        TimeLog.coordinator.addEmpty(totalCount + "", 1); // No-ops
+                        dropped++;
+                        return;
+                    }
+                    sender = senders.get(0); // If we don't use dropping, let the coordinator do the job
                 }
-                processed++;
 
                 sender.setScore(sender.getScore() + 1); // so that it doesn't send multiple items repeatedly
                 Handler senderHandler = sender.getHandler();
@@ -106,7 +113,7 @@ public class Connection {
         p.put("pixel5", "192.168.68.145");
         p.put("lineage2", "192.168.68.72");
 
-        String[] workerList = {"self", "oppo"};
+        String[] workerList = {"self"};
         for (String name : workerList) {
             Sender sender = new Sender(p.get(name));
             sender.run();

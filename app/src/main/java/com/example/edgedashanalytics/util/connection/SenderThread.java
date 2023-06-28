@@ -50,7 +50,7 @@ public class SenderThread extends Thread {
                     //Log.d(TAG, "sending to the worker: " + ip);
                     TimeLog.coordinator.add(((Image2)inputMessage.obj).frameNumber + ""); // Wait for Result
                     outstream.writeObject(inputMessage.obj);
-                    //outstream.flush();
+                    outstream.flush();
                     outstream.reset();
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -87,6 +87,7 @@ public class SenderThread extends Thread {
                     WorkerMessage msg = (WorkerMessage) instream.readObject();
                     Result2 res = (Result2) msg.msg;
                     score = msg.score;
+                    Connection.processed++;
                     TimeLog.coordinator.finish(res.frameNumber + ""); // Finish
                     //Log.d(TAG, "Got response from the server: isInner = "
                             //+ res.isInner + ", frameNumber = " + res.frameNumber);
