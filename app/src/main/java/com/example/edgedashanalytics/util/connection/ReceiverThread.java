@@ -10,6 +10,7 @@ import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
 
+import com.example.edgedashanalytics.page.main.MainActivity;
 import com.example.edgedashanalytics.util.log.TimeLog;
 
 import org.tensorflow.lite.DataType;
@@ -27,6 +28,8 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class ReceiverThread extends Thread {
     static final String TAG = "ReceiverThread";
@@ -54,8 +57,14 @@ public class ReceiverThread extends Thread {
             try {
                 while (true) {
                     byte[] data = (byte[]) instream.readObject();
-                    if (totalCount == 1)
-                        Connection.startTime = System.currentTimeMillis();
+                    if (totalCount == 1) {
+                        new Timer().schedule(new TimerTask() {
+                            @Override
+                            public void run() {
+                                TimeLog.coordinator.writeLogs();
+                            }
+                        }, MainActivity.experimentDuration);
+                    }
 
                     //outstream.writeObject("ok");
 

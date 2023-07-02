@@ -88,10 +88,14 @@ public class SenderThread extends Thread {
                     Result2 res = (Result2) msg.msg;
                     score = msg.score;
                     Connection.processed++;
+                    if (res.isInner)
+                        Connection.innerCount++;
+                    else
+                        Connection.outerCount++;
                     TimeLog.coordinator.finish(res.frameNumber + ""); // Finish
                     //Log.d(TAG, "Got response from the server: isInner = "
                             //+ res.isInner + ", frameNumber = " + res.frameNumber);
-                    //Log.d(TAG, "frameNumber = " + res.frameNumber + ", msg = " + res.msg);
+                    //Log.d(TAG, res.msg);
 
                 } catch (Exception e) {
                     e.printStackTrace();

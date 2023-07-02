@@ -31,6 +31,8 @@ public class TimeLog {
             "Total"
     };
 
+    public static Context context;
+
     public static TimeLog coordinator = new TimeLog(false), worker = new TimeLog(true);
 
     public static void clearLogs() {
@@ -94,7 +96,7 @@ public class TimeLog {
         ls.add(test);
     }
 
-    public void writeLogs(Context context) {
+    public void writeLogs() {
         synchronized (map) {
             // Sort the results
             Collections.sort(ls);
@@ -171,6 +173,15 @@ public class TimeLog {
                 e.printStackTrace();
             }
             Log.d(TAG, "wrote log in " + file.getAbsolutePath());
+            Log.d(TAG, "============== TEST ENDED ==============");
+            Log.d(TAG, "============== TEST ENDED ==============");
+            Log.d(TAG, "============== TEST ENDED ==============");
+            Log.d(TAG, "============== TEST ENDED ==============");
+            Log.d(TAG, "============== TEST ENDED ==============");
+            Log.d(TAG, "============== TEST ENDED ==============");
+            Log.d(TAG, "============== TEST ENDED ==============");
+            Log.d(TAG, "============== TEST ENDED ==============");
+
         }
     }
 

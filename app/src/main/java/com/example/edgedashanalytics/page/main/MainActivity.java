@@ -73,6 +73,8 @@ public class MainActivity extends AppCompatActivity implements
     private static final String TAG = MainActivity.class.getSimpleName();
     public static final String I_TAG = "Important";
 
+    public static final long experimentDuration = 20 * 1000;
+
     private VideoFragment rawFragment;
     private VideoFragment processingFragment;
     private ResultsFragment resultsFragment;
@@ -123,9 +125,9 @@ public class MainActivity extends AppCompatActivity implements
 
         findViewById(R.id.buttonStop).setOnClickListener(view -> {
             Log.d(TAG, "Test finished");
-            TimeLog.coordinator.writeLogs(getApplicationContext());
-            TimeLog.worker.writeLogs(getApplicationContext());
         });
+
+        TimeLog.context = getApplicationContext();
 
         checkPermissions();
         scanVideoDirectories();

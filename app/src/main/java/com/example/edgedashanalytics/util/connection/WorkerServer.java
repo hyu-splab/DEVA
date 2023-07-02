@@ -9,6 +9,7 @@ import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
 
+import com.example.edgedashanalytics.page.main.MainActivity;
 import com.example.edgedashanalytics.util.log.TimeLog;
 import com.example.edgedashanalytics.util.video.analysis.Image2;
 import com.example.edgedashanalytics.util.video.analysis.Result2;
@@ -22,6 +23,8 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class WorkerServer {
     private static final String TAG = "WorkerServer";
@@ -88,6 +91,14 @@ public class WorkerServer {
                     while (true) {
                         // start
                         Image2 image = (Image2) instream.readObject();
+                        if (cnt == 0) {
+                            new Timer().schedule(new TimerTask() {
+                                @Override
+                                public void run() {
+                                    TimeLog.worker.writeLogs();
+                                }
+                            }, MainActivity.experimentDuration);
+                        }
                         TimeLog.worker.start(image.frameNumber + ""); // Enqueue
                         cnt++;
 

@@ -108,7 +108,7 @@ public abstract class VideoAnalysis {
     }
 
     public Frame analyse(Bitmap bitmap) {
-        setup(640, 480);
+        setup(1280, 720);
         return processFrame(bitmap, 1, 1.0f);
     }
 

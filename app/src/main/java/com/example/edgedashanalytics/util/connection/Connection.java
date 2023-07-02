@@ -39,10 +39,6 @@ public class Connection {
                 totalCount++;
                 TimeLog.coordinator.start(totalCount + ""); // Distribute
                 boolean isInner = (inputMessage.what == Receiver.IMAGE_INNER);
-                if (isInner)
-                    innerCount++;
-                else
-                    outerCount++;
 
                 Sender sender = null;
                 long bestScore = Long.MAX_VALUE;
@@ -56,11 +52,11 @@ public class Connection {
                     sender = s;
                 }
 
-                boolean useDropping = true;
+                boolean useDropping = false;
 
                 //Log.d(TAG, "bestScore = " + bestScore);
 
-                if (sender == null || bestScore >= 3) {
+                if (sender == null || bestScore >= 2) {
                     // Uncomment this to include dropped frames
                     // TimeLog.coordinator.finish(totalCount + "");
                     if (useDropping) {
@@ -113,7 +109,7 @@ public class Connection {
         p.put("pixel5", "192.168.68.145");
         p.put("lineage2", "192.168.68.72");
 
-        String[] workerList = {"self"};
+        String[] workerList = {"self", "lineage2"};
         for (String name : workerList) {
             Sender sender = new Sender(p.get(name));
             sender.run();

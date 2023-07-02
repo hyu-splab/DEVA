@@ -210,11 +210,15 @@ public class InnerAnalysis extends VideoAnalysis {
         int size = Math.min(height, width);
         cropRegion = initRectF(width, height);
 
-        for (int i = 0; i < THREAD_NUM; i++) {
-            processorQueue.add(new ImageProcessor.Builder()
-                    .add(new ResizeWithCropOrPadOp(size, size))
-                    .add(new ResizeOp(inputHeight, inputWidth, ResizeOp.ResizeMethod.BILINEAR))
-                    .build());
+        try {
+            for (int i = 0; i < THREAD_NUM; i++) {
+                processorQueue.add(new ImageProcessor.Builder()
+                        .add(new ResizeWithCropOrPadOp(size, size))
+                        .add(new ResizeOp(inputHeight, inputWidth, ResizeOp.ResizeMethod.BILINEAR))
+                        .build());
+            }
+        } catch (Exception e) {
+            ;
         }
     }
 
