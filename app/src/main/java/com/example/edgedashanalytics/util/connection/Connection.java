@@ -19,6 +19,7 @@ public class Connection {
     private static ArrayList<Sender> senders = new ArrayList<>();
     public static long innerCount = 0, outerCount = 0, totalCount = 0, processed = 0, dropped = 0;
     public static long startTime;
+    public static boolean isFinished = false;
     public static void runImageStreaming() {
         // Start streaming images
         // 1. Connect to the DashCam (a sender application on another Android phone)
@@ -52,11 +53,11 @@ public class Connection {
                     sender = s;
                 }
 
-                boolean useDropping = false;
+                boolean useDropping = true;
 
                 //Log.d(TAG, "bestScore = " + bestScore);
 
-                if (sender == null || bestScore >= 2) {
+                if (sender == null || bestScore >= 3) {
                     // Uncomment this to include dropped frames
                     // TimeLog.coordinator.finish(totalCount + "");
                     if (useDropping) {
@@ -102,14 +103,14 @@ public class Connection {
 
         HashMap<String, String> p = new HashMap<>();
         p.put("self", "127.0.0.1");
-        p.put("lineage", "192.168.68.32");
-        p.put("oneplus", "192.168.68.172");
-        p.put("pixel6", "192.168.68.79");
-        p.put("oppo", "192.168.68.230");
-        p.put("pixel5", "192.168.68.145");
-        p.put("lineage2", "192.168.68.72");
+        p.put("lineage", "192.168.67.32");
+        p.put("oneplus", "192.168.67.172");
+        p.put("pixel6", "192.168.67.79");
+        p.put("oppo", "192.168.67.230");
+        p.put("pixel5", "192.168.67.145");
+        p.put("lineage2", "192.168.67.72");
 
-        String[] workerList = {"self", "lineage2"};
+        String[] workerList = {"self", "lineage2", "oppo"};
         for (String name : workerList) {
             Sender sender = new Sender(p.get(name));
             sender.run();

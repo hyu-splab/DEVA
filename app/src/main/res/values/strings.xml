@@ -69,7 +69,7 @@
 
     <!-- Models -->
     <string name="default_object_model_key" tools:ignore="Typos">@string/mobilenet_v1_key</string>
-    <string name="mobilenet_v1_title" tools:ignore="Typos">MobileNetV1</string>
+    <string name="mobilenet_v1_title" tools:ignore="Typos">MobileNetV       1</string>
     <string name="mobilenet_v1_key" tools:ignore="Typos">lite-model_ssd_mobilenet_v1_1_metadata_2.tflite</string>
     <string name="efficientdet_lite0_title">EfficientDet-Lite0</string>
     <string name="efficientdet_lite0_key">lite-model_efficientdet_lite0_detection_metadata_1.tflite</string>
@@ -95,6 +95,7 @@
     <string name="least_busy_algorithm_title">Least busy</string>
     <string name="least_busy_algorithm_key">least_busy</string>
     <string name="fastest_cpu_algorithm_title">Fastest CPU</string>
+
     <string name="fastest_cpu_algorithm_key">fastest_cpu</string>
     <string name="most_cpu_cores_algorithm_title">Most CPU cores</string>
     <string name="most_cpu_cores_algorithm_key">most_cpu_cores</string>

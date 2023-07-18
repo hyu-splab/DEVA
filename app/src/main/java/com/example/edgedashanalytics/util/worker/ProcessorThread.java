@@ -26,6 +26,8 @@ public class ProcessorThread extends Thread {
     @Override
     public void run() {
         FrameProcessor frameProcessor = null;
+        InnerProcessor innerProcessor = new InnerProcessor();
+        OuterProcessor outerProcessor = new OuterProcessor();
         while (true) {
             try {
                 Image2 img = queue.take();
@@ -33,14 +35,18 @@ public class ProcessorThread extends Thread {
                 TimeLog.worker.add(img.frameNumber + ""); // Uncompress
 
                 Bitmap bitmap = uncompress(img.data);
+
+                TimeLog.worker.add(img.frameNumber + ""); // Process Frame
+
                 long frameNumber = img.frameNumber;
                 boolean isInner = img.isInner;
                 if (isInner)
-                    frameProcessor = new InnerProcessor(bitmap);
+                    frameProcessor = innerProcessor;
                 else
-                    frameProcessor = new OuterProcessor(bitmap);
+                    frameProcessor = outerProcessor;
 
-                TimeLog.worker.add(img.frameNumber + ""); // Process Frame
+                frameProcessor.setFrame(bitmap);
+
                 String resultString = frameProcessor.run();
 
                 sendResult(isInner, frameNumber, resultString);

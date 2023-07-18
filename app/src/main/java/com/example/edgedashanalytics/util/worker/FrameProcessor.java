@@ -6,8 +6,9 @@ import com.example.edgedashanalytics.util.video.analysis.Frame;
 
 abstract public class FrameProcessor {
     Bitmap frame;
-    public FrameProcessor(Bitmap bitmap) {
-        this.frame = bitmap;
+
+    public void setFrame(Bitmap frame) {
+        this.frame = frame;
     }
 
     abstract public String run();

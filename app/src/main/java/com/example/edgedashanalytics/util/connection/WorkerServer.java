@@ -91,6 +91,8 @@ public class WorkerServer {
                     while (true) {
                         // start
                         Image2 image = (Image2) instream.readObject();
+                        if (Connection.isFinished)
+                            continue;
                         if (cnt == 0) {
                             new Timer().schedule(new TimerTask() {
                                 @Override

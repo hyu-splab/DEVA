@@ -1,5 +1,7 @@
 package com.example.edgedashanalytics.util.connection;
 
+import static com.example.edgedashanalytics.util.connection.Connection.isFinished;
+import static com.example.edgedashanalytics.util.connection.Connection.startTime;
 import static com.example.edgedashanalytics.util.connection.Connection.totalCount;
 
 import android.annotation.SuppressLint;
@@ -57,7 +59,10 @@ public class ReceiverThread extends Thread {
             try {
                 while (true) {
                     byte[] data = (byte[]) instream.readObject();
+                    if (Connection.isFinished)
+                        continue;
                     if (totalCount == 1) {
+                        startTime = System.currentTimeMillis();
                         new Timer().schedule(new TimerTask() {
                             @Override
                             public void run() {

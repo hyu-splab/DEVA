@@ -50,7 +50,7 @@ public abstract class VideoAnalysis {
                 context.getString(R.string.early_stop_divisor_key), String.valueOf(stopDivisor)));
     }
 
-    abstract Frame processFrame(Bitmap bitmap, int frameIndex, float scaleFactor);
+    abstract List<Frame> processFrame(Bitmap bitmap, int frameIndex, float scaleFactor);
 
     abstract void setup(int width, int height);
 
@@ -107,7 +107,7 @@ public abstract class VideoAnalysis {
         processVideo(inPath, outPath);
     }
 
-    public Frame analyse(Bitmap bitmap) {
+    public List<Frame> analyse(Bitmap bitmap) {
         setup(1280, 720);
         return processFrame(bitmap, 1, 1.0f);
     }
@@ -200,7 +200,7 @@ public abstract class VideoAnalysis {
             int videoWidth = Integer.parseInt(videoWidthString);
             int videoHeight = Integer.parseInt(videoHeightString);
 
-            float scaleFactor = getScaleFactor(videoWidth);
+            float scaleFactor = 1.0f; // getScaleFactor(videoWidth);
             int scaledWidth = (int) (videoWidth / scaleFactor);
             int scaledHeight = (int) (videoHeight / scaleFactor);
 
@@ -211,7 +211,7 @@ public abstract class VideoAnalysis {
                 final Bitmap bitmap = retriever.getFrameAtIndex(i);
                 final int k = i;
                 executor.execute(() -> frames.add(processFrame(
-                        Bitmap.createScaledBitmap(bitmap, scaledWidth, scaledHeight, false), k, scaleFactor)
+                        Bitmap.createScaledBitmap(bitmap, scaledWidth, scaledHeight, false), k, scaleFactor).get(0)
                 ));
             }
         };

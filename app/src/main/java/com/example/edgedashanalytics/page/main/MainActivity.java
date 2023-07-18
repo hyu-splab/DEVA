@@ -129,6 +129,10 @@ public class MainActivity extends AppCompatActivity implements
 
         TimeLog.context = getApplicationContext();
 
+        File path = getApplicationContext().getExternalFilesDir(null);
+        new File(path, "wlog.txt").delete();
+        new File(path, "clog.txt").delete();
+
         checkPermissions();
         scanVideoDirectories();
         setToolBarAsTheAppBar();

@@ -47,126 +47,113 @@ public class OuterAnalysis extends VideoAnalysis {
 
     private static int inputSize;
 
-    private static final BlockingQueue<ObjectDetector> detectorQueue = new LinkedBlockingQueue<>(THREAD_NUM);
+    private ArrayList<ObjectDetector> detectorList = new ArrayList<>();
 
     // Include or exclude bicycles?
     private static final ArrayList<String> vehicleCategories = new ArrayList<>(Arrays.asList(
             "bicycle", "car", "motorcycle", "bus", "truck"
     ));
 
+    private static final int[] models = {
+            //R.string.mobilenet_v1_key,
+            R.string.efficientdet_lite0_key,
+            //R.string.efficientdet_lite1_key,
+            //R.string.efficientdet_lite2_key,
+            //R.string.efficientdet_lite3_key,
+            //R.string.efficientdet_lite4_key
+    };
+
     public OuterAnalysis(Context context) {
         super(context);
 
-        synchronized (detectorQueue) {
-            if (!detectorQueue.isEmpty()) {
-                return;
-            }
+        BaseOptions baseOptions = BaseOptions.builder().setNumThreads(TF_THREAD_NUM).build();
 
-            String defaultModel = context.getString(R.string.default_object_model_key);
-            SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(context);
-            String modelFilename = pref.getString(context.getString(R.string.object_model_key), defaultModel);
+        ObjectDetector.ObjectDetectorOptions objectDetectorOptions = ObjectDetector.ObjectDetectorOptions.builder()
+                .setBaseOptions(baseOptions)
+                .setMaxResults(MAX_DETECTIONS)
+                .setScoreThreshold(MIN_SCORE)
+                .build();
 
-            BaseOptions baseOptions;
-            if (modelFilename.equals(defaultModel)) {
-                baseOptions = BaseOptions.builder().setNumThreads(TF_THREAD_NUM).useNnapi().build();
-            } else {
-                baseOptions = BaseOptions.builder().setNumThreads(TF_THREAD_NUM).build();
-            }
-
-            ObjectDetector.ObjectDetectorOptions objectDetectorOptions = ObjectDetector.ObjectDetectorOptions.builder()
-                    .setBaseOptions(baseOptions)
-                    .setMaxResults(MAX_DETECTIONS)
-                    .setScoreThreshold(MIN_SCORE)
-                    .build();
+        SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(context);
+        for (int model : models) {
+            String modelFilename = pref.getString("pose_model", context.getString(model));
 
             try (Interpreter interpreter = new Interpreter(FileUtil.loadMappedFile(context, modelFilename))) {
-                inputSize = interpreter.getInputTensor(0).shape()[1];
+                if (detectorList.isEmpty())
+                    inputSize = interpreter.getInputTensor(0).shape()[1];
             } catch (IOException e) {
                 Log.w(I_TAG, String.format("Model failure:\n  %s", e.getMessage()));
             }
 
-            for (int i = 0; i < THREAD_NUM; i++) {
-                try {
-                    detectorQueue.add(ObjectDetector.createFromFileAndOptions(
-                            context, modelFilename, objectDetectorOptions));
-                } catch (IOException e) {
-                    Log.w(I_TAG, String.format("Model failure:\n  %s", e.getMessage()));
-                }
+            try {
+                detectorList.add(ObjectDetector.createFromFileAndOptions(
+                        context, modelFilename, objectDetectorOptions));
+            } catch (IOException e) {
+                Log.w(I_TAG, String.format("Model failure:\n  %s", e.getMessage()));
             }
         }
     }
 
-    OuterFrame processFrame(Bitmap bitmap, int frameIndex, float scaleFactor) {
-        ObjectDetector detector;
+    List<Frame> processFrame(Bitmap bitmap, int frameIndex, float scaleFactor) {
 
-        try {
-            detector = detectorQueue.poll(200, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException e) {
-            Log.w(I_TAG, String.format("Cannot acquire detector for frame %s:\n  %s", frameIndex, e.getMessage()));
-            return null;
-        }
+        ArrayList<Frame> resultList = new ArrayList<>();
+        for (ObjectDetector detector : detectorList) {
+            //Log.d(TAG, "1");
+            List<Detection> detectionList = detector.detect(TensorImage.fromBitmap(bitmap));
+            List<Hazard> hazards = new ArrayList<>(detectionList.size());
 
-        if (detector == null) {
-            Log.w(I_TAG, String.format("Detector for frame %s is null", frameIndex));
-            return null;
-        }
+            for (Detection detection : detectionList) {
+                //Log.d(TAG, "2");
+                List<Category> categoryList = detection.getCategories();
 
-        List<Detection> detectionList = detector.detect(TensorImage.fromBitmap(bitmap));
+                if (categoryList == null || categoryList.size() == 0) {
+                    continue;
+                }
+                Category category = categoryList.get(0);
 
-        try {
-            detectorQueue.put(detector);
-        } catch (InterruptedException e) {
-            Log.w(TAG, String.format("Unable to return detector to queue:\n  %s", e.getMessage()));
-        }
+                RectF detBox = detection.getBoundingBox();
+                Rect boundingBox = new Rect(
+                        (int) (detBox.left * scaleFactor),
+                        (int) (detBox.top * scaleFactor),
+                        (int) (detBox.right * scaleFactor),
+                        (int) (detBox.bottom * scaleFactor)
+                );
 
-        List<Hazard> hazards = new ArrayList<>(detectionList.size());
+                int origWidth = (int) (bitmap.getWidth() * scaleFactor);
+                int origHeight = (int) (bitmap.getHeight() * scaleFactor);
 
-        for (Detection detection : detectionList) {
-            List<Category> categoryList = detection.getCategories();
-
-            if (categoryList == null || categoryList.size() == 0) {
-                continue;
+                hazards.add(new Hazard(
+                        category.getLabel(),
+                        category.getScore(),
+                        isDanger(boundingBox, category.getLabel(), origWidth, origHeight),
+                        boundingBox
+                ));
             }
-            Category category = categoryList.get(0);
 
-            RectF detBox = detection.getBoundingBox();
-            Rect boundingBox = new Rect(
-                    (int) (detBox.left * scaleFactor),
-                    (int) (detBox.top * scaleFactor),
-                    (int) (detBox.right * scaleFactor),
-                    (int) (detBox.bottom * scaleFactor)
-            );
+            //Log.d(TAG, "3");
+            if (verbose) {
+                //Log.d(TAG, "4");
+                String resultHead = String.format(
+                        Locale.ENGLISH,
+                        "Analysis completed for frame: %04d\nDetected hazards: %02d\n",
+                        frameIndex, hazards.size()
+                );
+                StringBuilder builder = new StringBuilder(resultHead);
 
-            int origWidth = (int) (bitmap.getWidth() * scaleFactor);
-            int origHeight = (int) (bitmap.getHeight() * scaleFactor);
+                for (Hazard hazard : hazards) {
+                    builder.append("  ");
+                    builder.append(hazard.toString());
+                }
+                builder.append('\n');
 
-            hazards.add(new Hazard(
-                    category.getLabel(),
-                    category.getScore(),
-                    isDanger(boundingBox, category.getLabel(), origWidth, origHeight),
-                    boundingBox
-            ));
-        }
-
-        if (verbose) {
-            String resultHead = String.format(
-                    Locale.ENGLISH,
-                    "Analysis completed for frame: %04d\nDetected hazards: %02d\n",
-                    frameIndex, hazards.size()
-            );
-            StringBuilder builder = new StringBuilder(resultHead);
-
-            for (Hazard hazard : hazards) {
-                builder.append("  ");
-                builder.append(hazard.toString());
+                String resultMessage = builder.toString();
+                Log.v(TAG, resultMessage);
             }
-            builder.append('\n');
 
-            String resultMessage = builder.toString();
-            Log.v(TAG, resultMessage);
+            resultList.add(new OuterFrame(frameIndex, hazards));
         }
 
-        return new OuterFrame(frameIndex, hazards);
+        return resultList;
     }
 
     private boolean isDanger(Rect boundingBox, String category, int imageWidth, int imageHeight) {
@@ -205,7 +192,7 @@ public class OuterAnalysis extends VideoAnalysis {
     }
 
     float getScaleFactor(int width) {
-        return width / (float) inputSize;
+        return 1.0f; // width / (float) inputSize;
     }
 
     public void printParameters() {

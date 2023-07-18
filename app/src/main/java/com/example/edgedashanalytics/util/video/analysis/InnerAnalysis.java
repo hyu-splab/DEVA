@@ -26,7 +26,6 @@ import org.tensorflow.lite.support.image.ops.ResizeWithCropOrPadOp;
 import org.tensorflow.lite.support.tensorbuffer.TensorBuffer;
 
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -47,169 +46,170 @@ public class InnerAnalysis extends VideoAnalysis {
 
     private static final float MIN_SCORE = 0.2f;
 
-    private static int inputWidth;
-    private static int inputHeight;
-    private static int[] outputShape;
-
     private static RectF cropRegion;
 
-    private static final BlockingQueue<Interpreter> interpreterQueue = new LinkedBlockingQueue<>(THREAD_NUM);
-    private static final BlockingQueue<ImageProcessor> processorQueue = new LinkedBlockingQueue<>(THREAD_NUM);
+    // Let's do this per thread instead of sharing across threads
+    //private static final BlockingQueue<Interpreter> interpreterQueue = new LinkedBlockingQueue<>(THREAD_NUM);
+    //private static final BlockingQueue<ImageProcessor> processorQueue = new LinkedBlockingQueue<>(THREAD_NUM);
+
+    private static final int[] models = {R.string.movenet_lightning_key, R.string.movenet_thunder_key};
+
+    public int inputWidth, inputHeight;
+    public int[] outputShape;
+
+    class Analyzer {
+        Interpreter interpreter;
+        ImageProcessor imageProcessor;
+        public int inputWidth, inputHeight;
+        public int[] outputShape;
+
+        public Analyzer(Interpreter interpreter) {
+            this.interpreter = interpreter;
+            inputWidth = interpreter.getInputTensor(0).shape()[1];
+            inputHeight = interpreter.getInputTensor(0).shape()[2];
+            outputShape = interpreter.getOutputTensor(0).shape();
+
+            int size = Math.min(inputHeight, inputWidth);
+
+            imageProcessor = new ImageProcessor.Builder()
+                    .add(new ResizeWithCropOrPadOp(size, size))
+                    .add(new ResizeOp(inputHeight, inputWidth, ResizeOp.ResizeMethod.BILINEAR))
+                    .build();
+        }
+    }
+
+    private ArrayList<Analyzer> analyzerList = new ArrayList<>();
 
     public InnerAnalysis(Context context) {
         super(context);
 
-        synchronized (interpreterQueue) {
-            if (!interpreterQueue.isEmpty()) {
-                return;
-            }
+        /* TODO: Do multi-stage detection; aka. use multiple models to investigate each frame
+                 Should be adjustable so that the algorithm can be adaptive to its workload
+                 Maybe better to just allocate models per thread?
+        */
 
-            String defaultModel = context.getString(R.string.default_pose_model_key);
-            SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(context);
-            String modelFilename = pref.getString(context.getString(R.string.pose_model_key), defaultModel);
+        Interpreter.Options options = new Interpreter.Options();
+        options.setUseXNNPACK(true);
+        options.setNumThreads(TF_THREAD_NUM);
 
-            Interpreter.Options options = new Interpreter.Options();
-            options.setUseXNNPACK(true);
-            options.setNumThreads(TF_THREAD_NUM);
-            for (int i = 0; i < THREAD_NUM; i++) {
-                try {
-                    Interpreter temp = new Interpreter(FileUtil.loadMappedFile(context, modelFilename), options);
-                    if (interpreterQueue.isEmpty()) {
-                        inputWidth = temp.getInputTensor(0).shape()[1];
-                        inputHeight = temp.getInputTensor(0).shape()[2];
-                        outputShape = temp.getOutputTensor(0).shape();
-                    }
-                    interpreterQueue.add(temp);
-                } catch (IOException e) {
-                    Log.w(I_TAG, String.format("Model failure:\n  %s", e.getMessage()));
+        SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(context);
+        for (int model : models) {
+            String modelFilename = pref.getString("pose_model", context.getString(model));
+
+            try {
+                Interpreter interpreter = new Interpreter(FileUtil.loadMappedFile(context, modelFilename), options);
+                if (analyzerList.isEmpty()) {
+                    inputWidth = interpreter.getInputTensor(0).shape()[1];
+                    inputHeight = interpreter.getInputTensor(0).shape()[2];
+                    outputShape = interpreter.getOutputTensor(0).shape();
                 }
+                analyzerList.add(new Analyzer(interpreter));
+            } catch (IOException e) {
+                Log.w(I_TAG, String.format("Model failure:\n  %s", e.getMessage()));
             }
         }
     }
 
-    InnerFrame processFrame(Bitmap bitmap, int frameIndex, float scaleFactor) {
-        float totalScore = 0;
-        int numKeyPoints = outputShape[2];
+    List<Frame> processFrame(Bitmap bitmap, int frameIndex, float scaleFactor) {
 
-        RectF rect = new RectF(
-                cropRegion.left * bitmap.getWidth(),
-                cropRegion.top * bitmap.getHeight(),
-                cropRegion.right * bitmap.getWidth(),
-                cropRegion.bottom * bitmap.getHeight()
-        );
-        Bitmap detectBitmap = Bitmap.createBitmap((int) rect.width(), (int) rect.height(),
-                Bitmap.Config.ARGB_8888);
-        // Might just be for visualisation, may be unnecessary
-        Canvas canvas = new Canvas(detectBitmap);
-        canvas.drawBitmap(bitmap, -rect.left, -rect.top, null);
+        ArrayList<Frame> resultList = new ArrayList<>();
 
-        ImageProcessor imageProcessor;
+        for (Analyzer analyzer : analyzerList) {
+            setup(analyzer.inputWidth, analyzer.inputHeight);
+            RectF rect = new RectF(
+                    cropRegion.left * bitmap.getWidth(),
+                    cropRegion.top * bitmap.getHeight(),
+                    cropRegion.right * bitmap.getWidth(),
+                    cropRegion.bottom * bitmap.getHeight()
+            );
 
-        try {
-            imageProcessor = processorQueue.poll(200, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException e) {
-            Log.w(I_TAG, String.format("Cannot acquire processor for frame %s:\n  %s", frameIndex, e.getMessage()));
-            return null;
-        }
+            Bitmap detectBitmap = Bitmap.createBitmap((int) rect.width(), (int) rect.height(),
+                    Bitmap.Config.ARGB_8888);
+            // Might just be for visualisation, may be unnecessary
+            Canvas canvas = new Canvas(detectBitmap);
+            canvas.drawBitmap(bitmap, -rect.left, -rect.top, null);
 
-        if (imageProcessor == null) {
-            Log.w(I_TAG, String.format("Processor for frame %s is null", frameIndex));
-            return null;
-        }
+            Interpreter interpreter = analyzer.interpreter;
+            float totalScore = 0;
+            int numKeyPoints = analyzer.outputShape[2];
 
-        TensorImage inputTensor = imageProcessor.process(TensorImage.fromBitmap(bitmap));
+            TensorBuffer outputTensor = TensorBuffer.createFixedSize(analyzer.outputShape, DataType.FLOAT32);
+            float widthRatio = detectBitmap.getWidth() / (float) analyzer.inputWidth;
+            float heightRatio = detectBitmap.getHeight() / (float) analyzer.inputHeight;
 
-        try {
-            processorQueue.put(imageProcessor);
-        } catch (InterruptedException e) {
-            Log.w(TAG, String.format("Unable to return processor to queue:\n  %s", e.getMessage()));
-        }
-
-        TensorBuffer outputTensor = TensorBuffer.createFixedSize(outputShape, DataType.FLOAT32);
-        float widthRatio = detectBitmap.getWidth() / (float) inputWidth;
-        float heightRatio = detectBitmap.getHeight() / (float) inputHeight;
-
-        Interpreter interpreter;
-
-        try {
-            interpreter = interpreterQueue.poll(200, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException e) {
-            Log.w(I_TAG, String.format("Cannot acquire interpreter for frame %s:\n  %s", frameIndex, e.getMessage()));
-            return null;
-        }
-
-        if (interpreter == null) {
-            Log.w(I_TAG, String.format("Interpreter for frame %s is null", frameIndex));
-            return null;
-        }
-
-        interpreter.run(inputTensor.getBuffer(), outputTensor.getBuffer().rewind());
-
-        try {
-            interpreterQueue.put(interpreter);
-        } catch (InterruptedException e) {
-            Log.w(TAG, String.format("Unable to return interpreter to queue:\n  %s", e.getMessage()));
-        }
-
-        float[] output = outputTensor.getFloatArray();
-        List<Float> positions = new ArrayList<>();
-        List<KeyPoint> keyPoints = new ArrayList<>();
-
-        // Don't bother keeping results for keyPoints of lower body parts,
-        //  lower body part indexes start at BodyPart.LOWER_INDEX
-        for (int a = 0; a < numKeyPoints && a < BodyPart.LOWER_INDEX; a++) {
-            float x = output[a * 3 + 1] * inputWidth * widthRatio;
-            float y = output[a * 3] * inputHeight * heightRatio;
-
-            positions.add(x);
-            positions.add(y);
-
-            float score = output[a * 3 + 2];
-            keyPoints.add(new KeyPoint(BodyPart.AS_ARRAY[a], new PointF(x, y), score));
-            totalScore += score;
-        }
-
-        // Adjust keypoint coordinates to align with original bitmap dimensions
-        Matrix matrix = new Matrix();
-        float[] points = ArrayUtils.toPrimitive(positions.toArray(new Float[0]), 0f);
-
-        matrix.postTranslate(rect.left, rect.top);
-        matrix.mapPoints(points);
-
-        for (int i = 0; i < keyPoints.size(); i++) {
-            keyPoints.get(i).coordinate = new PointF(points[i * 2] * scaleFactor, points[i * 2 + 1] * scaleFactor);
-        }
-
-        if (verbose) {
-            String resultHead = String.format(Locale.ENGLISH,
-                    "Analysis completed for frame: %04d\nKeyPoints:\n", frameIndex);
-            StringBuilder builder = new StringBuilder(resultHead);
-
-            for (KeyPoint keyPoint : keyPoints) {
-                builder.append("  ");
-                builder.append(keyPoint.toString());
-                builder.append('\n');
+            if (interpreter == null) {
+                Log.w(I_TAG, String.format("Interpreter for frame %s is null", frameIndex));
+                return null;
             }
-            builder.append('\n');
 
-            String resultMessage = builder.toString();
-            Log.v(TAG, resultMessage);
+            ImageProcessor imageProcessor = analyzer.imageProcessor;
+            TensorImage inputTensor = imageProcessor.process(TensorImage.fromBitmap(bitmap));
+
+            interpreter.run(inputTensor.getBuffer(), outputTensor.getBuffer().rewind());
+
+            float[] output = outputTensor.getFloatArray();
+            List<Float> positions = new ArrayList<>();
+            List<KeyPoint> keyPoints = new ArrayList<>();
+
+            // Don't bother keeping results for keyPoints of lower body parts,
+            //  lower body part indexes start at BodyPart.LOWER_INDEX
+            for (int a = 0; a < numKeyPoints && a < BodyPart.LOWER_INDEX; a++) {
+                float x = output[a * 3 + 1] * analyzer.inputWidth * widthRatio;
+                float y = output[a * 3] * analyzer.inputHeight * heightRatio;
+
+                positions.add(x);
+                positions.add(y);
+
+                float score = output[a * 3 + 2];
+                keyPoints.add(new KeyPoint(BodyPart.AS_ARRAY[a], new PointF(x, y), score));
+                totalScore += score;
+            }
+
+            // Adjust keypoint coordinates to align with original bitmap dimensions
+            Matrix matrix = new Matrix();
+            float[] points = ArrayUtils.toPrimitive(positions.toArray(new Float[0]), 0f);
+
+            matrix.postTranslate(rect.left, rect.top);
+            matrix.mapPoints(points);
+
+            for (int i = 0; i < keyPoints.size(); i++) {
+                keyPoints.get(i).coordinate = new PointF(points[i * 2] * scaleFactor, points[i * 2 + 1] * scaleFactor);
+            }
+
+            if (verbose) {
+                String resultHead = String.format(Locale.ENGLISH,
+                        "Analysis completed for frame: %04d\nKeyPoints:\n", frameIndex);
+                StringBuilder builder = new StringBuilder(resultHead);
+
+                for (KeyPoint keyPoint : keyPoints) {
+                    builder.append("  ");
+                    builder.append(keyPoint.toString());
+                    builder.append('\n');
+                }
+                builder.append('\n');
+
+                String resultMessage = builder.toString();
+                Log.v(TAG, resultMessage);
+            }
+
+            int origWidth = (int) (bitmap.getWidth() * scaleFactor);
+            int origHeight = (int) (bitmap.getHeight() * scaleFactor);
+
+            boolean distracted = isDistracted(keyPoints, origWidth, origHeight);
+            resultList.add(new InnerFrame(frameIndex, distracted, totalScore, keyPoints));
         }
 
-        int origWidth = (int) (bitmap.getWidth() * scaleFactor);
-        int origHeight = (int) (bitmap.getHeight() * scaleFactor);
 
-        boolean distracted = isDistracted(keyPoints, origWidth, origHeight);
-        return new InnerFrame(frameIndex, distracted, totalScore, keyPoints);
+        return resultList;
     }
 
     void setup(int width, int height) {
-        if (!processorQueue.isEmpty()) {
+        /*if (!processorQueue.isEmpty()) {
             return;
-        }
+        }*/
         int size = Math.min(height, width);
         cropRegion = initRectF(width, height);
-
+/*
         try {
             for (int i = 0; i < THREAD_NUM; i++) {
                 processorQueue.add(new ImageProcessor.Builder()
@@ -219,7 +219,7 @@ public class InnerAnalysis extends VideoAnalysis {
             }
         } catch (Exception e) {
             ;
-        }
+        }*/
     }
 
     /**
@@ -314,7 +314,7 @@ public class InnerAnalysis extends VideoAnalysis {
     }
 
     float getScaleFactor(int width) {
-        return width / (float) inputWidth;
+        return 1.0f; // width / (float) inputWidth;
     }
 
     public void printParameters() {

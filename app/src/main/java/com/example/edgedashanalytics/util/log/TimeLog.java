@@ -97,6 +97,7 @@ public class TimeLog {
     }
 
     public void writeLogs() {
+        Connection.isFinished = true;
         synchronized (map) {
             // Sort the results
             Collections.sort(ls);

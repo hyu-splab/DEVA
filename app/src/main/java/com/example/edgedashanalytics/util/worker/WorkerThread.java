@@ -35,8 +35,6 @@ public class WorkerThread extends Thread {
 
     @Override
     public void run() {
-        InnerProcessor.analyzer = new InnerAnalysis(context);
-        OuterProcessor.analyzer = new OuterAnalysis(context);
         pt = new ProcessorThread[N_THREAD];
         for (int i = 0; i < N_THREAD; i++) {
             pt[i] = new ProcessorThread();
