@@ -68,6 +68,8 @@ public class Connection {
                     sender = senders.get(0); // If we don't use dropping, let the coordinator do the job
                 }
 
+                TimeLog.coordinator.setWorkerNum(totalCount + "", sender.workerNum);
+
                 sender.setScore(sender.getScore() + 1); // so that it doesn't send multiple items repeatedly
                 Handler senderHandler = sender.getHandler();
                 while (senderHandler == null) {
@@ -91,10 +93,10 @@ public class Connection {
         };
 
         // Inner DashCam
-        Receiver.run(handler, Receiver.IMAGE_INNER, Receiver.PORT_INNER);
+        new Receiver(handler, Receiver.IMAGE_INNER, Receiver.PORT_INNER).start();
 
         // Outer DashCam
-        Receiver.run(handler, Receiver.IMAGE_OUTER, Receiver.PORT_OUTER);
+        new Receiver(handler, Receiver.IMAGE_OUTER, Receiver.PORT_OUTER).start();
     }
 
     public static void connectToWorkers() {
@@ -111,10 +113,13 @@ public class Connection {
         p.put("lineage2", "192.168.67.72");
 
         String[] workerList = {"self", "lineage2", "oppo"};
+
+        int workerNum = 0;
         for (String name : workerList) {
-            Sender sender = new Sender(p.get(name));
+            Sender sender = new Sender(p.get(name), workerNum);
             sender.run();
             senders.add(sender);
+            workerNum++;
         }
     }
 

@@ -19,6 +19,7 @@ public class TimeLog {
 
     private static final String[] coordinatorColumns = {
             "Frame Number",
+            "Worker Number",
             "Distribute",
             "Wait for Result",
             "Total"
@@ -44,6 +45,7 @@ public class TimeLog {
     private final ArrayList<Test> ls = new ArrayList<>();
     private int ticket = 0;
     private final boolean isWorker;
+
     private TimeLog(boolean isWorker) {
         this.isWorker = isWorker;
     }
@@ -78,6 +80,11 @@ public class TimeLog {
         test.add();
         for (int i = 0; i < times - 1; i++)
             test.addEmpty();
+    }
+
+    public void setWorkerNum(String name, int workerNum) {
+        Test test = getTest(name);
+        test.workerNum = workerNum;
     }
 
     public void finish(String name) {
@@ -124,6 +131,10 @@ public class TimeLog {
                         continue;
                     }
                     sb.append(test.name).append(",");
+
+                    if (!isWorker)
+                        sb.append(test.workerNum).append(",");
+
                     ArrayList<Test.CheckPoint> cp = test.checkPoints;
                     earliest = Math.min(earliest, cp.get(0).timestamp);
                     latest = Math.max(latest, cp.get(cp.size() - 1).timestamp);
@@ -191,6 +202,10 @@ public class TimeLog {
         private final String name;
         private final ArrayList<CheckPoint> checkPoints;
         private final int order;
+
+        // Only for the coordinator to differentiate workers
+        private int workerNum;
+
         private boolean isFinished;
 
         public Test(String name, int order) {
