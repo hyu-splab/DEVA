@@ -20,6 +20,8 @@ public class Connection {
     public static long innerCount = 0, outerCount = 0, totalCount = 0, processed = 0, dropped = 0;
     public static long startTime;
     public static boolean isFinished = false;
+
+    private static final long DELAY_TOO_LONG = 300;
     public static void runImageStreaming() {
         // Start streaming images
         // 1. Connect to the DashCam (a sender application on another Android phone)
@@ -39,16 +41,25 @@ public class Connection {
             public void handleMessage(Message inputMessage) {
                 totalCount++;
                 TimeLog.coordinator.start(totalCount + ""); // Distribute
+                long startTime = System.currentTimeMillis();
                 boolean isInner = (inputMessage.what == Receiver.IMAGE_INNER);
 
                 Sender sender = null;
                 long bestScore = Long.MAX_VALUE;
                 for (int i = 0; i < senders.size(); i++) {
                     Sender s = senders.get(i);
-                    //Log.d(TAG, "sender " + i + ": " + s.getScore());
+                    Log.d(TAG, "sender " + i + ": " + s.getScore() + ", " + s.delay);
+
                     long score = s.getScore();
                     if (score >= bestScore)
                         continue;
+
+                    // realize something went wrong with this worker
+                    /*if (s.delay > DELAY_TOO_LONG) {
+                        s.delay -= 50; // so that it doesn't get stuck when the sender has no more frames to send or wait
+                        continue;
+                    }*/
+
                     bestScore = score;
                     sender = s;
                 }
@@ -68,6 +79,7 @@ public class Connection {
                     sender = senders.get(0); // If we don't use dropping, let the coordinator do the job
                 }
 
+                sender.startTime.put(totalCount, System.currentTimeMillis());
                 TimeLog.coordinator.setWorkerNum(totalCount + "", sender.workerNum);
 
                 sender.setScore(sender.getScore() + 1); // so that it doesn't send multiple items repeatedly
@@ -112,15 +124,31 @@ public class Connection {
         p.put("pixel5", "192.168.67.145");
         p.put("lineage2", "192.168.67.72");
 
-        String[] workerList = {"self", "lineage2", "oppo"};
+        HashMap<String, String> splab = new HashMap<>();
+
+        splab.put("self", "127.0.0.1");
+        splab.put("lineage", "192.168.0.103");
+        splab.put("pixel5", "192.168.0.105");
+        splab.put("oneplus", "192.168.0.104");
+        splab.put("oppo", "192.168.0.106");
+
+        //p = splab;
+
+
+        String[] workerList = {"self", "lineage", "oppo"};
 
         int workerNum = 0;
         for (String name : workerList) {
             Sender sender = new Sender(p.get(name), workerNum);
-            sender.run();
+            sender.start();
             senders.add(sender);
             workerNum++;
         }
+
+        /*// make oppo first, but make it selected last
+        Sender temp = senders.get(1);
+        senders.set(1, senders.get(2));
+        senders.set(2, temp);*/
     }
 
     public static void workerStart(Context context) {

@@ -33,6 +33,7 @@ public class WorkerServer {
     private Thread thread;
 
     public static long innerCount = 0, outerCount = 0;
+    public static int networkAvailable = 0;
 
     // We only need one instance of this server as it will 1 to 1 connect to the central device
     // so no need to provide additional information
@@ -74,6 +75,11 @@ public class WorkerServer {
                                 else
                                     outerCount++;
                                 WorkerMessage wMsg = new WorkerMessage(score, res);
+
+                                final int NETWORK_SATURATION_THRESHOLD = 500000;
+                                if (networkAvailable > NETWORK_SATURATION_THRESHOLD)
+                                    wMsg.score = 999;
+
                                 TimeLog.worker.finish(((Result2)msg.obj).frameNumber + ""); // Return Result
                                 outstream.writeObject(wMsg);
                                 outstream.flush();
@@ -91,6 +97,8 @@ public class WorkerServer {
                     while (true) {
                         // start
                         Image2 image = (Image2) instream.readObject();
+                        networkAvailable = instream.available();
+                        Log.d(TAG, "networkAvailable = " + networkAvailable);
                         if (Connection.isFinished)
                             continue;
                         if (cnt == 0) {

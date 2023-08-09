@@ -18,6 +18,10 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 public class Receiver extends Thread {
+    /*
+
+     */
+
     static public final int IMAGE_INNER = 1001;
     static public final int IMAGE_OUTER = 1002;
 

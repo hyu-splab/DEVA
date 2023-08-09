@@ -12,16 +12,15 @@ import com.example.edgedashanalytics.util.video.analysis.Result2;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Deque;
+import java.util.HashMap;
 
 public class Sender extends Thread {
     public static final int port = 5555;
     public String ip;
     public int workerNum;
-
-    public Sender(String ip, int workerNum) {
-        this.ip = ip;
-        this.workerNum = workerNum;
-    }
 
     private static final String TAG = "Sender";
 
@@ -31,8 +30,19 @@ public class Sender extends Thread {
     public ObjectInputStream instream;
     private long score;
 
-    public Sender() {
+    Deque<Long> recentTime;
+    HashMap<Long, Long> startTime;
+    long delay;
+    final int DEQUE_CAPACITY = 3;
+
+    public Sender(String ip, int workerNum) {
+        this.ip = ip;
+        this.workerNum = workerNum;
+        recentTime = new ArrayDeque<>(DEQUE_CAPACITY);
+        startTime = new HashMap<>();
         handler = null;
+        score = 0;
+        delay = 0;
     }
 
     public long getScore() {
@@ -63,19 +73,24 @@ public class Sender extends Thread {
             }
         };
         Socket socket;
-        try {
-            Log.d(TAG, "Trying to connect to worker: " + ip + ":" + port);
-            socket = new Socket(ip, port);
-            Log.d(TAG, "connected to " + ip);
-            score = 0;
-            outstream = new ObjectOutputStream(socket.getOutputStream());
-            instream = new ObjectInputStream(socket.getInputStream());
+        while (true) {
+            try {
+                Log.d(TAG, "Trying to connect to worker: " + ip + ":" + port);
+                socket = new Socket(ip, port);
+                Log.d(TAG, "connected to " + ip);
+                score = 0;
+                outstream = new ObjectOutputStream(socket.getOutputStream());
+                instream = new ObjectInputStream(socket.getInputStream());
 
-            // Separate thread for listening
-            new ListenerThread().start();
+                // Separate thread for listening
+                new ListenerThread().start();
 
-        } catch (Exception e) {
-            e.printStackTrace();
+            } catch (Exception e) {
+                e.printStackTrace();
+                Log.w(TAG, "Retrying for " + ip + "...");
+                continue;
+            }
+            break;
         }
         Looper.loop();
     }
@@ -91,6 +106,20 @@ public class Sender extends Thread {
                 try {
                     WorkerMessage msg = (WorkerMessage) instream.readObject();
                     Result2 res = (Result2) msg.msg;
+
+                    long endTime = System.currentTimeMillis();
+                    if (recentTime.size() == DEQUE_CAPACITY)
+                        recentTime.pop();
+                    try {
+                        recentTime.push(endTime - startTime.remove(res.frameNumber));
+                    } catch (NullPointerException e) {
+                        e.printStackTrace();
+                    }
+                    long total = 0;
+                    for (Long t : recentTime)
+                        total += t;
+                    delay = total / recentTime.size();
+
                     score = msg.score;
                     Connection.processed++;
                     if (res.isInner)
