@@ -16,8 +16,10 @@ import java.util.HashMap;
 
 public class Connection {
     private static final String TAG = "Connection";
-    private static ArrayList<Sender> senders = new ArrayList<>();
+    //private static ArrayList<Sender> senders = new ArrayList<>();
+    private static Sender2 sender;
     public static long innerCount = 0, outerCount = 0, totalCount = 0, processed = 0, dropped = 0;
+    public static int selectedCount = 0;
     public static long startTime;
     public static boolean isFinished = false;
 
@@ -44,13 +46,13 @@ public class Connection {
                 long startTime = System.currentTimeMillis();
                 boolean isInner = (inputMessage.what == Receiver.IMAGE_INNER);
 
-                Sender sender = null;
                 long bestScore = Long.MAX_VALUE;
-                for (int i = 0; i < senders.size(); i++) {
-                    Sender s = senders.get(i);
-                    Log.d(TAG, "sender " + i + ": " + s.getScore() + ", " + s.delay);
+                int bestWorker = -1;
+                for (int i = 0; i < sender.workers.size(); i++) {
+                    Sender2.Worker w = sender.workers.get(i);
+                    // Log.d(TAG, "Worker " + i + ": " + w.score);
 
-                    long score = s.getScore();
+                    long score = w.score;
                     if (score >= bestScore)
                         continue;
 
@@ -61,14 +63,17 @@ public class Connection {
                     }*/
 
                     bestScore = score;
-                    sender = s;
+                    bestWorker = i;
                 }
 
+                /*bestWorker = selectedCount % 3;
+                bestScore = sender.workers.get(selectedCount % 3).score;
+*/
                 boolean useDropping = true;
 
                 //Log.d(TAG, "bestScore = " + bestScore);
 
-                if (sender == null || bestScore >= 3) {
+                if (bestWorker == -1 || bestScore >= 3) {
                     // Uncomment this to include dropped frames
                     // TimeLog.coordinator.finish(totalCount + "");
                     if (useDropping) {
@@ -76,13 +81,16 @@ public class Connection {
                         dropped++;
                         return;
                     }
-                    sender = senders.get(0); // If we don't use dropping, let the coordinator do the job
+                    bestWorker = 0; // If we don't use dropping, let the coordinator do the job
                 }
 
-                sender.startTime.put(totalCount, System.currentTimeMillis());
-                TimeLog.coordinator.setWorkerNum(totalCount + "", sender.workerNum);
+                selectedCount++;
 
-                sender.setScore(sender.getScore() + 1); // so that it doesn't send multiple items repeatedly
+                Sender2.Worker worker = sender.workers.get(bestWorker);
+
+                //sender.startTime.put(totalCount, System.currentTimeMillis());
+                TimeLog.coordinator.setWorkerNum(totalCount + "", bestWorker);
+                worker.score++; // so that it doesn't send multiple items repeatedly
                 Handler senderHandler = sender.getHandler();
                 while (senderHandler == null) {
                     Log.w(TAG, "senderHandler is still null!!");
@@ -93,6 +101,7 @@ public class Connection {
                 }
                 Message senderMessage = Message.obtain();
                 senderMessage.what = 999;
+                senderMessage.arg1 = bestWorker;
                 senderMessage.obj = new Image2(isInner, /*isInner ? innerCount : outerCount*/ totalCount, (byte[]) inputMessage.obj);
                 senderHandler.sendMessage(senderMessage);
 
@@ -137,13 +146,20 @@ public class Connection {
 
         String[] workerList = {"self", "lineage", "oppo"};
 
-        int workerNum = 0;
+        /* int workerNum = 0;
         for (String name : workerList) {
             Sender sender = new Sender(p.get(name), workerNum);
             sender.start();
             senders.add(sender);
             workerNum++;
+        }*/
+
+        sender = new Sender2();
+        for (String name : workerList) {
+            sender.addWorker(p.get(name));
         }
+
+        sender.start();
 
         /*// make oppo first, but make it selected last
         Sender temp = senders.get(1);

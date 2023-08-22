@@ -73,7 +73,7 @@ public class MainActivity extends AppCompatActivity implements
     private static final String TAG = MainActivity.class.getSimpleName();
     public static final String I_TAG = "Important";
 
-    public static final long experimentDuration = 20 * 1000;
+    public static final long experimentDuration = 150 * 1000;
 
     private VideoFragment rawFragment;
     private VideoFragment processingFragment;

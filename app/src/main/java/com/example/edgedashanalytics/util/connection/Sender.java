@@ -82,6 +82,7 @@ public class Sender extends Thread {
                 outstream = new ObjectOutputStream(socket.getOutputStream());
                 instream = new ObjectInputStream(socket.getInputStream());
 
+
                 // Separate thread for listening
                 new ListenerThread().start();
 
