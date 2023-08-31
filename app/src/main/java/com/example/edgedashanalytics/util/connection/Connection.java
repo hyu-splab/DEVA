@@ -43,7 +43,6 @@ public class Connection {
             public void handleMessage(Message inputMessage) {
                 totalCount++;
                 TimeLog.coordinator.start(totalCount + ""); // Distribute
-                long startTime = System.currentTimeMillis();
                 boolean isInner = (inputMessage.what == Receiver.IMAGE_INNER);
 
                 long bestScore = Long.MAX_VALUE;
@@ -103,6 +102,8 @@ public class Connection {
                 senderMessage.what = 999;
                 senderMessage.arg1 = bestWorker;
                 senderMessage.obj = new Image2(isInner, /*isInner ? innerCount : outerCount*/ totalCount, (byte[]) inputMessage.obj);
+                TimeLog.coordinator.add(totalCount + ""); // message to network thread
+
                 senderHandler.sendMessage(senderMessage);
 
                 if (totalCount % 10 == 0) {
@@ -144,7 +145,7 @@ public class Connection {
         //p = splab;
 
 
-        String[] workerList = {"self", "lineage", "oppo"};
+        String[] workerList = {"self", "lineage", "oneplus"};
 
         /* int workerNum = 0;
         for (String name : workerList) {

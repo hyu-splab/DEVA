@@ -67,6 +67,7 @@ public class Sender extends Thread {
                     outstream.writeObject(inputMessage.obj);
                     outstream.flush();
                     outstream.reset();
+                    TimeLog.coordinator.add(((Image2)inputMessage.obj).frameNumber + ""); // After send
                 } catch (Exception e) {
                     e.printStackTrace();
                 }

@@ -75,9 +75,10 @@ public class WorkerServer {
                                     outerCount++;
                                 WorkerMessage wMsg = new WorkerMessage(score, res);
 
-                                TimeLog.worker.finish(((Result2)msg.obj).frameNumber + ""); // Return Result
+                                TimeLog.worker.add(((Result2)msg.obj).frameNumber + ""); // Return Result
                                 outstream.writeObject(wMsg);
                                 outstream.flush();
+                                TimeLog.worker.finish(((Result2)msg.obj).frameNumber + ""); // After send
                             } catch (IOException e) {
                                 throw new RuntimeException(e);
                             }

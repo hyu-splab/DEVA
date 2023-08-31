@@ -56,6 +56,7 @@ public class Sender2 extends Thread {
                     outstream.writeObject(inputMessage.obj);
                     outstream.flush();
                     outstream.reset();
+                    TimeLog.coordinator.add(((Image2)inputMessage.obj).frameNumber + ""); // After send
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -115,7 +116,6 @@ public class Sender2 extends Thread {
                         Connection.innerCount++;
                     else
                         Connection.outerCount++;
-                    Connection.processed++;
                     TimeLog.coordinator.finish(res.frameNumber + ""); // Finish
                     //Log.d(TAG, "Got response from the server: isInner = "
                     //+ res.isInner + ", frameNumber = " + res.frameNumber);

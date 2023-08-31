@@ -21,6 +21,8 @@ public class TimeLog {
             "Frame Number",
             "Worker Number",
             "Distribute",
+            "Message to Network Thread",
+            "Send",
             "Wait for Result",
             "Total"
     };
@@ -29,6 +31,7 @@ public class TimeLog {
             "Enqueue",
             "Uncompress",
             "Process Frame",
+            "After Send",
             "Total"
     };
 
@@ -94,13 +97,13 @@ public class TimeLog {
                 test = map.remove(name);
                 if (test == null)
                     throw new NullPointerException();
+                test.finish();
+                ls.add(test);
             } catch (Exception e) {
                 e.printStackTrace();
                 return;
             }
         }
-        test.finish();
-        ls.add(test);
     }
 
     public void writeLogs() {
