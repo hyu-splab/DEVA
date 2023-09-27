@@ -7,7 +7,7 @@ import androidx.annotation.NonNull;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-class Hazard {
+public class Hazard {
     private final String category;
     private final float score;
     private final boolean danger;
@@ -33,5 +33,9 @@ class Hazard {
                 ", danger=" + danger +
                 ", bBox=" + bBox +
                 '}';
+    }
+
+    public String getCategory() {
+        return category;
     }
 }

@@ -14,4 +14,8 @@ public class OuterFrame extends Frame {
         this.frame = frame;
         this.hazards = hazards;
     }
+
+    public List<Hazard> getHazards() {
+        return hazards;
+    }
 }

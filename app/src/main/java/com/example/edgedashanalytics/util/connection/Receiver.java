@@ -25,8 +25,8 @@ public class Receiver extends Thread {
     static public final int IMAGE_INNER = 1001;
     static public final int IMAGE_OUTER = 1002;
 
-    static public final int PORT_INNER = 5575;
-    static public final int PORT_OUTER = 5576;
+    static public final int PORT_INNER = 5475;
+    static public final int PORT_OUTER = 5476;
 
     static final String TAG = "ReceiverThread";
 
@@ -52,6 +52,7 @@ public class Receiver extends Thread {
             ObjectOutputStream outstream = new ObjectOutputStream(socket.getOutputStream());
             try {
                 while (true) {
+                    int frameNum = instream.readInt();
                     byte[] data = (byte[]) instream.readObject();
                     if (Connection.isFinished)
                         continue;
@@ -68,6 +69,7 @@ public class Receiver extends Thread {
                     //outstream.writeObject("ok");
 
                     Message msg = Message.obtain();
+                    msg.arg1 = frameNum;
                     msg.what = msgCode;
                     msg.obj = data;
 

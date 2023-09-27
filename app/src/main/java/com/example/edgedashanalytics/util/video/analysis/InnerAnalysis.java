@@ -44,7 +44,7 @@ import java.util.stream.Collectors;
 public class InnerAnalysis extends VideoAnalysis {
     private static final String TAG = InnerAnalysis.class.getSimpleName();
 
-    private static final float MIN_SCORE = 0.2f;
+    private static final float MIN_SCORE = 0.3f;
 
     private static RectF cropRegion;
 
@@ -52,7 +52,7 @@ public class InnerAnalysis extends VideoAnalysis {
     //private static final BlockingQueue<Interpreter> interpreterQueue = new LinkedBlockingQueue<>(THREAD_NUM);
     //private static final BlockingQueue<ImageProcessor> processorQueue = new LinkedBlockingQueue<>(THREAD_NUM);
 
-    private static final int[] models = {R.string.movenet_lightning_key, R.string.movenet_thunder_key};
+    private static final int[] models = {/*R.string.movenet_lightning_key, */R.string.movenet_thunder_key};
 
     public int inputWidth, inputHeight;
     public int[] outputShape;
@@ -110,7 +110,12 @@ public class InnerAnalysis extends VideoAnalysis {
         }
     }
 
+    long frameCnt = 0;
+    long totalTime = 0;
+
     List<Frame> processFrame(Bitmap bitmap, int frameIndex, float scaleFactor) {
+        long startTime = System.currentTimeMillis();
+        frameCnt++;
 
         ArrayList<Frame> resultList = new ArrayList<>();
 
@@ -199,6 +204,10 @@ public class InnerAnalysis extends VideoAnalysis {
             resultList.add(new InnerFrame(frameIndex, distracted, totalScore, keyPoints));
         }
 
+        long endTime = System.currentTimeMillis();
+        totalTime += endTime - startTime;
+
+        Log.d(TAG, "(Inner) Average time: " + (totalTime / (double)frameCnt));
 
         return resultList;
     }
@@ -274,6 +283,9 @@ public class InnerAnalysis extends VideoAnalysis {
 
         boolean eyesOccupied = areEyesOccupied(eyeL, earL) || areEyesOccupied(eyeR, earR);
 
+        //Log.d(TAG, "hands = " + handsOccupied + ", eyes = " + eyesOccupied);
+
+        // too high chance to conclude distracted
         return handsOccupied || eyesOccupied;
     }
 
@@ -308,7 +320,9 @@ public class InnerAnalysis extends VideoAnalysis {
         }
 
         double dist = ear.coordinate.y - eye.coordinate.y;
-        double threshold = ear.coordinate.y / 20.0;
+        double threshold = -35;//ear.coordinate.y / 20.0;
+
+        //Log.d(TAG, "dist = " + dist + ", threshold = " + threshold);
 
         return dist < threshold;
     }

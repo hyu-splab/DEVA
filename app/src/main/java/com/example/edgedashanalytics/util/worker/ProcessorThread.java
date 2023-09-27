@@ -23,11 +23,12 @@ public class ProcessorThread extends Thread {
     public int tid = 0;
     public int workCount = 0;
 
+    static public InnerProcessor innerProcessor = new InnerProcessor();
+    static public OuterProcessor outerProcessor = new OuterProcessor();
+
     @Override
     public void run() {
         FrameProcessor frameProcessor = null;
-        InnerProcessor innerProcessor = new InnerProcessor();
-        OuterProcessor outerProcessor = new OuterProcessor();
         while (true) {
             try {
                 Image2 img = queue.take();
@@ -46,6 +47,7 @@ public class ProcessorThread extends Thread {
                     frameProcessor = outerProcessor;
 
                 frameProcessor.setFrame(bitmap);
+                frameProcessor.setCameraFrameNum(img.cameraFrameNum);
 
                 String resultString = frameProcessor.run();
 

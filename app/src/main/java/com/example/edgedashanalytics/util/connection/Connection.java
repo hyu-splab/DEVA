@@ -68,7 +68,7 @@ public class Connection {
                 /*bestWorker = selectedCount % 3;
                 bestScore = sender.workers.get(selectedCount % 3).score;
 */
-                boolean useDropping = true;
+                boolean useDropping = false;
 
                 //Log.d(TAG, "bestScore = " + bestScore);
 
@@ -101,7 +101,7 @@ public class Connection {
                 Message senderMessage = Message.obtain();
                 senderMessage.what = 999;
                 senderMessage.arg1 = bestWorker;
-                senderMessage.obj = new Image2(isInner, /*isInner ? innerCount : outerCount*/ totalCount, (byte[]) inputMessage.obj);
+                senderMessage.obj = new Image2(isInner, /*isInner ? innerCount : outerCount*/ totalCount, inputMessage.arg1, (byte[]) inputMessage.obj);
                 TimeLog.coordinator.add(totalCount + ""); // message to network thread
 
                 senderHandler.sendMessage(senderMessage);
@@ -127,25 +127,24 @@ public class Connection {
 
         HashMap<String, String> p = new HashMap<>();
         p.put("self", "127.0.0.1");
-        p.put("lineage", "192.168.67.32");
-        p.put("oneplus", "192.168.67.172");
-        p.put("pixel6", "192.168.67.79");
-        p.put("oppo", "192.168.67.230");
-        p.put("pixel5", "192.168.67.145");
-        p.put("lineage2", "192.168.67.72");
+        p.put("lineage", "192.168.118.32");
+        p.put("oneplus", "192.168.118.172");
+        p.put("pixel6", "192.168.118.79");
+        p.put("oppo", "192.168.118.230");
+        p.put("pixel5", "192.168.118.145");
+        p.put("lineage2", "192.168.118.72");
 
         HashMap<String, String> splab = new HashMap<>();
 
         splab.put("self", "127.0.0.1");
         splab.put("lineage", "192.168.0.103");
-        splab.put("pixel5", "192.168.0.105");
-        splab.put("oneplus", "192.168.0.104");
-        splab.put("oppo", "192.168.0.106");
+        splab.put("pixel5", "192.168.0.106");
+        splab.put("oneplus", "192.168.0.107");
+        splab.put("oppo", "192.168.0.105");
 
         //p = splab;
 
-
-        String[] workerList = {"self", "lineage", "oneplus"};
+        String[] workerList = {"self"};
 
         /* int workerNum = 0;
         for (String name : workerList) {

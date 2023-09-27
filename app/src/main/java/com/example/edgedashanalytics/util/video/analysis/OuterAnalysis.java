@@ -56,10 +56,10 @@ public class OuterAnalysis extends VideoAnalysis {
 
     private static final int[] models = {
             //R.string.mobilenet_v1_key,
-            R.string.efficientdet_lite0_key,
+            //R.string.efficientdet_lite0_key,
             //R.string.efficientdet_lite1_key,
             //R.string.efficientdet_lite2_key,
-            //R.string.efficientdet_lite3_key,
+            R.string.efficientdet_lite3_key,
             //R.string.efficientdet_lite4_key
     };
 
@@ -94,7 +94,12 @@ public class OuterAnalysis extends VideoAnalysis {
         }
     }
 
+    long frameCnt = 0;
+    long totalTime = 0;
+
     List<Frame> processFrame(Bitmap bitmap, int frameIndex, float scaleFactor) {
+        long startTime = System.currentTimeMillis();
+        frameCnt++;
 
         ArrayList<Frame> resultList = new ArrayList<>();
         for (ObjectDetector detector : detectorList) {
@@ -152,6 +157,11 @@ public class OuterAnalysis extends VideoAnalysis {
 
             resultList.add(new OuterFrame(frameIndex, hazards));
         }
+
+        long endTime = System.currentTimeMillis();
+        totalTime += endTime - startTime;
+
+        Log.d(TAG, "(Outer) Average time: " + (totalTime / (double)frameCnt));
 
         return resultList;
     }

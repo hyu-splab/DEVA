@@ -21,4 +21,8 @@ public class InnerFrame extends Frame {
         this.fullScore = fullScore;
         this.keyPoints = keyPoints;
     }
+
+    public boolean getDistracted() {
+        return distracted;
+    }
 }

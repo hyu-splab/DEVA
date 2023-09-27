@@ -26,7 +26,7 @@ public class WorkerThread extends Thread {
     private static final String TAG = "WorkerThread";
     private Context context;
     private static WorkerServer workerServer = null;
-    public static final int N_THREAD = 2;
+    public static final int N_THREAD = 1;
 
     public static ProcessorThread[] pt;
     public WorkerThread(Context context) {
