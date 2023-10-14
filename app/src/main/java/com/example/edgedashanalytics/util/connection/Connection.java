@@ -1,29 +1,36 @@
 package com.example.edgedashanalytics.util.connection;
 
 import android.content.Context;
-import android.graphics.Bitmap;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
+import android.util.Size;
 
+import com.example.edgedashanalytics.page.main.MainActivity;
+import com.example.edgedashanalytics.util.Constants;
 import com.example.edgedashanalytics.util.log.TimeLog;
 import com.example.edgedashanalytics.util.video.analysis.Image2;
 import com.example.edgedashanalytics.util.worker.WorkerThread;
 
-import java.util.ArrayList;
+import java.io.ObjectOutputStream;
 import java.util.HashMap;
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class Connection {
     private static final String TAG = "Connection";
     //private static ArrayList<Sender> senders = new ArrayList<>();
-    private static Sender2 sender;
+    private static Communicator sender;
     public static long innerCount = 0, outerCount = 0, totalCount = 0, processed = 0, dropped = 0;
     public static int selectedCount = 0;
     public static long startTime;
     public static boolean isFinished = false;
 
     private static final long DELAY_TOO_LONG = 300;
+
+    private static Receiver innerReceiver, outerReceiver;
+
     public static void runImageStreaming() {
         // Start streaming images
         // 1. Connect to the DashCam (a sender application on another Android phone)
@@ -41,36 +48,45 @@ public class Connection {
         Handler handler = new Handler(Looper.getMainLooper()) {
             @Override
             public void handleMessage(Message inputMessage) {
+
+                if (inputMessage.what == 999) { // Check status
+                    ObjectOutputStream innerStream, outerStream;
+                    innerStream = innerReceiver.outstream;
+                    outerStream = outerReceiver.outstream;
+
+
+
+
+                    // TODO: Insert good adaptive algorithm here
+                    if (innerStream != null) {
+                        Receiver.sendSettings(innerStream, new Size(1280, 720), 50, 30);
+                    }
+
+                    if (outerStream != null) {
+                        Receiver.sendSettings(outerStream, new Size(1280, 720), 50, 30);
+                    }
+
+                    return;
+                }
+
                 totalCount++;
                 TimeLog.coordinator.start(totalCount + ""); // Distribute
-                boolean isInner = (inputMessage.what == Receiver.IMAGE_INNER);
+                boolean isInner = (inputMessage.what == Constants.IMAGE_INNER);
 
-                long bestScore = Long.MAX_VALUE;
+                double bestScore = 1e9;
                 int bestWorker = -1;
                 for (int i = 0; i < sender.workers.size(); i++) {
-                    Sender2.Worker w = sender.workers.get(i);
-                    // Log.d(TAG, "Worker " + i + ": " + w.score);
+                    Communicator.Worker w = sender.workers.get(i);
 
-                    long score = w.score;
+                    double score = 0; // TODO: Insert good formula here
                     if (score >= bestScore)
                         continue;
-
-                    // realize something went wrong with this worker
-                    /*if (s.delay > DELAY_TOO_LONG) {
-                        s.delay -= 50; // so that it doesn't get stuck when the sender has no more frames to send or wait
-                        continue;
-                    }*/
 
                     bestScore = score;
                     bestWorker = i;
                 }
 
-                /*bestWorker = selectedCount % 3;
-                bestScore = sender.workers.get(selectedCount % 3).score;
-*/
                 boolean useDropping = false;
-
-                //Log.d(TAG, "bestScore = " + bestScore);
 
                 if (bestWorker == -1 || bestScore >= 3) {
                     // Uncomment this to include dropped frames
@@ -85,11 +101,10 @@ public class Connection {
 
                 selectedCount++;
 
-                Sender2.Worker worker = sender.workers.get(bestWorker);
+                Communicator.Worker worker = sender.workers.get(bestWorker);
 
                 //sender.startTime.put(totalCount, System.currentTimeMillis());
                 TimeLog.coordinator.setWorkerNum(totalCount + "", bestWorker);
-                worker.score++; // so that it doesn't send multiple items repeatedly
                 Handler senderHandler = sender.getHandler();
                 while (senderHandler == null) {
                     Log.w(TAG, "senderHandler is still null!!");
@@ -101,6 +116,7 @@ public class Connection {
                 Message senderMessage = Message.obtain();
                 senderMessage.what = 999;
                 senderMessage.arg1 = bestWorker;
+                senderMessage.arg2 = 1;
                 senderMessage.obj = new Image2(isInner, /*isInner ? innerCount : outerCount*/ totalCount, inputMessage.arg1, (byte[]) inputMessage.obj);
                 TimeLog.coordinator.add(totalCount + ""); // message to network thread
 
@@ -115,10 +131,21 @@ public class Connection {
         };
 
         // Inner DashCam
-        new Receiver(handler, Receiver.IMAGE_INNER, Receiver.PORT_INNER).start();
+        innerReceiver = new Receiver(handler, Constants.IMAGE_INNER, Constants.PORT_INNER);
+        innerReceiver.start();
 
         // Outer DashCam
-        new Receiver(handler, Receiver.IMAGE_OUTER, Receiver.PORT_OUTER).start();
+        outerReceiver = new Receiver(handler, Constants.IMAGE_OUTER, Constants.PORT_OUTER);
+        outerReceiver.start();
+
+        new Timer().schedule(new TimerTask() {
+            @Override
+            public void run() {
+                Message msg = Message.obtain();
+                msg.what = 999;
+                handler.sendMessage(msg);
+            }
+        }, 500);
     }
 
     public static void connectToWorkers() {
@@ -154,7 +181,7 @@ public class Connection {
             workerNum++;
         }*/
 
-        sender = new Sender2();
+        sender = new Communicator();
         for (String name : workerList) {
             sender.addWorker(p.get(name));
         }
@@ -167,8 +194,8 @@ public class Connection {
         senders.set(2, temp);*/
     }
 
-    public static void workerStart(Context context) {
-        WorkerThread workerThread = new WorkerThread(context);
+    public static void workerStart() {
+        WorkerThread workerThread = new WorkerThread();
         workerThread.start();
     }
 }

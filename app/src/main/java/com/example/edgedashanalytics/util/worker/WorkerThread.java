@@ -1,36 +1,16 @@
 package com.example.edgedashanalytics.util.worker;
 
-import static com.example.edgedashanalytics.util.connection.Receiver.IMAGE_INNER;
-import static com.example.edgedashanalytics.util.connection.Receiver.IMAGE_OUTER;
-
-import android.content.Context;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.os.Handler;
-import android.os.Looper;
-import android.os.Message;
-import android.util.Log;
 
 import com.example.edgedashanalytics.util.connection.WorkerServer;
-import com.example.edgedashanalytics.util.log.TimeLog;
-import com.example.edgedashanalytics.util.video.analysis.Image2;
-import com.example.edgedashanalytics.util.video.analysis.InnerAnalysis;
-import com.example.edgedashanalytics.util.video.analysis.OuterAnalysis;
-import com.example.edgedashanalytics.util.video.analysis.Result2;
-
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
 
 public class WorkerThread extends Thread {
     private static final String TAG = "WorkerThread";
-    private Context context;
     private static WorkerServer workerServer = null;
     public static final int N_THREAD = 1;
 
     public static ProcessorThread[] pt;
-    public WorkerThread(Context context) {
-        this.context = context;
+    public WorkerThread() {
     }
 
     @Override

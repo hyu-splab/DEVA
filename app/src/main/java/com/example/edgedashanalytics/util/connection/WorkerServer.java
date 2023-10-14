@@ -1,24 +1,17 @@
 package com.example.edgedashanalytics.util.connection;
 
-import static com.example.edgedashanalytics.util.connection.Receiver.IMAGE_INNER;
-
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
 
-import com.example.edgedashanalytics.page.main.MainActivity;
+import com.example.edgedashanalytics.util.Constants;
 import com.example.edgedashanalytics.util.log.TimeLog;
 import com.example.edgedashanalytics.util.video.analysis.Image2;
 import com.example.edgedashanalytics.util.video.analysis.Result2;
 import com.example.edgedashanalytics.util.worker.ProcessorThread;
-import com.example.edgedashanalytics.util.worker.WorkerThread;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
@@ -67,15 +60,15 @@ public class WorkerServer {
                         @Override
                         public void handleMessage(Message msg) {
                             try {
-                                long score = ProcessorThread.queue.size();
                                 Result2 res = (Result2) msg.obj;
                                 if (res.isInner)
                                     innerCount++;
                                 else
                                     outerCount++;
-                                WorkerMessage wMsg = new WorkerMessage(score, res);
+                                WorkerMessage wMsg = new WorkerMessage(res);
 
                                 TimeLog.worker.add(((Result2)msg.obj).frameNumber + ""); // Return Result
+                                outstream.writeInt(0);
                                 outstream.writeObject(wMsg);
                                 outstream.flush();
                                 TimeLog.worker.finish(((Result2)msg.obj).frameNumber + ""); // After send
@@ -92,6 +85,13 @@ public class WorkerServer {
                     int cnt = 0;
                     while (true) {
                         // start
+                        int messageType = instream.readInt();
+
+                        if (messageType == 2) { // ping
+                            outstream.writeInt(1);
+                            continue;
+                        }
+
                         Image2 image = (Image2) instream.readObject();
                         if (Connection.isFinished)
                             continue;
@@ -101,7 +101,7 @@ public class WorkerServer {
                                 public void run() {
                                     TimeLog.worker.writeLogs();
                                 }
-                            }, MainActivity.experimentDuration);
+                            }, Constants.EXPERIMENT_DURATION);
                         }
                         TimeLog.worker.start(image.frameNumber + ""); // Enqueue
                         cnt++;

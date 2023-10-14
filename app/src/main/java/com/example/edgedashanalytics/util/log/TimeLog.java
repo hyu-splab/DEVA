@@ -78,6 +78,10 @@ public class TimeLog {
         getTest(name).add();
     }
 
+    public void add(long name) {
+        add(name + "");
+    }
+
     public void addEmpty(String name, int times) {
         Test test = getTest(name);
         test.add();

@@ -11,6 +11,7 @@ import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
 
+import com.example.edgedashanalytics.util.Constants;
 import com.example.edgedashanalytics.util.log.TimeLog;
 import com.example.edgedashanalytics.util.video.analysis.Image2;
 import com.example.edgedashanalytics.util.video.analysis.Result2;
@@ -19,16 +20,17 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.Timer;
+import java.util.TimerTask;
 
-public class Sender2 extends Thread {
+public class Communicator extends Thread {
     private static final String TAG = "Sender2";
-    public static final int port = 5555;
 
     private Handler handler;
 
     ArrayList<Worker> workers;
 
-    public Sender2() {
+    public Communicator() {
         workers = new ArrayList<>();
     }
 
@@ -41,37 +43,26 @@ public class Sender2 extends Thread {
         return handler;
     }
 
-    // Make sure this thread is created after adding ALL the workers
+    // Make sure this thread is created after adding ALL the workers to 'workers'
     @Override
     public void run() {
         Looper.prepare();
-        handler = new Handler(Looper.myLooper()) {
-            @Override
-            public void handleMessage(Message inputMessage) {
-                int workerNum = inputMessage.arg1;
-                try {
-                    //Log.d(TAG, "sending to the worker: " + ip);
-                    TimeLog.coordinator.add(((Image2)inputMessage.obj).frameNumber + ""); // Wait for Result
-                    ObjectOutputStream outstream = workers.get(workerNum).outstream;
-                    outstream.writeObject(inputMessage.obj);
-                    outstream.flush();
-                    outstream.reset();
-                    TimeLog.coordinator.add(((Image2)inputMessage.obj).frameNumber + ""); // After send
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-        };
+        handler = new CommunicatorHandler(Looper.myLooper());
+        connect();
+        Looper.loop();
+    }
 
-        for (Worker worker : workers) {
+    private void connect() {
+        for (int workerNum = 0; workerNum < workers.size(); workerNum++) {
+            Worker worker = workers.get(workerNum);
             String ip = worker.ip;
             Socket socket;
             ObjectOutputStream outstream;
             ObjectInputStream instream;
             while (true) {
                 try {
-                    Log.d(TAG, "Trying to connect to worker: " + ip + ":" + port);
-                    socket = new Socket(ip, port);
+                    Log.d(TAG, "Trying to connect to worker: " + ip + ":" + Constants.PORT_WORKER);
+                    socket = new Socket(ip, Constants.PORT_WORKER);
                     Log.d(TAG, "connected to " + ip);
 
                     outstream = new ObjectOutputStream(socket.getOutputStream());
@@ -93,9 +84,64 @@ public class Sender2 extends Thread {
             worker.instream = instream;
 
             new ListenerThread(worker).start();
-        }
 
-        Looper.loop();
+            new Timer().schedule(new PingThread(handler, workerNum), 500);
+        }
+    }
+
+    private class CommunicatorHandler extends Handler {
+        public CommunicatorHandler(Looper looper) {
+            super(looper);
+        }
+        @Override
+        public void handleMessage(Message msg) {
+            int workerNum = msg.arg1;
+            int messageType = msg.arg2;
+
+            if (messageType == 1) {
+
+            }
+
+            try {
+                ObjectOutputStream outstream = workers.get(workerNum).outstream;
+
+                if (messageType == 1) {
+                    TimeLog.coordinator.add(((Image2) msg.obj).frameNumber); // Wait for Result
+                }
+
+                outstream.writeInt(messageType);
+
+                if (messageType == 1) {
+                    outstream.writeObject(msg.obj);
+                }
+
+                outstream.flush();
+                outstream.reset();
+
+                if (messageType == 1) {
+                    TimeLog.coordinator.add(((Image2) msg.obj).frameNumber); // After send
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private class PingThread extends TimerTask {
+        Handler handler;
+        int workerNum;
+        public PingThread(Handler handler, int workerNum) {
+            this.handler = handler;
+            this.workerNum = workerNum;
+        }
+        @Override
+        public void run() {
+            Message msg = Message.obtain();
+            msg.arg1 = workerNum;
+            msg.arg2 = 2;
+            handler.sendMessage(msg);
+        }
     }
 
     private class ListenerThread extends Thread {
@@ -107,10 +153,15 @@ public class Sender2 extends Thread {
         public void run() {
             while (true) {
                 try {
+                    int msgType = worker.instream.readInt();
+
+                    if (msgType == 1) { // ping
+
+                    }
+
                     WorkerMessage msg = (WorkerMessage) worker.instream.readObject();
                     Result2 res = (Result2) msg.msg;
 
-                    worker.score = msg.score;
                     Connection.processed++;
                     if (res.isInner)
                         Connection.innerCount++;
@@ -132,6 +183,10 @@ public class Sender2 extends Thread {
         ObjectOutputStream outstream;
         ObjectInputStream instream;
         long score;
+
+        public double queueSize;
+        public double processingTIme;
+        public double networkTime;
 
         public Worker(String ip) {
             this.ip = ip;

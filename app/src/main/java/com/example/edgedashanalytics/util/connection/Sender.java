@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashMap;
 
+/* unused */
 public class Sender extends Thread {
     public static final int port = 5555;
     public String ip;
@@ -122,7 +123,7 @@ public class Sender extends Thread {
                         total += t;
                     delay = total / recentTime.size();
 
-                    score = msg.score;
+                    score = 0; //msg.score;
                     Connection.processed++;
                     if (res.isInner)
                         Connection.innerCount++;
