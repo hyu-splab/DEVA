@@ -1,4 +1,4 @@
-package com.example.edgedashanalytics.util.worker;
+package com.example.edgedashanalytics.advanced.worker;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -11,10 +11,7 @@ import com.example.edgedashanalytics.util.video.analysis.Result2;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
-import java.util.LinkedList;
-import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 
 public class ProcessorThread extends Thread {
     static public ArrayBlockingQueue<Image2> queue = new ArrayBlockingQueue<>(1000);

@@ -1,4 +1,4 @@
-package com.example.edgedashanalytics.util.connection;
+package com.example.edgedashanalytics.advanced.coordinator;
 
 /*
 Re-implementing Sender to resolve network-related issues.
@@ -11,6 +11,7 @@ import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
 
+import com.example.edgedashanalytics.advanced.common.WorkerMessage;
 import com.example.edgedashanalytics.util.Constants;
 import com.example.edgedashanalytics.util.log.TimeLog;
 import com.example.edgedashanalytics.util.video.analysis.Image2;
@@ -28,14 +29,14 @@ public class Communicator extends Thread {
 
     private Handler handler;
 
-    ArrayList<Worker> workers;
+    ArrayList<EDAWorker> workers;
 
     public Communicator() {
         workers = new ArrayList<>();
     }
 
     public void addWorker(String ip) {
-        workers.add(new Worker(ip));
+        workers.add(new EDAWorker(ip));
         // Should not try connecting now; this method is called from the main thread
     }
 
@@ -54,7 +55,7 @@ public class Communicator extends Thread {
 
     private void connect() {
         for (int workerNum = 0; workerNum < workers.size(); workerNum++) {
-            Worker worker = workers.get(workerNum);
+            EDAWorker worker = workers.get(workerNum);
             String ip = worker.ip;
             Socket socket;
             ObjectOutputStream outstream;
@@ -145,8 +146,8 @@ public class Communicator extends Thread {
     }
 
     private class ListenerThread extends Thread {
-        Worker worker;
-        public ListenerThread(Worker worker) {
+        EDAWorker worker;
+        public ListenerThread(EDAWorker worker) {
             this.worker = worker;
         }
         @Override
@@ -175,21 +176,6 @@ public class Communicator extends Thread {
                     e.printStackTrace();
                 }
             }
-        }
-    }
-
-    public class Worker {
-        String ip;
-        ObjectOutputStream outstream;
-        ObjectInputStream instream;
-        long score;
-
-        public double queueSize;
-        public double processingTIme;
-        public double networkTime;
-
-        public Worker(String ip) {
-            this.ip = ip;
         }
     }
 }

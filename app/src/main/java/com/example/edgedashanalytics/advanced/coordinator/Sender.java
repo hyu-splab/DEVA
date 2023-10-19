@@ -1,10 +1,11 @@
-package com.example.edgedashanalytics.util.connection;
+package com.example.edgedashanalytics.advanced.coordinator;
 
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
 
+import com.example.edgedashanalytics.advanced.common.WorkerMessage;
 import com.example.edgedashanalytics.util.log.TimeLog;
 import com.example.edgedashanalytics.util.video.analysis.Image2;
 import com.example.edgedashanalytics.util.video.analysis.Result2;
@@ -13,7 +14,6 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashMap;
 

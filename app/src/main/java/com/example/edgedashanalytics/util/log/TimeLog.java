@@ -3,13 +3,12 @@ package com.example.edgedashanalytics.util.log;
 import android.content.Context;
 import android.util.Log;
 
-import com.example.edgedashanalytics.util.connection.Connection;
-import com.example.edgedashanalytics.util.connection.WorkerServer;
+import com.example.edgedashanalytics.advanced.coordinator.Connection;
+import com.example.edgedashanalytics.advanced.coordinator.WorkerServer;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Locale;

@@ -1,15 +1,12 @@
-package com.example.edgedashanalytics.util.worker;
+package com.example.edgedashanalytics.advanced.worker;
 
 import static com.example.edgedashanalytics.util.log.TimeLog.context;
 
-import android.content.Context;
-import android.graphics.Bitmap;
 import android.util.Log;
 
 import com.example.edgedashanalytics.util.file.JsonManager;
 import com.example.edgedashanalytics.util.video.analysis.Frame;
 import com.example.edgedashanalytics.util.video.analysis.Hazard;
-import com.example.edgedashanalytics.util.video.analysis.InnerAnalysis;
 import com.example.edgedashanalytics.util.video.analysis.OuterAnalysis;
 import com.example.edgedashanalytics.util.video.analysis.OuterFrame;
 

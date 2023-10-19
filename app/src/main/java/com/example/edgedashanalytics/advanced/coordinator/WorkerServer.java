@@ -1,15 +1,16 @@
-package com.example.edgedashanalytics.util.connection;
+package com.example.edgedashanalytics.advanced.coordinator;
 
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
 
+import com.example.edgedashanalytics.advanced.common.WorkerMessage;
 import com.example.edgedashanalytics.util.Constants;
 import com.example.edgedashanalytics.util.log.TimeLog;
 import com.example.edgedashanalytics.util.video.analysis.Image2;
 import com.example.edgedashanalytics.util.video.analysis.Result2;
-import com.example.edgedashanalytics.util.worker.ProcessorThread;
+import com.example.edgedashanalytics.advanced.worker.ProcessorThread;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -23,7 +24,7 @@ public class WorkerServer {
     private static final String TAG = "WorkerServer";
     public static final int PORT = 5555;
     private Handler inHandler;
-    private Thread thread;
+    private final Thread thread;
 
     public static long innerCount = 0, outerCount = 0;
 

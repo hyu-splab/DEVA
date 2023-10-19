@@ -1,18 +1,13 @@
-package com.example.edgedashanalytics.util.connection;
-
-import static com.example.edgedashanalytics.util.connection.Connection.startTime;
-import static com.example.edgedashanalytics.util.connection.Connection.totalCount;
+package com.example.edgedashanalytics.advanced.coordinator;
 
 import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
 import android.util.Size;
 
-import com.example.edgedashanalytics.page.main.MainActivity;
 import com.example.edgedashanalytics.util.log.TimeLog;
 import com.example.edgedashanalytics.util.Constants;
 
-import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
@@ -72,8 +67,8 @@ public class Receiver extends Thread {
             byte[] data = (byte[]) instream.readObject();
             if (Connection.isFinished)
                 continue;
-            if (totalCount == 1) {
-                startTime = System.currentTimeMillis();
+            if (Connection.totalCount == 1) {
+                Connection.startTime = System.currentTimeMillis();
                 new Timer().schedule(new TimerTask() {
                     @Override
                     public void run() {

@@ -1,17 +1,15 @@
-package com.example.edgedashanalytics.util.connection;
+package com.example.edgedashanalytics.advanced.coordinator;
 
-import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
 import android.util.Size;
 
-import com.example.edgedashanalytics.page.main.MainActivity;
 import com.example.edgedashanalytics.util.Constants;
 import com.example.edgedashanalytics.util.log.TimeLog;
 import com.example.edgedashanalytics.util.video.analysis.Image2;
-import com.example.edgedashanalytics.util.worker.WorkerThread;
+import com.example.edgedashanalytics.advanced.worker.WorkerThread;
 
 import java.io.ObjectOutputStream;
 import java.util.HashMap;
