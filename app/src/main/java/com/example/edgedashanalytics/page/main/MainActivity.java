@@ -34,7 +34,7 @@ import com.example.edgedashanalytics.model.Video;
 import com.example.edgedashanalytics.page.adapter.ProcessingAdapter;
 import com.example.edgedashanalytics.page.adapter.RawAdapter;
 import com.example.edgedashanalytics.page.setting.SettingsActivity;
-import com.example.edgedashanalytics.advanced.coordinator.Connection;
+import com.example.edgedashanalytics.advanced.coordinator.AdvancedMain;
 import com.example.edgedashanalytics.util.dashcam.DashCam;
 import com.example.edgedashanalytics.util.file.FileManager;
 import com.example.edgedashanalytics.util.hardware.PowerMonitor;
@@ -103,7 +103,7 @@ public class MainActivity extends AppCompatActivity implements
 
         findViewById(R.id.buttonStart).setOnClickListener(view -> {
             Log.d(TAG, "Start");
-            Connection.runImageStreaming();
+            AdvancedMain.runImageStreaming();
         });
 
         findViewById(R.id.buttonStop).setOnClickListener(view -> {
@@ -125,7 +125,7 @@ public class MainActivity extends AppCompatActivity implements
         storeLogsInFile();
         DashCam.setup(this);
 
-        Connection.workerStart();
+        AdvancedMain.workerStart();
     }
 
     @Override

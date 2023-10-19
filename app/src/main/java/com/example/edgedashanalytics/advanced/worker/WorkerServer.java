@@ -1,4 +1,4 @@
-package com.example.edgedashanalytics.advanced.coordinator;
+package com.example.edgedashanalytics.advanced.worker;
 
 import android.os.Handler;
 import android.os.Looper;
@@ -6,6 +6,7 @@ import android.os.Message;
 import android.util.Log;
 
 import com.example.edgedashanalytics.advanced.common.WorkerMessage;
+import com.example.edgedashanalytics.advanced.coordinator.AdvancedMain;
 import com.example.edgedashanalytics.util.Constants;
 import com.example.edgedashanalytics.util.log.TimeLog;
 import com.example.edgedashanalytics.util.video.analysis.Image2;
@@ -69,7 +70,6 @@ public class WorkerServer {
                                 WorkerMessage wMsg = new WorkerMessage(res);
 
                                 TimeLog.worker.add(((Result2)msg.obj).frameNumber + ""); // Return Result
-                                outstream.writeInt(0);
                                 outstream.writeObject(wMsg);
                                 outstream.flush();
                                 TimeLog.worker.finish(((Result2)msg.obj).frameNumber + ""); // After send
@@ -85,16 +85,8 @@ public class WorkerServer {
                 try {
                     int cnt = 0;
                     while (true) {
-                        // start
-                        int messageType = instream.readInt();
-
-                        if (messageType == 2) { // ping
-                            outstream.writeInt(1);
-                            continue;
-                        }
-
                         Image2 image = (Image2) instream.readObject();
-                        if (Connection.isFinished)
+                        if (AdvancedMain.isFinished)
                             continue;
                         if (cnt == 0) {
                             new Timer().schedule(new TimerTask() {

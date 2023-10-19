@@ -15,8 +15,10 @@ import java.net.Socket;
 import java.util.Timer;
 import java.util.TimerTask;
 
-public class Receiver extends Thread {
+public class EDACam extends Thread {
     static final String TAG = "ReceiverThread";
+
+    private boolean isInner;
 
     private Handler handler;
     private int msgCode;
@@ -24,15 +26,18 @@ public class Receiver extends Thread {
 
     public ObjectInputStream instream;
     public ObjectOutputStream outstream;
-
     private Socket socket;
 
-    public Receiver(Handler handler, int msgCode, int port) {
+    public CamSettings camSettings;
+
+    public EDACam(Handler handler, boolean isInner) {
         // handler: the handler for the processing thread to hand over the image data
+        this.isInner = isInner;
         this.handler = handler;
-        this.msgCode = msgCode;
-        this.port = port;
+        this.msgCode = isInner ? Constants.IMAGE_INNER : Constants.IMAGE_OUTER;
+        this.port = isInner ? Constants.PORT_INNER : Constants.PORT_OUTER;
         this.socket = null;
+        camSettings = new CamSettings(isInner);
     }
 
     @Override
@@ -57,7 +62,7 @@ public class Receiver extends Thread {
         // before we perform the periodical checks
         ObjectOutputStream tempOutstream = new ObjectOutputStream(socket.getOutputStream());
         // First time connected, send initial settings
-        sendSettings(tempOutstream, new Size(1280, 720), 50, 30);
+        sendSettings(tempOutstream);
         outstream = tempOutstream;
     }
 
@@ -65,10 +70,10 @@ public class Receiver extends Thread {
         while (true) {
             int frameNum = instream.readInt();
             byte[] data = (byte[]) instream.readObject();
-            if (Connection.isFinished)
+            if (AdvancedMain.isFinished)
                 continue;
-            if (Connection.totalCount == 1) {
-                Connection.startTime = System.currentTimeMillis();
+            if (AdvancedMain.totalCount == 1) {
+                AdvancedMain.startTime = System.currentTimeMillis();
                 new Timer().schedule(new TimerTask() {
                     @Override
                     public void run() {
@@ -84,6 +89,10 @@ public class Receiver extends Thread {
 
             handler.sendMessage(msg);
         }
+    }
+
+    public void sendSettings(ObjectOutputStream outputStream) {
+        sendSettings(outputStream, camSettings.getResolution(), camSettings.getQuality(), camSettings.getFrameRate());
     }
 
     public static void sendSettings(ObjectOutputStream outputStream, Size resolution, int quality, int frameRate) {

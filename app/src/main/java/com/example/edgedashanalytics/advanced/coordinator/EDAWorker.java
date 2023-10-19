@@ -1,7 +1,11 @@
 package com.example.edgedashanalytics.advanced.coordinator;
 
+import com.example.edgedashanalytics.advanced.common.FrameResult;
+import com.example.edgedashanalytics.advanced.common.WorkerStatus;
+
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.util.ArrayDeque;
 import java.util.Deque;
 
 public class EDAWorker {
@@ -10,12 +14,10 @@ public class EDAWorker {
     public ObjectInputStream instream;
     public long score; // should be removed later
 
-    public int innerWaiting, outerWaiting;
-    public int innerProcTime, outerProcTime;
-    public int networkTime;
-    public Deque<FrameRecord> frameHistory;
+    public WorkerStatus status;
 
     public EDAWorker(String ip) {
+        status = new WorkerStatus();
         this.ip = ip;
     }
 }

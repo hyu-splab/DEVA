@@ -29,7 +29,7 @@ public class Communicator extends Thread {
 
     private Handler handler;
 
-    ArrayList<EDAWorker> workers;
+    public ArrayList<EDAWorker> workers;
 
     public Communicator() {
         workers = new ArrayList<>();
@@ -85,8 +85,6 @@ public class Communicator extends Thread {
             worker.instream = instream;
 
             new ListenerThread(worker).start();
-
-            new Timer().schedule(new PingThread(handler, workerNum), 500);
         }
     }
 
@@ -129,22 +127,6 @@ public class Communicator extends Thread {
         }
     }
 
-    private class PingThread extends TimerTask {
-        Handler handler;
-        int workerNum;
-        public PingThread(Handler handler, int workerNum) {
-            this.handler = handler;
-            this.workerNum = workerNum;
-        }
-        @Override
-        public void run() {
-            Message msg = Message.obtain();
-            msg.arg1 = workerNum;
-            msg.arg2 = 2;
-            handler.sendMessage(msg);
-        }
-    }
-
     private class ListenerThread extends Thread {
         EDAWorker worker;
         public ListenerThread(EDAWorker worker) {
@@ -154,20 +136,14 @@ public class Communicator extends Thread {
         public void run() {
             while (true) {
                 try {
-                    int msgType = worker.instream.readInt();
-
-                    if (msgType == 1) { // ping
-
-                    }
-
                     WorkerMessage msg = (WorkerMessage) worker.instream.readObject();
                     Result2 res = (Result2) msg.msg;
 
-                    Connection.processed++;
+                    AdvancedMain.processed++;
                     if (res.isInner)
-                        Connection.innerCount++;
+                        AdvancedMain.innerCount++;
                     else
-                        Connection.outerCount++;
+                        AdvancedMain.outerCount++;
                     TimeLog.coordinator.finish(res.frameNumber + ""); // Finish
                     //Log.d(TAG, "Got response from the server: isInner = "
                     //+ res.isInner + ", frameNumber = " + res.frameNumber);

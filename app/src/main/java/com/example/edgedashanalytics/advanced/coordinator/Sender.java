@@ -124,11 +124,11 @@ public class Sender extends Thread {
                     delay = total / recentTime.size();
 
                     score = 0; //msg.score;
-                    Connection.processed++;
+                    AdvancedMain.processed++;
                     if (res.isInner)
-                        Connection.innerCount++;
+                        AdvancedMain.innerCount++;
                     else
-                        Connection.outerCount++;
+                        AdvancedMain.outerCount++;
                     TimeLog.coordinator.finish(res.frameNumber + ""); // Finish
                     //Log.d(TAG, "Got response from the server: isInner = "
                     //+ res.isInner + ", frameNumber = " + res.frameNumber);

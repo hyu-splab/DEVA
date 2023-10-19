@@ -3,8 +3,8 @@ package com.example.edgedashanalytics.util.log;
 import android.content.Context;
 import android.util.Log;
 
-import com.example.edgedashanalytics.advanced.coordinator.Connection;
-import com.example.edgedashanalytics.advanced.coordinator.WorkerServer;
+import com.example.edgedashanalytics.advanced.coordinator.AdvancedMain;
+import com.example.edgedashanalytics.advanced.worker.WorkerServer;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -110,7 +110,7 @@ public class TimeLog {
     }
 
     public void writeLogs() {
-        Connection.isFinished = true;
+        AdvancedMain.isFinished = true;
         synchronized (map) {
             // Sort the results
             Collections.sort(ls);
@@ -172,11 +172,11 @@ public class TimeLog {
 
                 sb.append("summary,");
                 long totalTime = latest - earliest;
-                long innerCount = isWorker ? WorkerServer.innerCount : Connection.innerCount;
-                long outerCount = isWorker ? WorkerServer.outerCount : Connection.outerCount;
-                sb.append(isWorker ? finishedCount : Connection.totalCount).append(",");
+                long innerCount = isWorker ? WorkerServer.innerCount : AdvancedMain.innerCount;
+                long outerCount = isWorker ? WorkerServer.outerCount : AdvancedMain.outerCount;
+                sb.append(isWorker ? finishedCount : AdvancedMain.totalCount).append(",");
                 if (!isWorker)
-                    sb.append(Connection.processed).append(",").append(Connection.dropped).append(",");
+                    sb.append(AdvancedMain.processed).append(",").append(AdvancedMain.dropped).append(",");
                 sb.append(totalTime).append(",")
                         .append(String.format(Locale.getDefault(), "%.3f,",
                                 finishedCount * 1000.0 / totalTime))

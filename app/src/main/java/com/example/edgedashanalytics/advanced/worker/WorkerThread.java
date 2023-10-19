@@ -2,8 +2,6 @@ package com.example.edgedashanalytics.advanced.worker;
 
 import android.os.Handler;
 
-import com.example.edgedashanalytics.advanced.coordinator.WorkerServer;
-
 public class WorkerThread extends Thread {
     private static final String TAG = "WorkerThread";
     private static WorkerServer workerServer = null;
