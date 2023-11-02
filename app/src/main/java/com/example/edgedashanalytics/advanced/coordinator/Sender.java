@@ -5,10 +5,9 @@ import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
 
-import com.example.edgedashanalytics.advanced.common.WorkerMessage;
-import com.example.edgedashanalytics.util.log.TimeLog;
-import com.example.edgedashanalytics.util.video.analysis.Image2;
-import com.example.edgedashanalytics.util.video.analysis.Result2;
+import com.example.edgedashanalytics.advanced.common.TimeLog;
+import com.example.edgedashanalytics.advanced.common.Image2;
+import com.example.edgedashanalytics.advanced.common.WorkerResult;
 
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -64,11 +63,11 @@ public class Sender extends Thread {
                 // score = Long.MAX_VALUE;
                 try {
                     //Log.d(TAG, "sending to the worker: " + ip);
-                    TimeLog.coordinator.add(((Image2)inputMessage.obj).frameNumber + ""); // Wait for Result
+                    TimeLog.coordinator.add(((Image2)inputMessage.obj).frameNum + ""); // Wait for Result
                     outstream.writeObject(inputMessage.obj);
                     outstream.flush();
                     outstream.reset();
-                    TimeLog.coordinator.add(((Image2)inputMessage.obj).frameNumber + ""); // After send
+                    TimeLog.coordinator.add(((Image2)inputMessage.obj).frameNum + ""); // After send
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -107,14 +106,13 @@ public class Sender extends Thread {
         public void run() {
             while (true) {
                 try {
-                    WorkerMessage msg = (WorkerMessage) instream.readObject();
-                    Result2 res = (Result2) msg.msg;
+                    WorkerResult res = (WorkerResult) instream.readObject();
 
                     long endTime = System.currentTimeMillis();
                     if (recentTime.size() == DEQUE_CAPACITY)
                         recentTime.pop();
                     try {
-                        recentTime.push(endTime - startTime.remove(res.frameNumber));
+                        recentTime.push(endTime - startTime.remove(res.frameNum));
                     } catch (NullPointerException e) {
                         e.printStackTrace();
                     }
@@ -129,7 +127,7 @@ public class Sender extends Thread {
                         AdvancedMain.innerCount++;
                     else
                         AdvancedMain.outerCount++;
-                    TimeLog.coordinator.finish(res.frameNumber + ""); // Finish
+                    TimeLog.coordinator.finish(res.frameNum + ""); // Finish
                     //Log.d(TAG, "Got response from the server: isInner = "
                     //+ res.isInner + ", frameNumber = " + res.frameNumber);
                     //Log.d(TAG, res.msg);

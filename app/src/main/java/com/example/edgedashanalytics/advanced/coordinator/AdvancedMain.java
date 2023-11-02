@@ -1,18 +1,17 @@
 package com.example.edgedashanalytics.advanced.coordinator;
 
+import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
-import android.util.Size;
 
 import com.example.edgedashanalytics.advanced.common.WorkerStatus;
 import com.example.edgedashanalytics.util.Constants;
-import com.example.edgedashanalytics.util.log.TimeLog;
-import com.example.edgedashanalytics.util.video.analysis.Image2;
+import com.example.edgedashanalytics.advanced.common.TimeLog;
+import com.example.edgedashanalytics.advanced.common.Image2;
 import com.example.edgedashanalytics.advanced.worker.WorkerThread;
 
-import java.io.ObjectOutputStream;
 import java.util.HashMap;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -21,7 +20,7 @@ public class AdvancedMain {
     private static final String TAG = "AdvancedMain";
     //private static ArrayList<Sender> senders = new ArrayList<>();
     private static Communicator communicator;
-    public static long innerCount = 0, outerCount = 0, totalCount = 0, processed = 0, dropped = 0;
+    public static int innerCount = 0, outerCount = 0, totalCount = 0, processed = 0, dropped = 0;
     public static int selectedCount = 0;
     public static long startTime;
     public static boolean isFinished = false;
@@ -41,10 +40,17 @@ public class AdvancedMain {
         connectToWorkers();
 
         // and then it should run endlessly until the user taps the stop button
+
+        new Timer().schedule(new TimerTask() {
+            @Override
+            public void run() {
+                controller.adjustCamSettings(communicator.workers, innerCam.camSettings, outerCam.camSettings);
+                StatusLogger.log(innerCam, outerCam, communicator.workers);
+            }
+        }, 1000, 2000);
     }
 
     private static void connectToDashCam() {
-        controller = new Controller();
         Handler handler = new Distributer(Looper.getMainLooper());
         // Inner DashCam
         innerCam = new EDACam(handler, true);
@@ -54,24 +60,21 @@ public class AdvancedMain {
         outerCam = new EDACam(handler, false);
         outerCam.start();
 
-        new Timer().schedule(new TimerTask() {
-            @Override
-            public void run() {
-                controller.adjustCamSettings(communicator.workers, innerCam.camSettings, outerCam.camSettings);
-            }
-        }, 500);
+        controller = new Controller(innerCam, outerCam);
     }
 
     public static void connectToWorkers() {
         // This device is the client side
         // Replace this part with actual finding process eventually
+        createDeviceList();
         HashMap<String, String> p = s22;
 
         String[] workerList = {"self"};
 
         communicator = new Communicator();
+        int workerNum = 0;
         for (String name : workerList) {
-            communicator.addWorker(p.get(name));
+            communicator.addWorker(workerNum++, p.get(name));
         }
 
         communicator.start();
@@ -103,7 +106,7 @@ public class AdvancedMain {
     }
 
     static class Distributer extends Handler {
-        private static final double SCORE_THRESHOLD = 100;
+        private static final double SCORE_THRESHOLD = 300;
 
         public Distributer(Looper looper) {
             super(looper);
@@ -120,17 +123,19 @@ public class AdvancedMain {
 
                 double waitTime;
 
-                if (status.innerWaiting() + status.outerWaiting() <= 1) {
+                if (status.innerWaiting + status.outerWaiting <= 1) {
                     waitTime = 0;
                 }
                 else {
-                    waitTime = ((status.innerWaiting() * status.innerProcessTime())
-                            + (status.outerWaiting() * status.outerProcessTime())) / 2;
+                    waitTime = ((status.innerWaiting * status.innerProcessTime())
+                            + (status.outerWaiting * status.outerProcessTime())) / 2;
                 }
 
                 double queueTime = Math.max(waitTime - status.networkTime, 0.0);
                 double score = status.networkTime + queueTime
                         + (isInner ? status.innerProcessTime() : status.outerProcessTime());
+
+                //Log.d(TAG, "" + i + ": " + waitTime + " " + status.networkTime + " " + queueTime + " " + score);
 
                 if (score < bestScore) {
                     bestScore = score;
@@ -140,7 +145,7 @@ public class AdvancedMain {
 
             if (bestScore > SCORE_THRESHOLD) {
                 bestWorker = -1;
-                Log.d(TAG, "bestScore is " + bestScore + ", dropping");
+                //Log.d(TAG, "bestScore is " + bestScore + ", dropping");
             }
 
             return bestWorker;
@@ -178,11 +183,11 @@ public class AdvancedMain {
             TimeLog.coordinator.add(totalCount + ""); // message to network thread
             senderHandler.sendMessage(senderMessage);
 
-            if (totalCount % 10 == 0) {
+            /* if (totalCount % 10 == 0) {
                 Log.i(TAG, String.format("Processed: %d/%d (%d%%)", processed, totalCount, processed * 100 / totalCount));
                 double fps = (double)processed / (System.currentTimeMillis() - startTime) * 1000;
                 Log.i(TAG, String.format("Throughput: %.1ffps (avg. %.1ffps per camera)", fps, fps / 2));
-            }
+            } */
         }
     }
 }

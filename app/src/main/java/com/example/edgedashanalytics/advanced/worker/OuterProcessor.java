@@ -1,6 +1,6 @@
 package com.example.edgedashanalytics.advanced.worker;
 
-import static com.example.edgedashanalytics.util.log.TimeLog.context;
+import static com.example.edgedashanalytics.advanced.common.TimeLog.context;
 
 import android.util.Log;
 

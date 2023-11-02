@@ -23,7 +23,7 @@ public class CamSettings {
                 new Size(1280, 720)
         };
 
-        qualities = new int[] {30, 40, 50, 60, 70};
+        qualities = new int[] {30, 40, 50/*, 60, 70*/};
         frameRates = new int[] {5, 10, 15, 20, 25, 30};
 
         this.isInner = isInner;
@@ -31,6 +31,18 @@ public class CamSettings {
         idxResolution = resolutions.length - 1;
         idxQuality = qualities.length - 1;
         idxFrameRate = frameRates.length - 1;
+
+        initializeChanged();
+    }
+
+    public CamSettings(CamSettings org) {
+        resolutions = org.resolutions;
+        qualities = org.qualities;
+        frameRates = org.frameRates;
+        isInner = org.isInner;
+        idxResolution = org.idxResolution;
+        idxQuality = org.idxQuality;
+        idxFrameRate = org.idxFrameRate;
 
         initializeChanged();
     }

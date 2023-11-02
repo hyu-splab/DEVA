@@ -2,6 +2,7 @@ package com.example.edgedashanalytics.advanced.coordinator;
 
 import android.util.Log;
 
+import com.example.edgedashanalytics.advanced.common.WorkerHistory;
 import com.example.edgedashanalytics.advanced.common.WorkerStatus;
 
 import java.util.List;
@@ -9,21 +10,25 @@ import java.util.List;
 public class Controller {
     private static final String TAG = "Controller";
 
-    public Controller() {
+    private final EDACam innerCam;
+    private final EDACam outerCam;
 
+    public Controller(EDACam innerCam, EDACam outerCam) {
+        this.innerCam = innerCam;
+        this.outerCam = outerCam;
     }
 
     /*
     TODO: All values here are temporary.
      */
-    private static final double NETWORK_SLOW = 200;
-    private static final double PROCESS_SLOW_INNER = 100, PROCESS_SLOW_OUTER = 100;
-    private static final double WAIT_SLOW = 100;
+    private static final double NETWORK_SLOW = 300;
+    private static final double PROCESS_SLOW_INNER = 100, PROCESS_SLOW_OUTER = 200;
+    private static final double WAIT_SLOW = 2.5;
 
-    private static final double NETWORK_FAST = 50;
-    private static final double WAIT_FAST = 20;
+    private static final double NETWORK_FAST = 100;
+    private static final double WAIT_FAST = 1.5;
 
-    public void adjustCamSettings(List<EDAWorker> workers, CamSettings innerCam, CamSettings outerCam) {
+    public void adjustCamSettings(List<EDAWorker> workers, CamSettings innerCamSettings, CamSettings outerCamSettings) {
         double avgInnerWait = 0.0;
         double avgInnerProcess = 0.0;
         double avgOuterWait = 0.0;
@@ -37,45 +42,58 @@ public class Controller {
         int totalOuterProcess = 0;
         int innerCount = 0, outerCount = 0;
 
+        if (workers.size() == 0) {
+            Log.d(TAG, "no workers available");
+            return;
+        }
+
         for (EDAWorker worker : workers) {
             WorkerStatus status = worker.status;
             innerCount += status.innerHistory.history.size();
-            totalInnerWait += status.innerHistory.waiting;
-            totalInnerProcess += status.innerHistory.processTime;
+            totalInnerWait += status.innerWaiting;
+            totalInnerProcess += status.innerHistory.totalProcessTime;
 
             outerCount += status.outerHistory.history.size();
-            totalOuterWait += status.outerHistory.waiting;
-            totalOuterProcess += status.outerHistory.processTime;
+            totalOuterWait += status.outerWaiting;
+            totalOuterProcess += status.outerHistory.totalProcessTime;
 
-            totalNetworkTime += status.networkTime;
+            totalNetworkTime += status.innerHistory.totalNetworkTime + status.outerHistory.totalNetworkTime;
         }
 
         if (innerCount > 0) {
-            avgInnerWait = (double)totalInnerWait / innerCount;
+            avgInnerWait = (double)totalInnerWait / workers.size();
             avgInnerProcess = (double)totalInnerProcess / innerCount;
         }
 
         if (outerCount > 0) {
-            avgOuterWait = (double)totalOuterWait / outerCount;
+            avgOuterWait = (double)totalOuterWait / workers.size();
             avgOuterProcess = (double)totalOuterProcess / outerCount;
         }
 
         if (innerCount + outerCount > 0) {
             avgNetworkTime = (double)totalNetworkTime / (innerCount + outerCount);
         }
+        else {
+            Log.d(TAG, "No history available");
+            return;
+        }
+
+        Log.d(TAG, "innerwait = " + avgInnerWait + ", innerprocess = " + avgInnerProcess
+        + ", outerwait = " + avgOuterWait + ", outerprocess = " + avgOuterProcess
+        + ", network = " + avgNetworkTime);
 
         boolean x, y; // temporary variables
-        innerCam.initializeChanged();
-        outerCam.initializeChanged();
+        innerCamSettings.initializeChanged();
+        outerCamSettings.initializeChanged();
 
         /*
         Rule #1: Never let TFLife take too much time processing
          */
         if (avgInnerProcess > PROCESS_SLOW_INNER || avgOuterProcess > PROCESS_SLOW_OUTER) {
-            if (!innerCam.decreaseResolution()) {
+            if (!innerCamSettings.decreaseResolution()) {
                 warnMin("inner process");
             }
-            if (!outerCam.decreaseResolution()) {
+            if (!outerCamSettings.decreaseResolution()) {
                 warnMin("outer process");
             }
         }
@@ -84,13 +102,13 @@ public class Controller {
         Rule #2: Do not let the network to be saturated
          */
         if (avgNetworkTime > NETWORK_SLOW) {
-            if (!innerCam.decreaseFrameRate()) {
-                if (!outerCam.decreaseFrameRate()) {
-                    x = innerCam.decreaseQuality();
-                    y = outerCam.decreaseQuality();
+            if (!innerCamSettings.decreaseFrameRate()) {
+                if (!outerCamSettings.decreaseFrameRate()) {
+                    x = innerCamSettings.decreaseQuality();
+                    y = outerCamSettings.decreaseQuality();
                     if (!x && !y) {
-                        x = innerCam.decreaseResolution();
-                        y = outerCam.decreaseResolution();
+                        x = innerCamSettings.decreaseResolution();
+                        y = outerCamSettings.decreaseResolution();
                         if (!x && !y) {
                             warnMin("network");
                         }
@@ -102,11 +120,11 @@ public class Controller {
         /*
         Rule #3: We don't want saturated worker queues
          */
-        if (avgInnerWait > WAIT_SLOW && avgOuterWait > WAIT_SLOW) {
-            if (!innerCam.decreaseFrameRate()) {
-                if (!outerCam.decreaseFrameRate()) {
-                    x = innerCam.decreaseResolution();
-                    y = outerCam.decreaseResolution();
+        if (avgInnerWait > WAIT_SLOW || avgOuterWait > WAIT_SLOW) {
+            if (!innerCamSettings.decreaseFrameRate()) {
+                if (!outerCamSettings.decreaseFrameRate()) {
+                    x = innerCamSettings.decreaseResolution();
+                    y = outerCamSettings.decreaseResolution();
                     if (!x && !y) {
                         warnMin("worker queue");
                     }
@@ -118,15 +136,30 @@ public class Controller {
         Rule #4: If everything is more than good, try measuring in higher quality
          */
         if (avgNetworkTime < NETWORK_FAST && avgInnerWait < WAIT_FAST && avgOuterWait < WAIT_FAST) {
-            x = innerCam.increaseQuality();
-            y = outerCam.increaseQuality();
+            x = innerCamSettings.increaseQuality();
+            y = outerCamSettings.increaseQuality();
             if (!x && !y) {
-                if (!outerCam.increaseFrameRate()) {
-                    if (!innerCam.increaseFrameRate()) {
+                if (!outerCamSettings.increaseFrameRate()) {
+                    if (!innerCamSettings.increaseFrameRate()) {
                         warnMax("all is well");
                     }
                 }
             }
+        }
+
+        if (innerCam.outstream != null) {
+            innerCam.sendSettings(innerCam.outstream);
+            //Log.d(TAG, "sending adjusted setting to innercam");
+        }
+        if (outerCam.outstream != null) {
+            //Log.d(TAG, "sending adjusted setting to outercam");
+            outerCam.sendSettings(outerCam.outstream);
+        }
+
+        for (EDAWorker worker : workers) {
+            worker.status.innerHistory.removeOldResults();
+            worker.status.outerHistory.removeOldResults();
+            worker.status.calcNetworkTime();
         }
     }
 

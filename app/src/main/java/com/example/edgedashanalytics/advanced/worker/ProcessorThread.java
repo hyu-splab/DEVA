@@ -5,9 +5,9 @@ import android.graphics.BitmapFactory;
 import android.os.Handler;
 import android.os.Message;
 
-import com.example.edgedashanalytics.util.log.TimeLog;
-import com.example.edgedashanalytics.util.video.analysis.Image2;
-import com.example.edgedashanalytics.util.video.analysis.Result2;
+import com.example.edgedashanalytics.advanced.common.TimeLog;
+import com.example.edgedashanalytics.advanced.common.Image2;
+import com.example.edgedashanalytics.advanced.common.WorkerResult;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -30,13 +30,13 @@ public class ProcessorThread extends Thread {
             try {
                 Image2 img = queue.take();
 
-                TimeLog.worker.add(img.frameNumber + ""); // Uncompress
+                TimeLog.worker.add(img.frameNum + ""); // Uncompress
 
                 Bitmap bitmap = uncompress(img.data);
 
-                TimeLog.worker.add(img.frameNumber + ""); // Process Frame
+                TimeLog.worker.add(img.frameNum + ""); // Process Frame
 
-                long frameNumber = img.frameNumber;
+                int frameNum = img.frameNum;
                 boolean isInner = img.isInner;
                 if (isInner)
                     frameProcessor = innerProcessor;
@@ -46,9 +46,11 @@ public class ProcessorThread extends Thread {
                 frameProcessor.setFrame(bitmap);
                 frameProcessor.setCameraFrameNum(img.cameraFrameNum);
 
+                long startTime = System.currentTimeMillis();
                 String resultString = frameProcessor.run();
+                long endTime = System.currentTimeMillis();
 
-                sendResult(isInner, frameNumber, resultString);
+                sendResult(isInner, img.coordinatorStartTime, frameNum, endTime - startTime, endTime - img.workerStartTime, resultString);
                 workCount++;
             } catch (Exception e) {
                 e.printStackTrace();
@@ -69,9 +71,9 @@ public class ProcessorThread extends Thread {
         return bitmap;
     }
 
-    public static void sendResult(boolean isInner, long frameNumber, String resultString) {
+    public static void sendResult(boolean isInner, long coordinatorStartTime, int frameNum, long processTime, long totalTime, String resultString) {
         Message retMsg = Message.obtain();
-        retMsg.obj = new Result2(isInner, frameNumber, resultString);
+        retMsg.obj = new WorkerResult(isInner, coordinatorStartTime, frameNum, processTime, totalTime, resultString);
         handler.sendMessage(retMsg);
     }
 }

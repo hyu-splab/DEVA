@@ -5,7 +5,7 @@ import android.os.Message;
 import android.util.Log;
 import android.util.Size;
 
-import com.example.edgedashanalytics.util.log.TimeLog;
+import com.example.edgedashanalytics.advanced.common.TimeLog;
 import com.example.edgedashanalytics.util.Constants;
 
 import java.io.ObjectInputStream;
@@ -97,9 +97,12 @@ public class EDACam extends Thread {
 
     public static void sendSettings(ObjectOutputStream outputStream, Size resolution, int quality, int frameRate) {
         try {
-            outputStream.writeObject(resolution);
+            outputStream.writeInt(resolution.getWidth());
+            outputStream.writeInt(resolution.getHeight());
             outputStream.writeInt(quality);
             outputStream.writeInt(frameRate);
+            outputStream.flush();
+            outputStream.reset();
         } catch (Exception e) {
             e.printStackTrace();
         }

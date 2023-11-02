@@ -11,21 +11,19 @@ import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
 
-import com.example.edgedashanalytics.advanced.common.WorkerMessage;
+import com.example.edgedashanalytics.advanced.common.FrameResult;
 import com.example.edgedashanalytics.util.Constants;
-import com.example.edgedashanalytics.util.log.TimeLog;
-import com.example.edgedashanalytics.util.video.analysis.Image2;
-import com.example.edgedashanalytics.util.video.analysis.Result2;
+import com.example.edgedashanalytics.advanced.common.TimeLog;
+import com.example.edgedashanalytics.advanced.common.Image2;
+import com.example.edgedashanalytics.advanced.common.WorkerResult;
 
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.util.ArrayList;
-import java.util.Timer;
-import java.util.TimerTask;
 
 public class Communicator extends Thread {
-    private static final String TAG = "Sender2";
+    private static final String TAG = "Communicator";
 
     private Handler handler;
 
@@ -35,8 +33,8 @@ public class Communicator extends Thread {
         workers = new ArrayList<>();
     }
 
-    public void addWorker(String ip) {
-        workers.add(new EDAWorker(ip));
+    public void addWorker(int workerNum, String ip) {
+        workers.add(new EDAWorker(workerNum, ip));
         // Should not try connecting now; this method is called from the main thread
     }
 
@@ -95,31 +93,27 @@ public class Communicator extends Thread {
         @Override
         public void handleMessage(Message msg) {
             int workerNum = msg.arg1;
-            int messageType = msg.arg2;
-
-            if (messageType == 1) {
-
-            }
 
             try {
-                ObjectOutputStream outstream = workers.get(workerNum).outstream;
+                EDAWorker worker = workers.get(workerNum);
+                Image2 data = (Image2) msg.obj;
+                ObjectOutputStream outstream = worker.outstream;
+                TimeLog.coordinator.add(data.frameNum); // Wait for Result
 
-                if (messageType == 1) {
-                    TimeLog.coordinator.add(((Image2) msg.obj).frameNumber); // Wait for Result
+                if (data.isInner) {
+                    worker.status.innerWaiting++;
+                }
+                else {
+                    worker.status.outerWaiting++;
                 }
 
-                outstream.writeInt(messageType);
-
-                if (messageType == 1) {
-                    outstream.writeObject(msg.obj);
-                }
-
+                data.coordinatorStartTime = System.currentTimeMillis();
+                //Log.d(TAG, "frame " + data.frameNumber + " started at " + data.workerStartTime);
+                outstream.writeObject(data);
                 outstream.flush();
                 outstream.reset();
 
-                if (messageType == 1) {
-                    TimeLog.coordinator.add(((Image2) msg.obj).frameNumber); // After send
-                }
+                TimeLog.coordinator.add(data.frameNum); // After send
 
             } catch (Exception e) {
                 e.printStackTrace();
@@ -136,15 +130,29 @@ public class Communicator extends Thread {
         public void run() {
             while (true) {
                 try {
-                    WorkerMessage msg = (WorkerMessage) worker.instream.readObject();
-                    Result2 res = (Result2) msg.msg;
+                    WorkerResult res = (WorkerResult) worker.instream.readObject();
+                    long endTime = System.currentTimeMillis();
+
+                    if (res.isInner) {
+                        worker.status.innerWaiting--;
+                    }
+                    else {
+                        worker.status.outerWaiting--;
+                    }
+
+                    long networkTime = (endTime - res.coordinatorStartTime) - res.totalTime;
+                    //Log.d(TAG, "frame " + res.frameNumber + ": networkTime = (" + endTime + " - " + res.coordinatorStartTime + ") - " + res.totalTime + " = " + networkTime);
+
+                    FrameResult result = new FrameResult(endTime, res.frameNum, worker.workerNum, res.isInner, res.processTime, networkTime);
+                    FrameLogger.addResult(result);
+                    worker.status.addResult(result);
 
                     AdvancedMain.processed++;
                     if (res.isInner)
                         AdvancedMain.innerCount++;
                     else
                         AdvancedMain.outerCount++;
-                    TimeLog.coordinator.finish(res.frameNumber + ""); // Finish
+                    TimeLog.coordinator.finish(res.frameNum + ""); // Finish
                     //Log.d(TAG, "Got response from the server: isInner = "
                     //+ res.isInner + ", frameNumber = " + res.frameNumber);
                     //Log.d(TAG, res.msg);

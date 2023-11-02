@@ -15,6 +15,8 @@ import android.provider.Settings;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.EditText;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -25,6 +27,9 @@ import androidx.fragment.app.FragmentManager;
 
 import com.example.edgedashanalytics.BuildConfig;
 import com.example.edgedashanalytics.R;
+import com.example.edgedashanalytics.advanced.coordinator.FrameLogger;
+import com.example.edgedashanalytics.advanced.coordinator.StatusLogger;
+import com.example.edgedashanalytics.advanced.test.VideoTest;
 import com.example.edgedashanalytics.data.result.ResultRepository;
 import com.example.edgedashanalytics.data.video.ExternalStorageVideosRepository;
 import com.example.edgedashanalytics.data.video.ProcessingVideosRepository;
@@ -38,7 +43,7 @@ import com.example.edgedashanalytics.advanced.coordinator.AdvancedMain;
 import com.example.edgedashanalytics.util.dashcam.DashCam;
 import com.example.edgedashanalytics.util.file.FileManager;
 import com.example.edgedashanalytics.util.hardware.PowerMonitor;
-import com.example.edgedashanalytics.util.log.TimeLog;
+import com.example.edgedashanalytics.advanced.common.TimeLog;
 import com.example.edgedashanalytics.util.nearby.Endpoint;
 import com.example.edgedashanalytics.util.nearby.NearbyFragment;
 import com.example.edgedashanalytics.util.video.eventhandler.ProcessingVideosEventHandler;
@@ -49,8 +54,11 @@ import com.google.android.material.bottomnavigation.BottomNavigationView;
 import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.Locale;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.function.Consumer;
 
 public class MainActivity extends AppCompatActivity implements
@@ -101,12 +109,31 @@ public class MainActivity extends AppCompatActivity implements
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        TextView textViewTimer = findViewById(R.id.textViewTimer);
+        TextView textViewStatus = findViewById(R.id.textViewStatus);
+
         findViewById(R.id.buttonStart).setOnClickListener(view -> {
-            Log.d(TAG, "Start");
-            AdvancedMain.runImageStreaming();
+
+            Integer[] qualities = {100};
+            new Thread(() -> VideoTest.test(getApplicationContext(), "2.mp4", true, Arrays.asList(qualities))).start();
+
+            /*Log.d(TAG, "Start");
+            long timeStart = System.currentTimeMillis();
+            new Timer().schedule(new TimerTask() {
+                @Override
+                public void run() {
+                    textViewTimer.setText(String.format(Locale.getDefault(),
+                            "%.1f", (double)(System.currentTimeMillis() - timeStart) / 1000));
+                    String statusText = StatusLogger.getLatestLogText();
+                    textViewStatus.setText(statusText);
+                }
+            }, 100, 100);
+            AdvancedMain.runImageStreaming();*/
         });
 
         findViewById(R.id.buttonStop).setOnClickListener(view -> {
+            StatusLogger.writeLogs(getApplicationContext());
+            FrameLogger.writeLogs(getApplicationContext());
             Log.d(TAG, "Test finished");
         });
 

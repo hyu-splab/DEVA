@@ -9,6 +9,7 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 
 public class EDAWorker {
+    public int workerNum;
     public String ip;
     public ObjectOutputStream outstream;
     public ObjectInputStream instream;
@@ -16,8 +17,9 @@ public class EDAWorker {
 
     public WorkerStatus status;
 
-    public EDAWorker(String ip) {
+    public EDAWorker(int workerNum, String ip) {
         status = new WorkerStatus();
+        this.workerNum = workerNum;
         this.ip = ip;
     }
 }

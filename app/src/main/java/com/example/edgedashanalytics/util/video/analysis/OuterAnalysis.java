@@ -161,7 +161,7 @@ public class OuterAnalysis extends VideoAnalysis {
         long endTime = System.currentTimeMillis();
         totalTime += endTime - startTime;
 
-        Log.d(TAG, "(Outer) Average time: " + (totalTime / (double)frameCnt));
+        //Log.d(TAG, "(Outer) Average time: " + (totalTime / (double)frameCnt));
 
         return resultList;
     }

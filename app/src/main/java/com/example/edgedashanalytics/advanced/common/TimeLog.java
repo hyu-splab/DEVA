@@ -1,4 +1,4 @@
-package com.example.edgedashanalytics.util.log;
+package com.example.edgedashanalytics.advanced.common;
 
 import android.content.Context;
 import android.util.Log;

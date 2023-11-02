@@ -1,6 +1,6 @@
 package com.example.edgedashanalytics.advanced.worker;
 
-import static com.example.edgedashanalytics.util.log.TimeLog.context;
+import static com.example.edgedashanalytics.advanced.common.TimeLog.context;
 
 import android.util.Log;
 
@@ -32,18 +32,18 @@ public class InnerProcessor extends FrameProcessor {
     @Override
     public String run() {
         List<Frame> result = analyzer.analyse(frame);
-        StringBuilder resultString = new StringBuilder();
-        for (Frame f : result)
-            resultString.append(JsonManager.writeToString(result));
+
+        String resultString = JsonManager.writeToString(result);
 
         addResult(result);
 
-        if (cameraFrameNum == 1550) {
-            calcAccuracy();
+        if (cameraFrameNum == 13640 - 1) {
+            writeResults();
+            //calcAccuracy();
         }
 
         //Log.d(TAG, "result: " + resultString.toString());
-        return resultString.toString();
+        return resultString;
     }
 
     public void readDistraction() {

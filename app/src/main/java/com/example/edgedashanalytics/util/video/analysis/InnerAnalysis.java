@@ -44,7 +44,7 @@ import java.util.stream.Collectors;
 public class InnerAnalysis extends VideoAnalysis {
     private static final String TAG = InnerAnalysis.class.getSimpleName();
 
-    private static final float MIN_SCORE = 0.3f;
+    private static final float MIN_SCORE = 0.2f;
 
     private static RectF cropRegion;
 
@@ -52,7 +52,7 @@ public class InnerAnalysis extends VideoAnalysis {
     //private static final BlockingQueue<Interpreter> interpreterQueue = new LinkedBlockingQueue<>(THREAD_NUM);
     //private static final BlockingQueue<ImageProcessor> processorQueue = new LinkedBlockingQueue<>(THREAD_NUM);
 
-    private static final int[] models = {/*R.string.movenet_lightning_key, */R.string.movenet_thunder_key};
+    private static final int[] models = {/*R.string.movenet_lightning_key*/R.string.movenet_thunder_key};
 
     public int inputWidth, inputHeight;
     public int[] outputShape;
@@ -82,11 +82,6 @@ public class InnerAnalysis extends VideoAnalysis {
 
     public InnerAnalysis(Context context) {
         super(context);
-
-        /* TODO: Do multi-stage detection; aka. use multiple models to investigate each frame
-                 Should be adjustable so that the algorithm can be adaptive to its workload
-                 Maybe better to just allocate models per thread?
-        */
 
         Interpreter.Options options = new Interpreter.Options();
         options.setUseXNNPACK(true);
@@ -207,7 +202,7 @@ public class InnerAnalysis extends VideoAnalysis {
         long endTime = System.currentTimeMillis();
         totalTime += endTime - startTime;
 
-        Log.d(TAG, "(Inner) Average time: " + (totalTime / (double)frameCnt));
+        //Log.d(TAG, "(Inner) Average time: " + (totalTime / (double)frameCnt));
 
         return resultList;
     }
@@ -283,9 +278,6 @@ public class InnerAnalysis extends VideoAnalysis {
 
         boolean eyesOccupied = areEyesOccupied(eyeL, earL) || areEyesOccupied(eyeR, earR);
 
-        //Log.d(TAG, "hands = " + handsOccupied + ", eyes = " + eyesOccupied);
-
-        // too high chance to conclude distracted
         return handsOccupied || eyesOccupied;
     }
 
@@ -320,9 +312,7 @@ public class InnerAnalysis extends VideoAnalysis {
         }
 
         double dist = ear.coordinate.y - eye.coordinate.y;
-        double threshold = -35;//ear.coordinate.y / 20.0;
-
-        //Log.d(TAG, "dist = " + dist + ", threshold = " + threshold);
+        double threshold = ear.coordinate.y / 20.0;
 
         return dist < threshold;
     }

@@ -1,39 +1,47 @@
 package com.example.edgedashanalytics.advanced.common;
 
-import java.util.ArrayDeque;
-import java.util.Deque;
+import android.util.Log;
 
 public class WorkerStatus {
     private static final String TAG = "WorkerStatus";
 
     public WorkerHistory innerHistory, outerHistory;
+    public int innerWaiting, outerWaiting;
     public double networkTime;
 
     public WorkerStatus() {
         innerHistory = new WorkerHistory();
         outerHistory = new WorkerHistory();
+        innerWaiting = outerWaiting = 0;
         networkTime = 0;
     }
 
-    public void addHistory(FrameResult result) {
-        WorkerHistory history = result.isInner ? innerHistory : outerHistory;
-        synchronized (this) {
-            history.addResult(result);
-            networkTime = (double) (innerHistory.totalNetworkTime + outerHistory.totalNetworkTime)
-                    / (innerHistory.history.size() + outerHistory.history.size());
-        }
+    public WorkerStatus(WorkerStatus org) {
+        innerHistory = new WorkerHistory(org.innerHistory);
+        outerHistory = new WorkerHistory(org.outerHistory);
+        innerWaiting = org.innerWaiting;
+        outerWaiting = org.outerWaiting;
+        networkTime = org.networkTime;
     }
 
-    public int innerWaiting() {
-        return innerHistory.waiting;
+    public synchronized void addResult(FrameResult result) {
+        WorkerHistory history = result.isInner ? innerHistory : outerHistory;
+        history.addResult(result);
+        calcNetworkTime();
+    }
+
+    public synchronized void calcNetworkTime() {
+        //Log.d(TAG, "size = " + innerHistory.history.size() + ", " + outerHistory.history.size());
+        if (innerHistory.history.size() + outerHistory.history.size() == 0)
+            networkTime = 0;
+        else
+            networkTime = (double) (innerHistory.totalNetworkTime + outerHistory.totalNetworkTime)
+                / (innerHistory.history.size() + outerHistory.history.size());
+        //Log.d(TAG, "networkTime = " + networkTime);
     }
 
     public double innerProcessTime() {
         return innerHistory.processTime;
-    }
-
-    public int outerWaiting() {
-        return outerHistory.waiting;
     }
 
     public double outerProcessTime() {
