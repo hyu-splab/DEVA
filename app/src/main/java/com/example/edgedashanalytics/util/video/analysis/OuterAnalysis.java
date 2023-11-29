@@ -47,6 +47,7 @@ public class OuterAnalysis extends VideoAnalysis {
 
     private static int inputSize;
 
+    // TODO: We're only using one detector, need to replace this with a single instance
     private ArrayList<ObjectDetector> detectorList = new ArrayList<>();
 
     // Include or exclude bicycles?
@@ -76,7 +77,7 @@ public class OuterAnalysis extends VideoAnalysis {
 
         SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(context);
         for (int model : models) {
-            String modelFilename = pref.getString("pose_model", context.getString(model));
+            String modelFilename = pref.getString("object_model", context.getString(model));
 
             try (Interpreter interpreter = new Interpreter(FileUtil.loadMappedFile(context, modelFilename))) {
                 if (detectorList.isEmpty())

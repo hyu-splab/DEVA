@@ -107,9 +107,19 @@ public abstract class VideoAnalysis {
         processVideo(inPath, outPath);
     }
 
+    public List<Frame> analyse(Bitmap bitmap, float scaleFactor) {
+        setup(1280, 720);
+        return processFrame(bitmap, 1, scaleFactor);
+    }
+
     public List<Frame> analyse(Bitmap bitmap) {
         setup(1280, 720);
         return processFrame(bitmap, 1, 1.0f);
+    }
+
+    public List<Frame> analyse(Bitmap bitmap, int frameIndex, float scaleFactor) {
+        setup(1280, 720);
+        return processFrame(bitmap, frameIndex, scaleFactor);
     }
 
     private void processVideo(String inPath, String outPath) {

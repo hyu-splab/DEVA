@@ -6,6 +6,7 @@ import java.util.Deque;
 public class WorkerHistory {
     public Deque<FrameResult> history;
     public static final long HISTORY_DURATION = 2000;
+    public static final double DEFAULT_PROCESS_TIME = 100;
 
     public double processTime;
 
@@ -14,7 +15,7 @@ public class WorkerHistory {
 
     public WorkerHistory() {
         history = new ArrayDeque<>();
-        processTime = 0;
+        processTime = DEFAULT_PROCESS_TIME;
         totalProcessTime = 0;
     }
 
@@ -46,7 +47,7 @@ public class WorkerHistory {
 
     private void calcProcessTime() {
         if (history.isEmpty())
-            processTime = 0;
+            processTime = DEFAULT_PROCESS_TIME;
         else
             processTime = (double) totalProcessTime / history.size();
     }

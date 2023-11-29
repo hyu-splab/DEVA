@@ -12,7 +12,9 @@ import com.example.edgedashanalytics.advanced.common.TimeLog;
 import com.example.edgedashanalytics.advanced.common.Image2;
 import com.example.edgedashanalytics.advanced.worker.WorkerThread;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -110,6 +112,35 @@ public class AdvancedMain {
 
         public Distributer(Looper looper) {
             super(looper);
+        }
+
+        private List<Integer> sequence;
+        private List<Integer> workerWeight;
+        private int sequenceLength;
+
+        private void makeWorkerSequence() {
+            int numWorker = communicator.workers.size();
+            int[] workerPriority = new int[numWorker];
+
+            // The weighted round robin scheduling algorithm
+            sequence = new ArrayList<>();
+            for (int i = 0; i < sequenceLength; i++) {
+                int maxPriority = 0;
+                int maxIndex = -1;
+                for (int j = 0; j < numWorker; j++) {
+                    workerPriority[j] += workerWeight.get(j);
+                    if (workerPriority[j] > maxPriority) {
+                        maxPriority = workerPriority[j];
+                        maxIndex = j;
+                    }
+                }
+                sequence.add(maxIndex);
+            }
+        }
+
+        private void calculateWorkerWeight() {
+            // TODO: Using worker status, calculate worker weights
+
         }
 
         private int findBestWorker(boolean isInner) {

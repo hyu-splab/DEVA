@@ -13,6 +13,7 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.provider.Settings;
 import android.util.Log;
+import android.util.Size;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.EditText;
@@ -114,8 +115,22 @@ public class MainActivity extends AppCompatActivity implements
 
         findViewById(R.id.buttonStart).setOnClickListener(view -> {
 
-            Integer[] qualities = {100};
-            new Thread(() -> VideoTest.test(getApplicationContext(), "2.mp4", true, Arrays.asList(qualities))).start();
+            Integer[] qualities = {0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100};
+            Size[] resolutions = {
+                    new Size(640, 360),
+                    new Size(854, 480),
+                    new Size(960, 540),
+                    new Size(1280, 720)
+            };
+            /*new Thread(() -> VideoTest.test(getApplicationContext(), "video2.mp4", true,
+                    Arrays.asList(qualities), 0, 499, new Size(640, 360))).start();
+*/
+            new Thread(() -> VideoTest.test2(getApplicationContext(), "video.mov",
+                    Arrays.asList(qualities), Arrays.asList(resolutions), 0, 499)).start();
+
+
+            /*new Thread(() -> VideoTest.testOuterAnalysisAccuracy(getApplicationContext(), "video.mov",
+                    Arrays.asList(qualities), Arrays.asList(resolutions), 0, 499)).start();*/
 
             /*Log.d(TAG, "Start");
             long timeStart = System.currentTimeMillis();
