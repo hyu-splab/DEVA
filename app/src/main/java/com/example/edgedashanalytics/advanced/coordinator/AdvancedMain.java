@@ -110,22 +110,27 @@ public class AdvancedMain {
     static class Distributer extends Handler {
         private static final double SCORE_THRESHOLD = 300;
 
+        private static final int sequenceLength = 50;
+        private List<Integer> sequence;
+        private int sequenceIndex;
+
         public Distributer(Looper looper) {
             super(looper);
+            sequence = new ArrayList<>();
+            sequenceIndex = 0;
         }
-
-        private List<Integer> sequence;
-        private List<Integer> workerWeight;
-        private int sequenceLength;
 
         private void makeWorkerSequence() {
             int numWorker = communicator.workers.size();
-            int[] workerPriority = new int[numWorker];
+            double[] workerPriority = new double[numWorker];
+
+            List<Double> workerWeight = calculateWorkerWeight();
 
             // The weighted round robin scheduling algorithm
             sequence = new ArrayList<>();
+
             for (int i = 0; i < sequenceLength; i++) {
-                int maxPriority = 0;
+                double maxPriority = 0;
                 int maxIndex = -1;
                 for (int j = 0; j < numWorker; j++) {
                     workerPriority[j] += workerWeight.get(j);
@@ -138,11 +143,29 @@ public class AdvancedMain {
             }
         }
 
-        private void calculateWorkerWeight() {
+        private List<Double> calculateWorkerWeight() {
             // TODO: Using worker status, calculate worker weights
 
+            List<Double> weights = new ArrayList<>();
+            for (int i = 0; i < communicator.workers.size(); i++) {
+                EDAWorker w = communicator.workers.get(i);
+                WorkerStatus status = w.status;
+
+                weights.add(status.getPerformance());
+            }
+
+            return weights;
         }
 
+        private int getNextWorker() {
+            if (sequenceIndex == sequence.size()) {
+                makeWorkerSequence();
+                sequenceIndex = 0;
+            }
+            return sequence.get(sequenceIndex++);
+        }
+
+        // TODO: To be removed
         private int findBestWorker(boolean isInner) {
             double bestScore = Double.MAX_VALUE;
             int bestWorker = -1;
@@ -188,7 +211,7 @@ public class AdvancedMain {
             TimeLog.coordinator.start(totalCount + ""); // Distribute
             boolean isInner = (inputMessage.what == Constants.IMAGE_INNER);
 
-            int bestWorker = findBestWorker(isInner);
+            int bestWorker = getNextWorker();
             if (bestWorker == -1) { // Dropping
                 return;
             }

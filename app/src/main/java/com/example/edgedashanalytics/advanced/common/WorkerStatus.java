@@ -47,4 +47,10 @@ public class WorkerStatus {
     public double outerProcessTime() {
         return outerHistory.processTime;
     }
+
+    public double getPerformance() {
+        int totalWaiting = innerWaiting + outerWaiting;
+        return (((innerWaiting * innerProcessTime())
+                + (outerWaiting * outerProcessTime())) / 2.0) / totalWaiting;
+    }
 }

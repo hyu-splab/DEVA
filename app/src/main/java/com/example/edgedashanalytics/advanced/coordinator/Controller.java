@@ -165,8 +165,27 @@ public class Controller {
                 else {
                     outerCamSettings.decreaseRQ(1);
                 }
+            }
+
+            // We have some possibility that we can provide better analysis
+            else if (networkTime < NETWORK_FAST) {
 
             }
+        }
+
+        if (innerCam.outstream != null) {
+            innerCam.sendSettings(innerCam.outstream);
+            //Log.d(TAG, "sending adjusted setting to innercam");
+        }
+        if (outerCam.outstream != null) {
+            //Log.d(TAG, "sending adjusted setting to outercam");
+            outerCam.sendSettings(outerCam.outstream);
+        }
+
+        for (EDAWorker worker : workers) {
+            worker.status.innerHistory.removeOldResults();
+            worker.status.outerHistory.removeOldResults();
+            worker.status.calcNetworkTime();
         }
     }
 
