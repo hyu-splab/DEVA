@@ -108,9 +108,7 @@ public class AdvancedMain {
     }
 
     static class Distributer extends Handler {
-        private static final double SCORE_THRESHOLD = 300;
-
-        private static final int sequenceLength = 50;
+        private static final int sequenceLength = 50; // tentative
         private List<Integer> sequence;
         private int sequenceIndex;
 
@@ -126,7 +124,7 @@ public class AdvancedMain {
 
             List<Double> workerWeight = calculateWorkerWeight();
 
-            // The weighted round robin scheduling algorithm
+            // The weighted distribution algorithm
             sequence = new ArrayList<>();
 
             for (int i = 0; i < sequenceLength; i++) {
@@ -144,8 +142,6 @@ public class AdvancedMain {
         }
 
         private List<Double> calculateWorkerWeight() {
-            // TODO: Using worker status, calculate worker weights
-
             List<Double> weights = new ArrayList<>();
             for (int i = 0; i < communicator.workers.size(); i++) {
                 EDAWorker w = communicator.workers.get(i);
@@ -165,46 +161,6 @@ public class AdvancedMain {
             return sequence.get(sequenceIndex++);
         }
 
-        // TODO: To be removed
-        private int findBestWorker(boolean isInner) {
-            double bestScore = Double.MAX_VALUE;
-            int bestWorker = -1;
-
-            for (int i = 0; i < communicator.workers.size(); i++) {
-                EDAWorker w = communicator.workers.get(i);
-
-                WorkerStatus status = w.status;
-
-                double waitTime;
-
-                if (status.innerWaiting + status.outerWaiting <= 1) {
-                    waitTime = 0;
-                }
-                else {
-                    waitTime = ((status.innerWaiting * status.innerProcessTime())
-                            + (status.outerWaiting * status.outerProcessTime())) / 2;
-                }
-
-                double queueTime = Math.max(waitTime - status.networkTime, 0.0);
-                double score = status.networkTime + queueTime
-                        + (isInner ? status.innerProcessTime() : status.outerProcessTime());
-
-                //Log.d(TAG, "" + i + ": " + waitTime + " " + status.networkTime + " " + queueTime + " " + score);
-
-                if (score < bestScore) {
-                    bestScore = score;
-                    bestWorker = i;
-                }
-            }
-
-            if (bestScore > SCORE_THRESHOLD) {
-                bestWorker = -1;
-                //Log.d(TAG, "bestScore is " + bestScore + ", dropping");
-            }
-
-            return bestWorker;
-        }
-
         @Override
         public void handleMessage(Message inputMessage) {
             totalCount++;
@@ -212,9 +168,6 @@ public class AdvancedMain {
             boolean isInner = (inputMessage.what == Constants.IMAGE_INNER);
 
             int bestWorker = getNextWorker();
-            if (bestWorker == -1) { // Dropping
-                return;
-            }
 
             TimeLog.coordinator.setWorkerNum(totalCount + "", bestWorker);
             selectedCount++;
@@ -236,12 +189,6 @@ public class AdvancedMain {
             senderMessage.obj = new Image2(isInner, totalCount, inputMessage.arg1, (byte[]) inputMessage.obj);
             TimeLog.coordinator.add(totalCount + ""); // message to network thread
             senderHandler.sendMessage(senderMessage);
-
-            /* if (totalCount % 10 == 0) {
-                Log.i(TAG, String.format("Processed: %d/%d (%d%%)", processed, totalCount, processed * 100 / totalCount));
-                double fps = (double)processed / (System.currentTimeMillis() - startTime) * 1000;
-                Log.i(TAG, String.format("Throughput: %.1ffps (avg. %.1ffps per camera)", fps, fps / 2));
-            } */
         }
     }
 }
