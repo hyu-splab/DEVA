@@ -46,7 +46,7 @@ public class AdvancedMain {
         new Timer().schedule(new TimerTask() {
             @Override
             public void run() {
-                controller.adjustCamSettings(communicator.workers, innerCam.camSettings, outerCam.camSettings);
+                controller.adjustCamSettingsV2(communicator.workers, innerCam.camSettings, outerCam.camSettings);
                 StatusLogger.log(innerCam, outerCam, communicator.workers);
             }
         }, 1000, 2000);

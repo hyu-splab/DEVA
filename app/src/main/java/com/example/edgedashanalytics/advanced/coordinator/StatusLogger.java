@@ -2,6 +2,7 @@ package com.example.edgedashanalytics.advanced.coordinator;
 
 import android.content.Context;
 import android.util.Log;
+import android.util.Size;
 
 import com.example.edgedashanalytics.advanced.common.WorkerStatus;
 
@@ -23,8 +24,6 @@ public class StatusLogger {
     public static final List<StatusLog> statusLogs = new ArrayList<>();
 
     public static void log(EDACam innerCam, EDACam outerCam, List<EDAWorker> workers) {
-        CamSettings innerCamSettings = new CamSettings(innerCam.camSettings);
-        CamSettings outerCamSettings = new CamSettings(outerCam.camSettings);
 
         List<WorkerStatus> workerStatuses = new ArrayList<>();
         for (EDAWorker worker : workers) {
@@ -32,7 +31,7 @@ public class StatusLogger {
         }
 
         StatusLog log = new StatusLog(statusLogs.size() + 1, System.currentTimeMillis(),
-                innerCamSettings, outerCamSettings, workerStatuses);
+                innerCam.camSettings, outerCam.camSettings, workerStatuses);
 
         synchronized (statusLogs) {
             statusLogs.add(log);
@@ -75,15 +74,15 @@ public class StatusLogger {
     public static StringBuilder writeSingleLog(StatusLog log) {
         StringBuilder sb = new StringBuilder();
         writeLine(sb, "Inner", Arrays.asList(
-                log.innerCamSettings.getQuality(),
-                log.innerCamSettings.getFrameRate(),
-                log.innerCamSettings.getResolution().getWidth(),
-                log.innerCamSettings.getResolution().getHeight()));
+                log.innerQ,
+                log.innerF,
+                log.innerR.getWidth(),
+                log.innerR.getHeight()));
         writeLine(sb, "Outer", Arrays.asList(
-                log.outerCamSettings.getQuality(),
-                log.outerCamSettings.getFrameRate(),
-                log.outerCamSettings.getResolution().getWidth(),
-                log.outerCamSettings.getResolution().getHeight()));
+                log.outerQ,
+                log.outerF,
+                log.outerR.getWidth(),
+                log.outerR.getHeight()));
 
         int workerNum = 0;
         for (WorkerStatus status : log.workerStatuses) {
@@ -119,31 +118,21 @@ public class StatusLogger {
         int index;
         long timestamp;
 
-        CamSettings innerCamSettings, outerCamSettings;
+        Size innerR, outerR;
+        int innerQ, innerF, outerQ, outerF;
         List<WorkerStatus> workerStatuses;
 
-        public StatusLog() {
-
-        }
-
-        public StatusLog(StatusLog org) {
-            index = org.index;
-            timestamp = org.timestamp;
-            innerCamSettings = new CamSettings(innerCamSettings);
-            outerCamSettings = new CamSettings(outerCamSettings);
-            workerStatuses = new ArrayList<>();
-            for (WorkerStatus workerStatus : org.workerStatuses) {
-                workerStatuses.add(new WorkerStatus(workerStatus));
-            }
-        }
-
         public StatusLog(int index, long timestamp,
-                         CamSettings innerCamSettings, CamSettings outerCamSettings,
+                         CamSettingsV2 innerCamSettings, CamSettingsV2 outerCamSettings,
                          List<WorkerStatus> workerStatuses) {
             this.index = index;
             this.timestamp = timestamp;
-            this.innerCamSettings = innerCamSettings;
-            this.outerCamSettings = outerCamSettings;
+            innerR = innerCamSettings.getR();
+            innerQ = innerCamSettings.getQ();
+            innerF = innerCamSettings.getF();
+            outerR = outerCamSettings.getR();
+            outerQ = outerCamSettings.getQ();
+            outerF = outerCamSettings.getF();
             this.workerStatuses = workerStatuses;
         }
     }

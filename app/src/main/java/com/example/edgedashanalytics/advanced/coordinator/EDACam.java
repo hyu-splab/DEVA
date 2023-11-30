@@ -27,8 +27,7 @@ public class EDACam extends Thread {
     public ObjectInputStream instream;
     public ObjectOutputStream outstream;
     private Socket socket;
-
-    public CamSettings camSettings;
+    public CamSettingsV2 camSettings;
 
     public EDACam(Handler handler, boolean isInner) {
         // handler: the handler for the processing thread to hand over the image data
@@ -37,7 +36,7 @@ public class EDACam extends Thread {
         this.msgCode = isInner ? Constants.IMAGE_INNER : Constants.IMAGE_OUTER;
         this.port = isInner ? Constants.PORT_INNER : Constants.PORT_OUTER;
         this.socket = null;
-        camSettings = new CamSettings(isInner);
+        camSettings = new CamSettingsV2(isInner);
     }
 
     @Override
@@ -92,7 +91,7 @@ public class EDACam extends Thread {
     }
 
     public void sendSettings(ObjectOutputStream outputStream) {
-        sendSettings(outputStream, camSettings.getResolution(), camSettings.getQuality(), camSettings.getFrameRate());
+        sendSettings(outputStream, camSettings.getR(), camSettings.getQ(), camSettings.getF());
     }
 
     public static void sendSettings(ObjectOutputStream outputStream, Size resolution, int quality, int frameRate) {

@@ -27,38 +27,8 @@ public class Controller {
     private static final double NETWORK_FAST = 100;
     private static final double WAIT_FAST = 1.5;
 
-    // This chart is based on data size experiment:
-    static class DataSize {
-        public Size resolution;
-        public int quality;
-
-        public DataSize(Size resolution, int quality) {
-            this.resolution = resolution;
-            this.quality = quality;
-        }
-
-        public DataSize(int width, int quality) {
-            this(new Size(width, getHeight(width)), quality);
-        }
-
-        private static int getHeight(int width) {
-            int height = 0;
-            switch (width) {
-                case 1280: height = 720; break;
-                case 960: height = 540; break;
-                case 854: height = 480; break;
-                case 640: height = 360; break;
-                default: throw new RuntimeException("Unknown width: " + width);
-            }
-            return height;
-        }
-    }
-    private static final DataSize[] sortedDataSize = {
-            new DataSize()
-    }
-
     // New version of cam settings adjustment algorithm.
-    public void adjustCamSettingsV2(List<EDAWorker> workers, CamSettings innerCamSettings, CamSettings outerCamSettings) {
+    public void adjustCamSettingsV2(List<EDAWorker> workers, CamSettingsV2 innerCamSettings, CamSettingsV2 outerCamSettings) {
         double networkTime;
         double workerCapacity;
 
@@ -163,7 +133,7 @@ public class Controller {
         // Need to reduce F if the workload is too high
         boolean fpsDecreased = false;
 
-        int iF = innerCamSettings.getFrameRate(), oF = outerCamSettings.getFrameRate();
+        int iF = innerCamSettings.getF(), oF = outerCamSettings.getF();
 
         if (workerCapacity < iF + oF) {
             // How much more important is to frequently analyse the outer video?
@@ -171,14 +141,14 @@ public class Controller {
 
             if (iF * outerFpsWeight > oF)
             {
-                if (innerCamSettings.decreaseFrameRate()) {
+                if (innerCamSettings.decreaseF(5) > 0) {
                     fpsDecreased = true;
                 }
-                else if (outerCamSettings.decreaseFrameRate()) {
+                else if (outerCamSettings.decreaseF(5) > 0) {
                     fpsDecreased = true;
                 }
             }
-            else if (outerCamSettings.decreaseFrameRate()) {
+            else if (outerCamSettings.decreaseF(5) > 0) {
                 fpsDecreased = true;
             }
         }
@@ -188,7 +158,13 @@ public class Controller {
         // solves network bottleneck
         if (!fpsDecreased) {
             if (networkTime > NETWORK_SLOW) {
-                // INNER CAMERA
+                // We want to move these at similar rate
+                if (innerCamSettings.getNormalizedLevel() > outerCamSettings.getNormalizedLevel()) {
+                    innerCamSettings.decreaseRQ(1);
+                }
+                else {
+                    outerCamSettings.decreaseRQ(1);
+                }
 
             }
         }
