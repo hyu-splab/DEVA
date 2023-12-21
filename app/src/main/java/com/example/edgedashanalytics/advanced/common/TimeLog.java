@@ -172,11 +172,11 @@ public class TimeLog {
 
                 sb.append("summary,");
                 long totalTime = latest - earliest;
-                long innerCount = isWorker ? WorkerServer.innerCount : AdvancedMain.innerCount;
-                long outerCount = isWorker ? WorkerServer.outerCount : AdvancedMain.outerCount;
-                sb.append(isWorker ? finishedCount : AdvancedMain.totalCount).append(",");
-                if (!isWorker)
-                    sb.append(AdvancedMain.processed).append(",").append(AdvancedMain.dropped).append(",");
+                long innerCount = isWorker ? WorkerServer.innerCount : 0/*AdvancedMain.innerCount*/;
+                long outerCount = isWorker ? WorkerServer.outerCount : 0/*AdvancedMain.outerCount*/;
+                sb.append(isWorker ? finishedCount : 0/*AdvancedMain.totalCount*/).append(",");
+                /*if (!isWorker)
+                    sb.append(AdvancedMain.processed).append(",").append(AdvancedMain.dropped).append(",");*/
                 sb.append(totalTime).append(",")
                         .append(String.format(Locale.getDefault(), "%.3f,",
                                 finishedCount * 1000.0 / totalTime))

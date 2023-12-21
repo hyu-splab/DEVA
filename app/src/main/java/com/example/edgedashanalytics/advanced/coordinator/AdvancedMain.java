@@ -1,6 +1,5 @@
 package com.example.edgedashanalytics.advanced.coordinator;
 
-import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
@@ -20,9 +19,8 @@ import java.util.TimerTask;
 
 public class AdvancedMain {
     private static final String TAG = "AdvancedMain";
-    //private static ArrayList<Sender> senders = new ArrayList<>();
     public static Communicator communicator;
-    public static int innerCount = 0, outerCount = 0, totalCount = 0, processed = 0, dropped = 0;
+    private static int totalCount = 0;
     public static int selectedCount = 0;
     public static long startTime;
     public static boolean isFinished = false;
@@ -30,8 +28,9 @@ public class AdvancedMain {
 
     private static EDACam innerCam, outerCam;
     private static Controller controller;
+    private static final long CAMERA_ADJUSTMENT_PERIOD = 500;
 
-    public static void runImageStreaming() {
+    public static void run() {
         // Start streaming images
         // 1. Connect to the DashCam (a sender application on another Android phone)
         // 2. Connect to worker devices (with another EDA application)
@@ -49,7 +48,7 @@ public class AdvancedMain {
                 controller.adjustCamSettingsV2(communicator.workers, innerCam.camSettings, outerCam.camSettings);
                 StatusLogger.log(innerCam, outerCam, communicator.workers);
             }
-        }, 1000, 500);
+        }, CAMERA_ADJUSTMENT_PERIOD, CAMERA_ADJUSTMENT_PERIOD);
     }
 
     private static void connectToDashCam() {

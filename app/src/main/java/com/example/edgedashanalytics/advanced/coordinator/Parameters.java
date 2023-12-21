@@ -37,10 +37,12 @@ public class Parameters {
         this.F = 15;
     }
 
-    public Parameters(Size R, int Q, int F) {
-        this.R = R;
-        this.Q = Q;
+    public Parameters(int Ri, int Qi, int F) {
+        this.Ri = Ri;
+        this.Qi = Qi;
         this.F = F;
+        this.R = resolutions[Ri];
+        this.Q = qualities[Qi];
     }
 
     public boolean increaseQ() {

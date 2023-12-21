@@ -1,6 +1,7 @@
 package com.example.edgedashanalytics.page.main;
 
 import android.Manifest;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -16,7 +17,6 @@ import android.util.Log;
 import android.util.Size;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -114,24 +114,7 @@ public class MainActivity extends AppCompatActivity implements
         TextView textViewStatus = findViewById(R.id.textViewStatus);
 
         findViewById(R.id.buttonStart).setOnClickListener(view -> {
-
-            /*Integer[] qualities = {0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100};
-            Size[] resolutions = {
-                    new Size(640, 360),
-                    new Size(854, 480),
-                    new Size(960, 540),
-                    new Size(1280, 720)
-            };
-            new Thread(() -> VideoTest.test(getApplicationContext(), "video2.mp4", true,
-                    Arrays.asList(qualities), 0, 499, new Size(640, 360))).start();
-
-            new Thread(() -> VideoTest.test2(getApplicationContext(), "video.mov",
-                    Arrays.asList(qualities), Arrays.asList(resolutions), 0, 499)).start();
-
-
-            new Thread(() -> VideoTest.testOuterAnalysisAccuracy(getApplicationContext(), "video.mov",
-                    Arrays.asList(qualities), Arrays.asList(resolutions), 0, 499)).start();*/
-
+            // runTests();
             Log.d(TAG, "Start");
             long timeStart = System.currentTimeMillis();
             new Timer().schedule(new TimerTask() {
@@ -143,7 +126,8 @@ public class MainActivity extends AppCompatActivity implements
                     textViewStatus.setText(statusText);
                 }
             }, 100, 100);
-            AdvancedMain.runImageStreaming();
+
+            AdvancedMain.run();
         });
 
         findViewById(R.id.buttonStop).setOnClickListener(view -> {
@@ -152,11 +136,20 @@ public class MainActivity extends AppCompatActivity implements
             Log.d(TAG, "Test finished");
         });
 
+        findViewById(R.id.buttonRestart).setOnClickListener(view -> {
+            PackageManager packageManager = getPackageManager();
+            Intent intent = packageManager.getLaunchIntentForPackage(getPackageName());
+            ComponentName componentName = intent.getComponent();
+            Intent mainIntent = Intent.makeRestartActivityTask(componentName);
+            startActivity(mainIntent);
+            System.exit(0);
+        });
+
         TimeLog.context = getApplicationContext();
 
-        File path = getApplicationContext().getExternalFilesDir(null);
+        /*File path = getApplicationContext().getExternalFilesDir(null);
         new File(path, "wlog.txt").delete();
-        new File(path, "clog.txt").delete();
+        new File(path, "clog.txt").delete();*/
 
         checkPermissions();
         scanVideoDirectories();
@@ -168,6 +161,25 @@ public class MainActivity extends AppCompatActivity implements
         DashCam.setup(this);
 
         AdvancedMain.workerStart();
+    }
+
+    private void runTests() {
+        Integer[] qualities = {0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100};
+        Size[] resolutions = {
+                new Size(640, 360),
+                new Size(854, 480),
+                new Size(960, 540),
+                new Size(1280, 720)
+        };
+        new Thread(() -> VideoTest.test(getApplicationContext(), "video2.mp4", true,
+                Arrays.asList(qualities), 0, 499, new Size(640, 360))).start();
+
+        new Thread(() -> VideoTest.test2(getApplicationContext(), "video.mov",
+                Arrays.asList(qualities), Arrays.asList(resolutions), 0, 499)).start();
+
+
+        new Thread(() -> VideoTest.testOuterAnalysisAccuracy(getApplicationContext(), "video.mov",
+                Arrays.asList(qualities), Arrays.asList(resolutions), 0, 499)).start();
     }
 
     @Override

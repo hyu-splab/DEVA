@@ -23,27 +23,14 @@ public class CamSettings {
 
     public boolean isInner;
     private static final int MAX_F = 30, MIN_F = 2;
-    private Parameters p;
-
-    private void initInner() {
-        /*p.R = new Size(1280, 720);
-        p.Q = 70;
-        p.F = 15;*/
-    }
-
-    private void initOuter() {
-        /*p.R = new Size(1280, 720);
-        p.Q = 70;
-        p.F = 30;*/
-    }
+    private final Parameters p;
 
     public CamSettings(boolean isInner) {
         this.isInner = isInner;
-        this.p = new Parameters();
         if (isInner)
-            initInner();
+            this.p = new Parameters(5, 7, 10);
         else
-            initOuter();
+            this.p = new Parameters(10, 5, 20);
     }
 
     public Size getR() {
@@ -126,7 +113,6 @@ public class CamSettings {
     }
 
     public double getNormalizedLevel() {
-        //return p.R.getWidth() * p.R.getHeight() * getSizeForQuality();
         return p.Ri + p.Qi;
     }
 

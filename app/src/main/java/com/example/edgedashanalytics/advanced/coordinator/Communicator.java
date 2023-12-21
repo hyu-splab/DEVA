@@ -153,11 +153,11 @@ public class Communicator extends Thread {
                     FrameLogger.addResult(result);
                     worker.status.addResult(result);
 
-                    AdvancedMain.processed++;
+                    /*AdvancedMain.processed++;
                     if (res.isInner)
                         AdvancedMain.innerCount++;
                     else
-                        AdvancedMain.outerCount++;
+                        AdvancedMain.outerCount++;*/
                     TimeLog.coordinator.finish(res.frameNum + ""); // Finish
                     //Log.d(TAG, "Got response from the server: isInner = "
                     //+ res.isInner + ", frameNumber = " + res.frameNumber);
