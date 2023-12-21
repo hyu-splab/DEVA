@@ -18,25 +18,22 @@ import java.util.TimerTask;
 public class EDACam extends Thread {
     static final String TAG = "ReceiverThread";
 
-    private boolean isInner;
+    private final Handler handler;
+    private final int msgCode;
+    private final int port;
 
-    private Handler handler;
-    private int msgCode;
-    private int port;
-
-    public ObjectInputStream instream;
-    public ObjectOutputStream outstream;
+    public ObjectInputStream inStream;
+    public ObjectOutputStream outStream;
     private Socket socket;
-    public CamSettingsV2 camSettings;
+    public CamSettings camSettings;
 
     public EDACam(Handler handler, boolean isInner) {
         // handler: the handler for the processing thread to hand over the image data
-        this.isInner = isInner;
         this.handler = handler;
         this.msgCode = isInner ? Constants.IMAGE_INNER : Constants.IMAGE_OUTER;
         this.port = isInner ? Constants.PORT_INNER : Constants.PORT_OUTER;
         this.socket = null;
-        camSettings = new CamSettingsV2(isInner);
+        camSettings = new CamSettings(isInner);
     }
 
     @Override
@@ -55,20 +52,20 @@ public class EDACam extends Thread {
         ServerSocket serverSocket = new ServerSocket(port);
         Log.d(TAG, "opened a port " + port);
         socket = serverSocket.accept();
-        instream = new ObjectInputStream(socket.getInputStream());
+        inStream = new ObjectInputStream(socket.getInputStream());
 
         // to avoid race condition, make sure our first signal is fully sent to the camera
         // before we perform the periodical checks
-        ObjectOutputStream tempOutstream = new ObjectOutputStream(socket.getOutputStream());
+        ObjectOutputStream tempOutStream = new ObjectOutputStream(socket.getOutputStream());
         // First time connected, send initial settings
-        sendSettings(tempOutstream);
-        outstream = tempOutstream;
+        sendSettings(tempOutStream);
+        outStream = tempOutStream;
     }
 
     private void doWork() throws Exception {
         while (true) {
-            int frameNum = instream.readInt();
-            byte[] data = (byte[]) instream.readObject();
+            int frameNum = inStream.readInt();
+            byte[] data = (byte[]) inStream.readObject();
             if (AdvancedMain.isFinished)
                 continue;
             if (AdvancedMain.totalCount == 1) {
@@ -91,11 +88,13 @@ public class EDACam extends Thread {
     }
 
     public void sendSettings(ObjectOutputStream outputStream) {
+        //Log.v(TAG, "Sending settings (" + camSettings.getRQLevel() + "/" + camSettings.getRQListSize() + ")");
         sendSettings(outputStream, camSettings.getR(), camSettings.getQ(), camSettings.getF());
     }
 
     public static void sendSettings(ObjectOutputStream outputStream, Size resolution, int quality, int frameRate) {
         try {
+            Log.v(TAG, "Sending settings: " + resolution.getWidth() + " " + resolution.getHeight() + " " + quality + " " + frameRate);
             outputStream.writeInt(resolution.getWidth());
             outputStream.writeInt(resolution.getHeight());
             outputStream.writeInt(quality);

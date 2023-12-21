@@ -7,16 +7,11 @@ import android.util.Size;
 import com.example.edgedashanalytics.advanced.common.WorkerStatus;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
 import java.util.List;
-import java.util.Locale;
 
 public class StatusLogger {
     private static final String TAG = "StatusLogger";
@@ -31,7 +26,7 @@ public class StatusLogger {
         }
 
         StatusLog log = new StatusLog(statusLogs.size() + 1, System.currentTimeMillis(),
-                innerCam.camSettings, outerCam.camSettings, workerStatuses);
+                innerCam.camSettings, outerCam.camSettings, AdvancedMain.communicator.pendingDataSize, workerStatuses);
 
         synchronized (statusLogs) {
             statusLogs.add(log);
@@ -50,7 +45,7 @@ public class StatusLogger {
             String filename = "slog.csv";
 
             File file = new File(context.getExternalFilesDir(null), filename);
-            StringBuilder sb = new StringBuilder();
+            /*StringBuilder sb = new StringBuilder();
 
             sb.append(now.format(formatter)).append("\n\n");
 
@@ -60,10 +55,12 @@ public class StatusLogger {
                 sb.append(log.index).append(",").append(log.timestamp - startTime).append("\n");
                 sb.append(writeSingleLog(log));
                 sb.append("\n");
-            }
+            }*/
+
+            String theLog = writeLogsV2(context, file);
 
             try (FileOutputStream fos = new FileOutputStream(file)) {
-                fos.write(sb.toString().getBytes());
+                fos.write(theLog.getBytes());
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -71,7 +68,33 @@ public class StatusLogger {
         }
     }
 
-    public static StringBuilder writeSingleLog(StatusLog log) {
+    public static String writeLogsV2(Context context, File file) {
+        StringBuilder sb = new StringBuilder();
+        long startTime = statusLogs.get(0).timestamp;
+
+        // Columns:
+        // index, time, innerR WxH, innerQ, innerF, outerR WxH, outerQ, outerF, pendingSize, W0, W1, ...
+        // Each worker: innerWaiting, innerProcessTime, outerProcessTime, networkTime
+
+        sb.append("Index,Time,InnerR,innerQ,innerF,outerR,outerQ,outerF,pendingSize,W0.iw,W0.ip,W0.ow,W0.op,W1.iw,W1.ip,W1.ow,W1.op,W2.iw,W2.ip,W2.ow,W2.op\n");
+
+        for (StatusLog log : statusLogs) {
+            sb.append(log.index).append(",").append(log.timestamp - startTime).append(",");
+            sb.append(log.innerR.getWidth()).append("x").append(log.innerR.getHeight()).append(",");
+            sb.append(log.innerQ).append(",").append(log.innerF).append(",");
+            sb.append(log.outerR.getWidth()).append("x").append(log.outerR.getHeight()).append(",");
+            sb.append(log.outerQ).append(",").append(log.outerF).append(",");
+            sb.append(log.pendingDataSize).append(",");
+            for (WorkerStatusLog status : log.workerStatuses) {
+                sb.append(status.innerWaiting).append(",").append(status.innerProcessTime).append(",");
+                sb.append(status.outerWaiting).append(",").append(status.outerProcessTime).append(",");
+            }
+            sb.append("\n");
+        }
+        return sb.toString();
+    }
+
+    /*public static StringBuilder writeSingleLog(StatusLog log) {
         StringBuilder sb = new StringBuilder();
         writeLine(sb, "Inner", Arrays.asList(
                 log.innerQ,
@@ -106,12 +129,12 @@ public class StatusLogger {
                     : o);
         }
         sb.append("\n");
-    }
+    }*/
 
     public static String getLatestLogText() {
         if (statusLogs.isEmpty())
             return "No logs available yet";
-        return writeSingleLog(statusLogs.get(statusLogs.size() - 1)).toString();
+        return "Not implemented yet";//writeSingleLog(statusLogs.get(statusLogs.size() - 1)).toString();
     }
 
     static class StatusLog {
@@ -120,10 +143,12 @@ public class StatusLogger {
 
         Size innerR, outerR;
         int innerQ, innerF, outerQ, outerF;
-        List<WorkerStatus> workerStatuses;
+        long pendingDataSize;
+        List<WorkerStatusLog> workerStatuses;
 
         public StatusLog(int index, long timestamp,
-                         CamSettingsV2 innerCamSettings, CamSettingsV2 outerCamSettings,
+                         CamSettings innerCamSettings, CamSettings outerCamSettings,
+                         long pendingDataSize,
                          List<WorkerStatus> workerStatuses) {
             this.index = index;
             this.timestamp = timestamp;
@@ -133,7 +158,22 @@ public class StatusLogger {
             outerR = outerCamSettings.getR();
             outerQ = outerCamSettings.getQ();
             outerF = outerCamSettings.getF();
-            this.workerStatuses = workerStatuses;
+            this.pendingDataSize = pendingDataSize;
+            this.workerStatuses = new ArrayList<>();
+            for (WorkerStatus status : workerStatuses) {
+                this.workerStatuses.add(new WorkerStatusLog(status));
+            }
+        }
+    }
+
+    static class WorkerStatusLog {
+        int innerWaiting, outerWaiting;
+        double innerProcessTime, outerProcessTime;
+        public WorkerStatusLog(WorkerStatus status) {
+            this.innerWaiting = status.innerWaiting;
+            this.innerProcessTime = status.innerProcessTime();
+            this.outerWaiting = status.outerWaiting;
+            this.outerProcessTime = status.outerProcessTime();
         }
     }
 }

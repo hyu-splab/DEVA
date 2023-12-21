@@ -1,5 +1,6 @@
 package com.example.edgedashanalytics.advanced.coordinator;
 
+import android.util.Log;
 import android.util.Size;
 
 import com.example.edgedashanalytics.advanced.common.WorkerStatus;
@@ -7,6 +8,14 @@ import com.example.edgedashanalytics.advanced.common.WorkerStatus;
 import java.util.List;
 
 public class Controller_Archived {
+    private static final String TAG = "Controller_Archived";
+    private final EDACam innerCam = null;
+    private final EDACam outerCam = null;
+    private static final double NETWORK_SLOW = 300;
+    private static final double WAIT_SLOW = 2.5;
+
+    private static final double NETWORK_FAST = 100;
+    private static final double WAIT_FAST = 1.5;
     static final int[] frameRateValues = {5, 10, 15, 20, 25, 30};
     static final Size[] resolutionValues = {
             new Size(640, 360),
@@ -16,7 +25,7 @@ public class Controller_Archived {
     };
     static final int[] qualityValues = {30, 40, 50, 60, 70, 80, 90, 100};
 
-    public void adjustV2(List<EDAWorker> workers, CamSettings innerCamSettings, CamSettings outerCamSettings) {
+    public void adjustV2(List<EDAWorker> workers, CamSettings_Archived innerCamSettings, CamSettings_Archived outerCamSettings) {
         // new algorithm will pick the best settings that don't violate two major constraints:
         // 1. network speed
         // 2. worker capacity
@@ -129,5 +138,127 @@ public class Controller_Archived {
     }
     private int calculateNetworkThroughput(int frameRate, Size resolution, int quality) {
         return frameRate * getDataSize(resolution, quality);
+    }
+
+    public void adjustCamSettings(List<EDAWorker> workers, CamSettings_Archived innerCamSettings, CamSettings_Archived outerCamSettings) {
+        double avgInnerWait = 0.0;
+        double avgOuterWait = 0.0;
+        double avgNetworkTime = 0.0;
+
+        int totalNetworkTime = 0;
+        int totalInnerWait = 0;
+        int totalOuterWait = 0;
+        int innerCount = 0, outerCount = 0;
+
+        if (workers.size() == 0) {
+            Log.d(TAG, "no workers available");
+            return;
+        }
+
+        for (EDAWorker worker : workers) {
+            WorkerStatus status = worker.status;
+            innerCount += status.innerHistory.history.size();
+            totalInnerWait += status.innerWaiting;
+
+            outerCount += status.outerHistory.history.size();
+            totalOuterWait += status.outerWaiting;
+
+            totalNetworkTime += status.innerHistory.totalNetworkTime + status.outerHistory.totalNetworkTime;
+        }
+
+        if (innerCount > 0) {
+            avgInnerWait = (double)totalInnerWait / workers.size();
+        }
+
+        if (outerCount > 0) {
+            avgOuterWait = (double)totalOuterWait / workers.size();
+        }
+
+        if (innerCount + outerCount > 0) {
+            avgNetworkTime = (double)totalNetworkTime / (innerCount + outerCount);
+        }
+        else {
+            Log.d(TAG, "No history available");
+            return;
+        }
+
+        Log.d(TAG, "innerwait = " + avgInnerWait + ", outerwait = " + avgOuterWait
+                + ", network = " + avgNetworkTime);
+
+        boolean x, y; // temporary variables
+        innerCamSettings.initializeChanged();
+        outerCamSettings.initializeChanged();
+
+        /*
+        Rule #1: Do not let the network to be saturated
+         */
+        if (avgNetworkTime > NETWORK_SLOW) {
+            if (!innerCamSettings.decreaseFrameRate()) {
+                if (!outerCamSettings.decreaseFrameRate()) {
+                    x = innerCamSettings.decreaseQuality();
+                    y = outerCamSettings.decreaseQuality();
+                    if (!x && !y) {
+                        x = innerCamSettings.decreaseResolution();
+                        y = outerCamSettings.decreaseResolution();
+                        if (!x && !y) {
+                            warnMin("network");
+                        }
+                    }
+                }
+            }
+        }
+
+        /*
+        Rule #2: We don't want saturated worker queues
+         */
+        if (avgInnerWait > WAIT_SLOW || avgOuterWait > WAIT_SLOW) {
+            if (!innerCamSettings.decreaseFrameRate()) {
+                if (!outerCamSettings.decreaseFrameRate()) {
+                    x = innerCamSettings.decreaseResolution();
+                    y = outerCamSettings.decreaseResolution();
+                    if (!x && !y) {
+                        warnMin("worker queue");
+                    }
+                }
+            }
+        }
+
+        /*
+        Rule #3: If everything is more than good, try measuring in higher quality
+         */
+        if (avgNetworkTime < NETWORK_FAST && avgInnerWait < WAIT_FAST && avgOuterWait < WAIT_FAST) {
+            x = innerCamSettings.increaseQuality();
+            y = outerCamSettings.increaseQuality();
+            if (!x && !y) {
+                if (!outerCamSettings.increaseFrameRate()) {
+                    if (!innerCamSettings.increaseFrameRate()) {
+                        warnMax("all is well");
+                    }
+                }
+            }
+        }
+
+        if (innerCam.outStream != null) {
+            innerCam.sendSettings(innerCam.outStream);
+            //Log.d(TAG, "sending adjusted setting to innercam");
+        }
+        if (outerCam.outStream != null) {
+            //Log.d(TAG, "sending adjusted setting to outercam");
+            outerCam.sendSettings(outerCam.outStream);
+        }
+
+        for (EDAWorker worker : workers) {
+            worker.status.innerHistory.removeOldResults();
+            worker.status.outerHistory.removeOldResults();
+            worker.status.calcNetworkTime();
+        }
+    }
+
+    private void warnMin(String name) {
+        Log.w(TAG, "Property '" + name + "' is already minimal");
+    }
+
+    private void warnMax(String name) {
+        Log.w(TAG, "Property '" + name + "' is already maximal");
     }
 }

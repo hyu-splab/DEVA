@@ -2,112 +2,149 @@ package com.example.edgedashanalytics.advanced.coordinator;
 
 import android.util.Size;
 
+/*
+Second version of CamSettings.
+
+In V2, the major difference is that it treats R and Q as a whole since it seems that there is no
+reason to separate these parameters so far. Therefore, for these parameters we will have a 'pointer'
+that moves on a sorted list, of which each entry has both a R value and a Q value.
+
+Some combinations are strictly worse than another; i.e. its data size is larger and its accuracy is
+also worse. The purpose of having such a sorted list is to exclude such 'unnecessary' combinations,
+and only a simple 'move pointer' operation will suffice to get a heavier / lighter parameter
+combination.
+
+Parameter F, however, still needs to be treated as a separate parameter since its effect is
+unrelated to the accuracy unlike R and Q, and will only be used for decreasing workload for the
+workers and the network.
+ */
 public class CamSettings {
-    private final Size[] resolutions;
-    private final int[] qualities;
-    private final int[] frameRates;
+    private static final String TAG = "CamSettings";
 
     public boolean isInner;
-    private int idxResolution;
-    private int idxQuality;
-    private int idxFrameRate;
-    private boolean changedResolution;
-    private boolean changedQuality;
-    private boolean changedFrameRate;
+    private static final int MAX_F = 30, MIN_F = 2;
+    private Parameters p;
+
+    private void initInner() {
+        /*p.R = new Size(1280, 720);
+        p.Q = 70;
+        p.F = 15;*/
+    }
+
+    private void initOuter() {
+        /*p.R = new Size(1280, 720);
+        p.Q = 70;
+        p.F = 30;*/
+    }
 
     public CamSettings(boolean isInner) {
-        resolutions = new Size[] {
-                new Size(640, 360),
-                new Size(854, 480),
-                new Size(960, 540),
-                new Size(1280, 720)
-        };
-
-        qualities = new int[] {30, 40, 50/*, 60, 70*/};
-        frameRates = new int[] {5, 10, 15, 20, 25, 30};
-
         this.isInner = isInner;
-
-        idxResolution = resolutions.length - 1;
-        idxQuality = qualities.length - 1;
-        idxFrameRate = frameRates.length - 1;
-
-        initializeChanged();
+        this.p = new Parameters();
+        if (isInner)
+            initInner();
+        else
+            initOuter();
     }
 
-    public CamSettings(CamSettings org) {
-        resolutions = org.resolutions;
-        qualities = org.qualities;
-        frameRates = org.frameRates;
-        isInner = org.isInner;
-        idxResolution = org.idxResolution;
-        idxQuality = org.idxQuality;
-        idxFrameRate = org.idxFrameRate;
-
-        initializeChanged();
+    public Size getR() {
+        return p.R;
     }
 
-    public void initializeChanged() {
-        changedResolution = changedQuality = changedFrameRate = false;
+    public int getQ() {
+        return p.Q;
     }
 
-    public boolean increaseResolution() {
-        if (changedResolution || idxResolution == resolutions.length - 1)
-            return false;
-        idxResolution++;
-        changedResolution = true;
-        return true;
+    public int getF() {
+        return p.F;
     }
 
-    public boolean decreaseResolution() {
-        if (changedResolution || idxResolution == 0)
-            return false;
-        idxResolution--;
-        changedResolution = true;
-        return true;
+    private int increaseRQInner(int amount) {
+        for (int loop = 0; loop < amount; loop++) {
+            if (!p.increaseLower())
+                return loop;
+        }
+        return amount;
     }
 
-    public boolean increaseQuality() {
-        if (changedQuality || idxQuality == qualities.length - 1)
-            return false;
-        idxQuality++;
-        changedQuality = true;
-        return true;
+    private int decreaseRQInner(int amount) {
+        for (int loop = 0; loop < amount; loop++) {
+            if (!p.decreaseHigher())
+                return loop;
+        }
+        return amount;
     }
 
-    public boolean decreaseQuality() {
-        if (changedQuality || idxQuality == 0)
-            return false;
-        idxQuality--;
-        changedQuality = true;
-        return true;
+    private int increaseRQOuter(int amount) {
+        for (int loop = 0; loop < amount; loop++) {
+            if (p.Q == 0) {
+                if (!p.increaseR()) {
+                    p.increaseQ();
+                }
+            }
+            else if (!p.increaseQ())
+                return loop;
+        }
+        return amount;
     }
 
-    public boolean increaseFrameRate() {
-        if (changedFrameRate || idxFrameRate == frameRates.length - 1)
-            return false;
-        idxFrameRate++;
-        changedFrameRate = true;
-        return true;
+    private int decreaseRQOuter(int amount) {
+        for (int loop = 0; loop < amount; loop++) {
+            if (p.Q == 0) {
+                if (!p.decreaseR())
+                    return loop;
+            }
+            else if (!p.decreaseQ())
+                return loop;
+        }
+        return amount;
     }
 
-    public boolean decreaseFrameRate() {
-        if (changedFrameRate || idxFrameRate == 0 || (!isInner && idxFrameRate == 1))
-            return false;
-        idxFrameRate--;
-        changedFrameRate = true;
-        return true;
+    public int increaseRQ(int amount) {
+        if (isInner)
+            return increaseRQInner(amount);
+        else
+            return increaseRQOuter(amount);
     }
 
-    public Size getResolution() {
-        return resolutions[idxResolution];
+    public int decreaseRQ(int amount) {
+        if (isInner)
+            return decreaseRQInner(amount);
+        else
+            return decreaseRQOuter(amount);
     }
 
-    public int getQuality() {
-        return qualities[idxQuality];
+    public int increaseF(int amount) {
+        int real = Math.min(amount, MAX_F - p.F);
+        p.F += real;
+        return real;
     }
 
-    public int getFrameRate() {
-        return frameRates[idxFrameRate];
+    public int decreaseF(int amount) {
+        int real = Math.min(amount, p.F - MIN_F);
+        p.F -= real;
+        return real;
+    }
+
+    public double getNormalizedLevel() {
+        //return p.R.getWidth() * p.R.getHeight() * getSizeForQuality();
+        return p.Ri + p.Qi;
+    }
+
+    private double getSizeForQuality() {
+        switch (p.Q) {
+            case 0: return 0.02;
+            case 10: return 0.04;
+            case 20: return 0.07;
+            case 30: return 0.09;
+            case 40: return 0.11;
+            case 50: return 0.13;
+            case 60: return 0.15;
+            case 70: return 0.18;
+            case 80: return 0.24;
+            case 90: return 0.35;
+            case 100: return 1.0;
+            default:
+                throw new RuntimeException("Unknown quality: " + p.Q);
+        }
     }
 }

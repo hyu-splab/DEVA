@@ -1,9 +1,12 @@
 package com.example.edgedashanalytics.advanced.common;
 
+import android.util.Log;
+
 import java.util.ArrayDeque;
 import java.util.Deque;
 
 public class WorkerHistory {
+    private static final String TAG = "WorkerHistory";
     public Deque<FrameResult> history;
     public static final long HISTORY_DURATION = 2000;
     public static final double DEFAULT_PROCESS_TIME = 100;
@@ -50,5 +53,6 @@ public class WorkerHistory {
             processTime = DEFAULT_PROCESS_TIME;
         else
             processTime = (double) totalProcessTime / history.size();
+        //Log.v(TAG, "processTime = " + processTime);
     }
 }

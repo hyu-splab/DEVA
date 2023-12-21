@@ -1,7 +1,6 @@
 package com.example.edgedashanalytics.advanced.coordinator;
 
 import android.util.Log;
-import android.util.Size;
 
 import com.example.edgedashanalytics.advanced.common.WorkerStatus;
 
@@ -13,24 +12,29 @@ public class Controller {
     private final EDACam innerCam;
     private final EDACam outerCam;
 
+    private long prevPendingDataSize;
+
     public Controller(EDACam innerCam, EDACam outerCam) {
         this.innerCam = innerCam;
         this.outerCam = outerCam;
+        prevPendingDataSize = 0;
     }
 
     /*
     TODO: All values here are temporary.
      */
-    private static final double NETWORK_SLOW = 300;
+    private static final double NETWORK_SLOW = 500;
     private static final double WAIT_SLOW = 2.5;
 
-    private static final double NETWORK_FAST = 100;
+    private static final double NETWORK_FAST = 200;
     private static final double WAIT_FAST = 1.5;
 
     // New version of cam settings adjustment algorithm.
-    public void adjustCamSettingsV2(List<EDAWorker> workers, CamSettingsV2 innerCamSettings, CamSettingsV2 outerCamSettings) {
+    public void adjustCamSettingsV2(List<EDAWorker> workers, CamSettings innerCamSettings, CamSettings outerCamSettings) {
         double networkTime;
         double workerCapacity;
+
+        long pendingDataSize = AdvancedMain.communicator.pendingDataSize;
 
         // First, we calculate average network speed for all workers:
         double totalNetworkTime = 0;
@@ -46,14 +50,15 @@ public class Controller {
 
         /*
         Second, total capacity of workers are calculated
-        inner, outer weights are constants, calculated based on experimental results
+        Time multiplier is a constant, calculated based on experimental results
+        TODO: get this more accurately
         So far, it is deemed that outer analysis typically takes considerably more time
         so we assume that inner time should get more attention than its value
 
         It is needed to consider both values since both cameras may not always be available
         */
-        final double innerWeight = 2;
-        final double outerWeight = 1;
+        final double innerTimeMultiplier = 2;
+        final double leniency = 1.5;
 
         double totalInnerProcessTime = 0, totalOuterProcessTime = 0;
         for (EDAWorker worker : workers) {
@@ -64,8 +69,9 @@ public class Controller {
 
         // capacity is "how many frames can be addressed within a second?"
         // so it's (# of workers) / (average time to process one frame)
-        double avgProcessTime = (innerWeight * totalInnerProcessTime + outerWeight * totalOuterProcessTime) / numHistory;
-        workerCapacity = workers.size() / avgProcessTime;
+        double avgProcessTime = (innerTimeMultiplier * totalInnerProcessTime + totalOuterProcessTime) / numHistory;
+        //Log.v(TAG, "avg = " + avgProcessTime);
+        workerCapacity = workers.size() / avgProcessTime * 1000 * leniency;
 
         /*
         Time to actually implement adjusting algorithm!
@@ -127,19 +133,26 @@ public class Controller {
           nearly 7 times smaller. Removing inversion of data sizes, the only part where decreasing R
           is when Q < 10, which is already too inaccurate to be used. So for now, I am going to try
           to fix outer R at 1280x720 and only move Q.
-        - TODO: We need to set a score for latency.
+         */
+        // ==============================================================================
+        /* PLAN CHANGED
+
+        We should NEVER use a fixed chart, so instead we have to
          */
 
         // Need to reduce F if the workload is too high
-        boolean fpsDecreased = false;
+        boolean fpsDecreased = false, fpsIncreased = false;
 
         int iF = innerCamSettings.getF(), oF = outerCamSettings.getF();
 
-        if (workerCapacity < iF + oF) {
-            // How much more important is to frequently analyse the outer video?
-            final double outerFpsWeight = 2.0;
+        // How much more important is to frequently analyse the outer video?
+        final double outerFWeight = 2.0;
 
-            if (iF * outerFpsWeight > oF)
+        Log.v(TAG, "workerCapacity = " + workerCapacity + ", F = " + iF + " * " + innerTimeMultiplier + " + " + oF);
+
+        // If there is too much workload, reduce F a little.
+        if (workerCapacity < iF * innerTimeMultiplier + oF) {
+            if (iF * outerFWeight > oF)
             {
                 if (innerCamSettings.decreaseF(5) > 0) {
                     fpsDecreased = true;
@@ -153,161 +166,81 @@ public class Controller {
             }
         }
 
+        // Otherwise, if we can definitely work more, increase F a little.
+        else if (pendingDataSize < 2000000 && workerCapacity * 0.8 > iF * innerTimeMultiplier + oF) {
+            if (iF * outerFWeight < oF) {
+                if (innerCamSettings.increaseF(2) > 0) {
+                    fpsIncreased = true;
+                } else if (outerCamSettings.increaseF(2) > 0) {
+                    fpsIncreased = true;
+                }
+            } else if (outerCamSettings.increaseF(2) > 0) {
+                fpsIncreased = true;
+            }
+        }
+
+
         // Need to reduce data throughput if the network is saturated
         // However, if we already decreased F above, we can wait a little to see if this also
         // solves network bottleneck
         if (!fpsDecreased) {
-            if (networkTime > NETWORK_SLOW) {
+            Log.v(TAG, "pending vs prev = " + pendingDataSize + " " + prevPendingDataSize);
+            if (pendingDataSize > 1000000 && (pendingDataSize > 2000000 || pendingDataSize > prevPendingDataSize) /*networkTime > NETWORK_SLOW*/) {
+                int x;
                 // We want to move these at similar rate
                 if (innerCamSettings.getNormalizedLevel() > outerCamSettings.getNormalizedLevel()) {
-                    innerCamSettings.decreaseRQ(1);
+                    x = innerCamSettings.decreaseRQ(3);
+                    Log.v(TAG, "decreased inner: " + x);
                 }
                 else {
-                    outerCamSettings.decreaseRQ(1);
+                    x = outerCamSettings.decreaseRQ(3);
+                    Log.v(TAG, "decreased outer: " + x);
                 }
-            }
-
-            // We have some possibility that we can provide better analysis
-            else if (networkTime < NETWORK_FAST) {
-
-            }
-        }
-
-        if (innerCam.outstream != null) {
-            innerCam.sendSettings(innerCam.outstream);
-            //Log.d(TAG, "sending adjusted setting to innercam");
-        }
-        if (outerCam.outstream != null) {
-            //Log.d(TAG, "sending adjusted setting to outercam");
-            outerCam.sendSettings(outerCam.outstream);
-        }
-
-        for (EDAWorker worker : workers) {
-            worker.status.innerHistory.removeOldResults();
-            worker.status.outerHistory.removeOldResults();
-            worker.status.calcNetworkTime();
-        }
-    }
-
-    public void adjustCamSettings(List<EDAWorker> workers, CamSettings innerCamSettings, CamSettings outerCamSettings) {
-        double avgInnerWait = 0.0;
-        double avgOuterWait = 0.0;
-        double avgNetworkTime = 0.0;
-
-        int totalNetworkTime = 0;
-        int totalInnerWait = 0;
-        int totalOuterWait = 0;
-        int innerCount = 0, outerCount = 0;
-
-        if (workers.size() == 0) {
-            Log.d(TAG, "no workers available");
-            return;
-        }
-
-        for (EDAWorker worker : workers) {
-            WorkerStatus status = worker.status;
-            innerCount += status.innerHistory.history.size();
-            totalInnerWait += status.innerWaiting;
-
-            outerCount += status.outerHistory.history.size();
-            totalOuterWait += status.outerWaiting;
-
-            totalNetworkTime += status.innerHistory.totalNetworkTime + status.outerHistory.totalNetworkTime;
-        }
-
-        if (innerCount > 0) {
-            avgInnerWait = (double)totalInnerWait / workers.size();
-        }
-
-        if (outerCount > 0) {
-            avgOuterWait = (double)totalOuterWait / workers.size();
-        }
-
-        if (innerCount + outerCount > 0) {
-            avgNetworkTime = (double)totalNetworkTime / (innerCount + outerCount);
-        }
-        else {
-            Log.d(TAG, "No history available");
-            return;
-        }
-
-        Log.d(TAG, "innerwait = " + avgInnerWait + ", outerwait = " + avgOuterWait
-        + ", network = " + avgNetworkTime);
-
-        boolean x, y; // temporary variables
-        innerCamSettings.initializeChanged();
-        outerCamSettings.initializeChanged();
-
-        /*
-        Rule #1: Do not let the network to be saturated
-         */
-        if (avgNetworkTime > NETWORK_SLOW) {
-            if (!innerCamSettings.decreaseFrameRate()) {
-                if (!outerCamSettings.decreaseFrameRate()) {
-                    x = innerCamSettings.decreaseQuality();
-                    y = outerCamSettings.decreaseQuality();
-                    if (!x && !y) {
-                        x = innerCamSettings.decreaseResolution();
-                        y = outerCamSettings.decreaseResolution();
-                        if (!x && !y) {
-                            warnMin("network");
+                if (x == 0) {
+                    if (iF * outerFWeight > oF)
+                    {
+                        if (innerCamSettings.decreaseF(5) > 0) {
+                            fpsDecreased = true;
+                        }
+                        else if (outerCamSettings.decreaseF(5) > 0) {
+                            fpsDecreased = true;
                         }
                     }
-                }
-            }
-        }
-
-        /*
-        Rule #2: We don't want saturated worker queues
-         */
-        if (avgInnerWait > WAIT_SLOW || avgOuterWait > WAIT_SLOW) {
-            if (!innerCamSettings.decreaseFrameRate()) {
-                if (!outerCamSettings.decreaseFrameRate()) {
-                    x = innerCamSettings.decreaseResolution();
-                    y = outerCamSettings.decreaseResolution();
-                    if (!x && !y) {
-                        warnMin("worker queue");
+                    else if (outerCamSettings.decreaseF(5) > 0) {
+                        fpsDecreased = true;
                     }
                 }
             }
         }
 
-        /*
-        Rule #3: If everything is more than good, try measuring in higher quality
-         */
-        if (avgNetworkTime < NETWORK_FAST && avgInnerWait < WAIT_FAST && avgOuterWait < WAIT_FAST) {
-            x = innerCamSettings.increaseQuality();
-            y = outerCamSettings.increaseQuality();
-            if (!x && !y) {
-                if (!outerCamSettings.increaseFrameRate()) {
-                    if (!innerCamSettings.increaseFrameRate()) {
-                        warnMax("all is well");
-                    }
+        // Similarly, if we increased F above, it might already be threatening network throughput
+        // so refrain from increase RQ at the same time
+        else if (!fpsIncreased) {
+            // We have some possibility that we can provide better analysis
+            if (pendingDataSize < 1000000 /*networkTime < NETWORK_FAST*/) {
+                if (innerCamSettings.getNormalizedLevel() < outerCamSettings.getNormalizedLevel()) {
+                    innerCamSettings.increaseRQ(1);
+                }
+                else {
+                    outerCamSettings.increaseRQ(1);
                 }
             }
         }
 
-        if (innerCam.outstream != null) {
-            innerCam.sendSettings(innerCam.outstream);
-            //Log.d(TAG, "sending adjusted setting to innercam");
+        if (innerCam.outStream != null) {
+            innerCam.sendSettings(innerCam.outStream);
         }
-        if (outerCam.outstream != null) {
-            //Log.d(TAG, "sending adjusted setting to outercam");
-            outerCam.sendSettings(outerCam.outstream);
+        if (outerCam.outStream != null) {
+            outerCam.sendSettings(outerCam.outStream);
         }
+        Log.v(TAG, "pendingDataSize = " + pendingDataSize);
 
         for (EDAWorker worker : workers) {
             worker.status.innerHistory.removeOldResults();
             worker.status.outerHistory.removeOldResults();
             worker.status.calcNetworkTime();
         }
-    }
 
-    private void warnMin(String name) {
-        Log.w(TAG, "Property '" + name + "' is already minimal");
-    }
-
-    private void warnMax(String name) {
-        Log.w(TAG, "Property '" + name + "' is already maximal");
+        prevPendingDataSize = pendingDataSize;
     }
 }

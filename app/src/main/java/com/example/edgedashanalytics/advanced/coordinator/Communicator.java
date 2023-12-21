@@ -29,8 +29,11 @@ public class Communicator extends Thread {
 
     public ArrayList<EDAWorker> workers;
 
+    public long pendingDataSize;
+
     public Communicator() {
         workers = new ArrayList<>();
+        pendingDataSize = 0;
     }
 
     public void addWorker(int workerNum, String ip) {
@@ -113,6 +116,8 @@ public class Communicator extends Thread {
                 outstream.flush();
                 outstream.reset();
 
+                pendingDataSize += data.data.length;
+
                 TimeLog.coordinator.add(data.frameNum); // After send
 
             } catch (Exception e) {
@@ -132,6 +137,7 @@ public class Communicator extends Thread {
                 try {
                     WorkerResult res = (WorkerResult) worker.instream.readObject();
                     long endTime = System.currentTimeMillis();
+                    pendingDataSize -= res.dataSize;
 
                     if (res.isInner) {
                         worker.status.innerWaiting--;

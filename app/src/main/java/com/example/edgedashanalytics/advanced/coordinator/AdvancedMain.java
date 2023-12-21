@@ -21,7 +21,7 @@ import java.util.TimerTask;
 public class AdvancedMain {
     private static final String TAG = "AdvancedMain";
     //private static ArrayList<Sender> senders = new ArrayList<>();
-    private static Communicator communicator;
+    public static Communicator communicator;
     public static int innerCount = 0, outerCount = 0, totalCount = 0, processed = 0, dropped = 0;
     public static int selectedCount = 0;
     public static long startTime;
@@ -49,7 +49,7 @@ public class AdvancedMain {
                 controller.adjustCamSettingsV2(communicator.workers, innerCam.camSettings, outerCam.camSettings);
                 StatusLogger.log(innerCam, outerCam, communicator.workers);
             }
-        }, 1000, 2000);
+        }, 1000, 500);
     }
 
     private static void connectToDashCam() {
@@ -71,7 +71,7 @@ public class AdvancedMain {
         createDeviceList();
         HashMap<String, String> p = s22;
 
-        String[] workerList = {"self"};
+        String[] workerList = {"self", "lineage2", "oppo"};
 
         communicator = new Communicator();
         int workerNum = 0;
@@ -128,7 +128,7 @@ public class AdvancedMain {
             sequence = new ArrayList<>();
 
             for (int i = 0; i < sequenceLength; i++) {
-                double maxPriority = 0;
+                double maxPriority = -1;
                 int maxIndex = -1;
                 for (int j = 0; j < numWorker; j++) {
                     workerPriority[j] += workerWeight.get(j);

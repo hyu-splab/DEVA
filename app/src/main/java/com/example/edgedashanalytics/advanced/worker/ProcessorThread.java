@@ -50,7 +50,7 @@ public class ProcessorThread extends Thread {
                 String resultString = frameProcessor.run();
                 long endTime = System.currentTimeMillis();
 
-                sendResult(isInner, img.coordinatorStartTime, frameNum, endTime - startTime, endTime - img.workerStartTime, resultString);
+                sendResult(isInner, img.coordinatorStartTime, frameNum, endTime - startTime, endTime - img.workerStartTime, resultString, img.dataSize);
                 workCount++;
             } catch (Exception e) {
                 e.printStackTrace();
@@ -71,9 +71,9 @@ public class ProcessorThread extends Thread {
         return bitmap;
     }
 
-    public static void sendResult(boolean isInner, long coordinatorStartTime, int frameNum, long processTime, long totalTime, String resultString) {
+    public static void sendResult(boolean isInner, long coordinatorStartTime, int frameNum, long processTime, long totalTime, String resultString, long dataSize) {
         Message retMsg = Message.obtain();
-        retMsg.obj = new WorkerResult(isInner, coordinatorStartTime, frameNum, processTime, totalTime, resultString);
+        retMsg.obj = new WorkerResult(isInner, coordinatorStartTime, frameNum, processTime, totalTime, resultString, dataSize);
         handler.sendMessage(retMsg);
     }
 }

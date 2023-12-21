@@ -2,6 +2,7 @@ package com.example.edgedashanalytics.advanced.worker;
 
 import static com.example.edgedashanalytics.advanced.common.TimeLog.context;
 
+import android.graphics.Bitmap;
 import android.util.Log;
 
 import com.example.edgedashanalytics.util.file.JsonManager;
@@ -33,10 +34,17 @@ public class OuterProcessor extends FrameProcessor {
 
     @Override
     public String run() {
-        List<Frame> result = analyzer.analyse(frame);
+        int videoWidth = frame.getWidth();
+        int videoHeight = frame.getHeight();
+
+        float scaleFactor = videoWidth / 192f;
+        int scaledWidth = (int) (videoWidth / scaleFactor);
+        int scaledHeight = (int) (videoHeight / scaleFactor);
+
+        List<Frame> result = analyzer.analyse(Bitmap.createScaledBitmap(frame, scaledWidth, scaledHeight, false), scaleFactor);
         StringBuilder resultString = new StringBuilder();
 
-        for (Frame f : result)
+        /*for (Frame f : result)
             resultString.append(JsonManager.writeToString(result));
 
         addResult(result);
@@ -45,7 +53,7 @@ public class OuterProcessor extends FrameProcessor {
 
         if (cameraFrameNum == 1195) {
             calcAccuracy();
-        }
+        }*/
 
         return resultString.toString();
     }

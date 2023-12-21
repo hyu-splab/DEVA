@@ -9,13 +9,15 @@ public class WorkerResult implements Serializable {
     public long totalTime; // from receive to send result, for calculating network time
     public int frameNum;
     public String msg;
+    public long dataSize;
 
-    public WorkerResult(boolean isInner, long coordinatorStartTime, int frameNum, long processTime, long totalTime, String msg) {
+    public WorkerResult(boolean isInner, long coordinatorStartTime, int frameNum, long processTime, long totalTime, String msg, long dataSize) {
         this.isInner = isInner;
         this.coordinatorStartTime = coordinatorStartTime;
         this.frameNum = frameNum;
         this.processTime = processTime;
         this.totalTime = totalTime;
         this.msg = msg;
+        this.dataSize = dataSize;
     }
 }
