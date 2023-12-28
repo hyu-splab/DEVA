@@ -5,7 +5,9 @@ import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
 
+import com.example.edgedashanalytics.advanced.common.CoordinatorMessage;
 import com.example.edgedashanalytics.advanced.coordinator.AdvancedMain;
+import com.example.edgedashanalytics.page.main.MainActivity;
 import com.example.edgedashanalytics.util.Constants;
 import com.example.edgedashanalytics.advanced.common.TimeLog;
 import com.example.edgedashanalytics.advanced.common.Image2;
@@ -84,7 +86,16 @@ public class WorkerServer {
                 try {
                     int cnt = 0;
                     while (true) {
-                        Image2 image = (Image2) instream.readObject();
+                        CoordinatorMessage cMsg = (CoordinatorMessage) instream.readObject();
+
+                        if (cMsg.type != 1) {
+                            Message mainMsg = Message.obtain();
+                            mainMsg.arg1 = cMsg.type;
+                            MainActivity.mainHandler.sendMessage(mainMsg);
+                            continue;
+                        }
+
+                        Image2 image = (Image2) cMsg.data;
                         image.workerStartTime = System.currentTimeMillis();
                         if (AdvancedMain.isFinished)
                             continue;

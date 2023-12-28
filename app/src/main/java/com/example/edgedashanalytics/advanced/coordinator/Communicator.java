@@ -11,6 +11,7 @@ import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
 
+import com.example.edgedashanalytics.advanced.common.CoordinatorMessage;
 import com.example.edgedashanalytics.advanced.common.FrameResult;
 import com.example.edgedashanalytics.util.Constants;
 import com.example.edgedashanalytics.advanced.common.TimeLog;
@@ -100,7 +101,7 @@ public class Communicator extends Thread {
             try {
                 EDAWorker worker = workers.get(workerNum);
                 Image2 data = (Image2) msg.obj;
-                ObjectOutputStream outstream = worker.outstream;
+                ObjectOutputStream outStream = worker.outstream;
                 TimeLog.coordinator.add(data.frameNum); // Wait for Result
 
                 if (data.isInner) {
@@ -112,9 +113,12 @@ public class Communicator extends Thread {
 
                 data.coordinatorStartTime = System.currentTimeMillis();
                 //Log.d(TAG, "frame " + data.frameNumber + " started at " + data.workerStartTime);
-                outstream.writeObject(data);
-                outstream.flush();
-                outstream.reset();
+
+                CoordinatorMessage cMsg = new CoordinatorMessage(1, data);
+
+                outStream.writeObject(cMsg);
+                outStream.flush();
+                outStream.reset();
 
                 pendingDataSize += data.data.length;
 

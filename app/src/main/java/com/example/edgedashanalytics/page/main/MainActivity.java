@@ -12,6 +12,8 @@ import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.Message;
 import android.provider.Settings;
 import android.util.Log;
 import android.util.Size;
@@ -75,6 +77,35 @@ public class MainActivity extends AppCompatActivity implements
     private final FragmentManager supportFragmentManager = getSupportFragmentManager();
     private Fragment activeFragment;
 
+    class MainHandler extends Handler {
+        @Override
+        public void handleMessage(@NonNull Message msg) {
+            super.handleMessage(msg);
+
+            int arg = msg.arg1;
+
+            if (arg == 2) {
+                PackageManager packageManager = getPackageManager();
+                Intent intent = packageManager.getLaunchIntentForPackage(getPackageName());
+                ComponentName componentName = intent.getComponent();
+                Intent mainIntent = Intent.makeRestartActivityTask(componentName);
+                startActivity(mainIntent);
+                System.exit(0);
+            }
+
+            else if (arg == 3) {
+                finishAndRemoveTask();
+                System.exit(0);
+            }
+
+            else {
+                Log.w(TAG, "Unknown arg: " + arg);
+            }
+        }
+    }
+
+    public static MainHandler mainHandler;
+
     private final BottomNavigationView.OnItemSelectedListener bottomNavigationOnItemSelectedListener
             = new BottomNavigationView.OnItemSelectedListener() {
         @Override
@@ -109,6 +140,8 @@ public class MainActivity extends AppCompatActivity implements
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        mainHandler = new MainHandler();
 
         TextView textViewTimer = findViewById(R.id.textViewTimer);
         TextView textViewStatus = findViewById(R.id.textViewStatus);
