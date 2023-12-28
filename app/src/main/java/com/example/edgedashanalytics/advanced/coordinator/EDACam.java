@@ -69,7 +69,6 @@ public class EDACam extends Thread {
             if (AdvancedMain.isFinished)
                 continue;
             if (AdvancedMain.totalCount == 1) {
-                AdvancedMain.startTime = System.currentTimeMillis();
                 new Timer().schedule(new TimerTask() {
                     @Override
                     public void run() {

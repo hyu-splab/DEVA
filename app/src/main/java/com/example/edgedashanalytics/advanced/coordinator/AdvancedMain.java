@@ -20,15 +20,16 @@ import java.util.TimerTask;
 public class AdvancedMain {
     private static final String TAG = "AdvancedMain";
     public static Communicator communicator;
-    private static int totalCount = 0;
+    public static int totalCount = 0;
     public static int selectedCount = 0;
-    public static long startTime;
     public static boolean isFinished = false;
     public static HashMap<String, String> s22, splab;
 
     private static EDACam innerCam, outerCam;
     private static Controller controller;
     private static final long CAMERA_ADJUSTMENT_PERIOD = 500;
+
+    public static String[] workerNameList;
 
     public static void run() {
         // Start streaming images
@@ -70,11 +71,9 @@ public class AdvancedMain {
         createDeviceList();
         HashMap<String, String> p = s22;
 
-        String[] workerList = {"self", "lineage2", "oppo"};
-
         communicator = new Communicator();
         int workerNum = 0;
-        for (String name : workerList) {
+        for (String name : workerNameList) {
             communicator.addWorker(workerNum++, p.get(name));
         }
 
