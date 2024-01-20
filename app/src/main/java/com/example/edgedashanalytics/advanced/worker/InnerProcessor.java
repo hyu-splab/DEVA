@@ -31,7 +31,7 @@ public class InnerProcessor extends FrameProcessor {
     public HashMap<Integer, Integer> map = new HashMap<>();
 
     @Override
-    public String run() {
+    public ProcessResult run() {
         int videoWidth = frame.getWidth();
         int videoHeight = frame.getHeight();
 
@@ -51,7 +51,7 @@ public class InnerProcessor extends FrameProcessor {
         }*/
 
         //Log.d(TAG, "result: " + resultString.toString());
-        return resultString;
+        return new ProcessResult(resultString, ((InnerFrame)result.get(0)).getDistracted(), null);
     }
 
     public void readDistraction() {

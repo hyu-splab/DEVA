@@ -2,7 +2,7 @@ package com.example.edgedashanalytics.advanced.worker;
 
 import android.graphics.Bitmap;
 
-import com.example.edgedashanalytics.util.video.analysis.Frame;
+import java.util.List;
 
 abstract public class FrameProcessor {
     Bitmap frame;
@@ -16,5 +16,17 @@ abstract public class FrameProcessor {
         this.cameraFrameNum = cameraFrameNum;
     }
 
-    abstract public String run();
+    abstract public ProcessResult run();
+
+    public static class ProcessResult {
+        public String msg;
+        public boolean isDistracted;
+        public List<String> hazards;
+
+        public ProcessResult(String msg, boolean isDistracted, List<String> hazards) {
+            this.msg = msg;
+            this.isDistracted = isDistracted;
+            this.hazards = hazards;
+        }
+    }
 }

@@ -16,22 +16,22 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 public class EDACam extends Thread {
-    static final String TAG = "ReceiverThread";
+    static final String TAG = "EDACam";
 
     private final Handler handler;
+    private final String ip;
     private final int msgCode;
-    private final int port;
 
     public ObjectInputStream inStream;
     public ObjectOutputStream outStream;
     private Socket socket;
     public CamSettings camSettings;
 
-    public EDACam(Handler handler, boolean isInner) {
+    public EDACam(Handler handler, String ip, boolean isInner) {
         // handler: the handler for the processing thread to hand over the image data
         this.handler = handler;
+        this.ip = ip;
         this.msgCode = isInner ? Constants.IMAGE_INNER : Constants.IMAGE_OUTER;
-        this.port = isInner ? Constants.PORT_INNER : Constants.PORT_OUTER;
         this.socket = null;
         camSettings = new CamSettings(isInner);
     }
@@ -40,42 +40,52 @@ public class EDACam extends Thread {
     public void run() {
         try {
             setup();
+            Log.v(TAG, "now starting doWork()");
             doWork();
         } catch (Exception e) {
+            e.printStackTrace();
+            try {
+                Thread.sleep(1000);
+            } catch (Exception e2) {
+                e2.printStackTrace();
+            }
             if (socket != null && socket.isConnected())
                 try { socket.close(); } catch (Exception e2) { e2.printStackTrace(); }
-            e.printStackTrace();
         }
     }
 
     private void setup() throws Exception {
-        ServerSocket serverSocket = new ServerSocket(port);
-        Log.d(TAG, "opened a port " + port);
-        socket = serverSocket.accept();
+        while (true) {
+            try {
+                socket = new Socket(ip, 5555);
+            } catch (Exception e) {
+                Log.v(TAG, "cannot connect to camera " + ip + "yet, retrying in 1s...");
+                Thread.sleep(1000);
+                continue;
+            }
+            break;
+        }
+
+        Log.v(TAG, "setup completed");
+        Log.v(TAG, "isConnected = " + socket.isConnected());
+        ObjectOutputStream tempOutStream = new ObjectOutputStream(socket.getOutputStream());
         inStream = new ObjectInputStream(socket.getInputStream());
+        Log.v(TAG, "can I reach here?");
 
         // to avoid race condition, make sure our first signal is fully sent to the camera
         // before we perform the periodical checks
-        ObjectOutputStream tempOutStream = new ObjectOutputStream(socket.getOutputStream());
         // First time connected, send initial settings
+        Log.v(TAG, "before sendSettings");
         sendSettings(tempOutStream);
+        Log.v(TAG, "after sendSettings");
         outStream = tempOutStream;
     }
 
     private void doWork() throws Exception {
         while (true) {
+
             int frameNum = inStream.readInt();
             byte[] data = (byte[]) inStream.readObject();
-            if (AdvancedMain.isFinished)
-                continue;
-            if (AdvancedMain.totalCount == 1) {
-                new Timer().schedule(new TimerTask() {
-                    @Override
-                    public void run() {
-                        TimeLog.coordinator.writeLogs();
-                    }
-                }, Constants.EXPERIMENT_DURATION);
-            }
 
             Message msg = Message.obtain();
             msg.arg1 = frameNum;
@@ -93,7 +103,7 @@ public class EDACam extends Thread {
 
     public static void sendSettings(ObjectOutputStream outputStream, Size resolution, int quality, int frameRate) {
         try {
-            Log.v(TAG, "Sending settings: " + resolution.getWidth() + " " + resolution.getHeight() + " " + quality + " " + frameRate);
+            //Log.v(TAG, "Sending settings: " + resolution.getWidth() + " " + resolution.getHeight() + " " + quality + " " + frameRate);
             outputStream.writeInt(resolution.getWidth());
             outputStream.writeInt(resolution.getHeight());
             outputStream.writeInt(quality);

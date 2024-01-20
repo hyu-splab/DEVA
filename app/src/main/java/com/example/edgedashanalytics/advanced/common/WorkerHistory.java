@@ -9,16 +9,15 @@ public class WorkerHistory {
     private static final String TAG = "WorkerHistory";
     public Deque<FrameResult> history;
     public static final long HISTORY_DURATION = 2000;
-    public static final double DEFAULT_PROCESS_TIME = 100;
 
     public double processTime;
 
     public int totalProcessTime;
     public int totalNetworkTime;
 
-    public WorkerHistory() {
+    public WorkerHistory(long defaultProcessTime) {
         history = new ArrayDeque<>();
-        processTime = DEFAULT_PROCESS_TIME;
+        processTime = defaultProcessTime;
         totalProcessTime = 0;
     }
 
@@ -31,6 +30,7 @@ public class WorkerHistory {
 
     public synchronized void addResult(FrameResult result) {
         history.add(result);
+        //Log.v(TAG, "history added: size = " + history.size());
         totalProcessTime += result.processTime;
         totalNetworkTime += result.networkTime;
 
@@ -41,6 +41,7 @@ public class WorkerHistory {
         long curTime = System.currentTimeMillis();
         while (!history.isEmpty() && curTime - history.peek().timestamp > HISTORY_DURATION) {
             FrameResult old = history.pop();
+            //Log.v(TAG, "Removing history: time = " + (curTime - old.timestamp));
             totalProcessTime -= old.processTime;
             totalNetworkTime -= old.networkTime;
         }
@@ -49,10 +50,13 @@ public class WorkerHistory {
     }
 
     private void calcProcessTime() {
-        if (history.isEmpty())
-            processTime = DEFAULT_PROCESS_TIME;
-        else
-            processTime = (double) totalProcessTime / history.size();
+        int sz = history.size();
+        if (sz != 0)
+            processTime = (double) totalProcessTime / sz;
         //Log.v(TAG, "processTime = " + processTime);
+    }
+
+    public double getProcessTime() {
+        return processTime;
     }
 }

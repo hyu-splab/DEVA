@@ -160,12 +160,12 @@ public class MainActivity extends AppCompatActivity implements
                 }
             }, 100, 100);
 
-            AdvancedMain.run();
+            AdvancedMain.run(getApplicationContext());
         });
 
         findViewById(R.id.buttonStop).setOnClickListener(view -> {
-            StatusLogger.writeLogs(getApplicationContext());
-            FrameLogger.writeLogs(getApplicationContext());
+            StatusLogger.writeLogs(getApplicationContext(), -1);
+            FrameLogger.writeLogs(getApplicationContext(), -1);
             Log.d(TAG, "Test finished");
         });
 
@@ -193,7 +193,7 @@ public class MainActivity extends AppCompatActivity implements
         storeLogsInFile();
         DashCam.setup(this);
 
-        AdvancedMain.workerStart();
+        AdvancedMain.advancedMain(getApplicationContext());
     }
 
     private void runTests() {
@@ -218,11 +218,11 @@ public class MainActivity extends AppCompatActivity implements
     @Override
     protected void onStop() {
         super.onStop();
-        try {
+        /*try {
             Runtime.getRuntime().exec("logcat -c");
         } catch (IOException e) {
             Log.e(I_TAG, String.format("Unable to clear logcat:\n%s", e.getMessage()));
-        }
+        }*/
     }
 
     private void storeLogsInFile() {
@@ -233,7 +233,7 @@ public class MainActivity extends AppCompatActivity implements
 
         try {
             // Clear logcat buffer
-            Runtime.getRuntime().exec("logcat -c");
+            //Runtime.getRuntime().exec("logcat -c");
             // Write logcat messages to logPath
             String loggingCommand = String.format("logcat --pid %s -f %s", id, logPath);
             Log.v(TAG, String.format("Running logging command: %s", loggingCommand));

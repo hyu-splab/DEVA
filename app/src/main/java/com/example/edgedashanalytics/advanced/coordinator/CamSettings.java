@@ -28,9 +28,9 @@ public class CamSettings {
     public CamSettings(boolean isInner) {
         this.isInner = isInner;
         if (isInner)
-            this.p = new Parameters(5, 7, 10);
+            this.p = new Parameters(5, 7, 5);
         else
-            this.p = new Parameters(10, 5, 20);
+            this.p = new Parameters(10, 5, 10);
     }
 
     public Size getR() {

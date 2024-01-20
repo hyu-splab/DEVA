@@ -111,7 +111,7 @@ public class Sender extends Thread {
                     if (recentTime.size() == DEQUE_CAPACITY)
                         recentTime.pop();
                     try {
-                        recentTime.push(endTime - startTime.remove(res.frameNum));
+                        recentTime.push(endTime - startTime.remove(res.cameraFrameNum));
                     } catch (NullPointerException e) {
                         e.printStackTrace();
                     }
@@ -126,7 +126,7 @@ public class Sender extends Thread {
                         AdvancedMain.innerCount++;
                     else
                         AdvancedMain.outerCount++;*/
-                    TimeLog.coordinator.finish(res.frameNum + ""); // Finish
+                    TimeLog.coordinator.finish(res.cameraFrameNum + ""); // Finish
                     //Log.d(TAG, "Got response from the server: isInner = "
                     //+ res.isInner + ", frameNumber = " + res.frameNumber);
                     //Log.d(TAG, res.msg);

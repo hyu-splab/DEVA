@@ -10,8 +10,8 @@ public class WorkerStatus {
     public double networkTime;
 
     public WorkerStatus() {
-        innerHistory = new WorkerHistory();
-        outerHistory = new WorkerHistory();
+        innerHistory = new WorkerHistory(50);
+        outerHistory = new WorkerHistory(100);
         innerWaiting = outerWaiting = 0;
         networkTime = 0;
     }
@@ -52,7 +52,15 @@ public class WorkerStatus {
         int totalWaiting = innerWaiting + outerWaiting;
         if (totalWaiting == 0)
             return DEFAULT_PERFORMANCE;
-        return totalWaiting / (((innerWaiting * innerProcessTime())
-                + (outerWaiting * outerProcessTime())) / 2.0);
+        return totalWaiting / (((innerWaiting * getAverageInnerProcessTime())
+                + (outerWaiting * getAverageOuterProcessTime())) / 2.0);
+    }
+
+    public double getAverageInnerProcessTime() {
+        return innerHistory.getProcessTime();
+    }
+
+    public double getAverageOuterProcessTime() {
+        return outerHistory.getProcessTime();
     }
 }

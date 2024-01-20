@@ -33,7 +33,7 @@ public class OuterProcessor extends FrameProcessor {
     public HashMap<Integer, HashMap<String, Integer>> map = new HashMap<>();
 
     @Override
-    public String run() {
+    public ProcessResult run() {
         int videoWidth = frame.getWidth();
         int videoHeight = frame.getHeight();
 
@@ -44,10 +44,14 @@ public class OuterProcessor extends FrameProcessor {
         List<Frame> result = analyzer.analyse(Bitmap.createScaledBitmap(frame, scaledWidth, scaledHeight, false), scaleFactor);
         StringBuilder resultString = new StringBuilder();
 
-        /*for (Frame f : result)
+        List<String> hazards = new ArrayList<>();
+        for (Frame f : result) {
+            for (Hazard hazard : ((OuterFrame) f).getHazards()) {
+                hazards.add(hazard.getCategory());
+            }
             resultString.append(JsonManager.writeToString(result));
-
-        addResult(result);
+        }
+        /*addResult(result);
 
         //Log.d(TAG, "result: " + resultString.toString());
 
@@ -55,7 +59,7 @@ public class OuterProcessor extends FrameProcessor {
             calcAccuracy();
         }*/
 
-        return resultString.toString();
+        return new ProcessResult(resultString.toString(), false, hazards);
     }
 
     private void addResult(List<Frame> result) {

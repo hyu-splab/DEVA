@@ -63,6 +63,7 @@ public class WorkerServer {
                         public void handleMessage(Message msg) {
                             try {
                                 WorkerResult res = (WorkerResult) msg.obj;
+                                //Log.v(TAG, "Frame " + res.frameNum + ": isInner = " + res.isInner + ", hazards is null = " + (res.hazards == null));
                                 if (res.isInner)
                                     innerCount++;
                                 else
@@ -70,10 +71,10 @@ public class WorkerServer {
 
                                 // Log.d(TAG, "processTime = " + res.processTime);
 
-                                TimeLog.worker.add(res.frameNum + ""); // Return Result
+                                //TimeLog.worker.add(res.frameNum + ""); // Return Result
                                 outstream.writeObject(res);
                                 outstream.flush();
-                                TimeLog.worker.finish(res.frameNum + ""); // After send
+                                //TimeLog.worker.finish(res.frameNum + ""); // After send
                             } catch (IOException e) {
                                 throw new RuntimeException(e);
                             }
@@ -91,7 +92,14 @@ public class WorkerServer {
                         if (cMsg.type != 1) {
                             Message mainMsg = Message.obtain();
                             mainMsg.arg1 = cMsg.type;
-                            MainActivity.mainHandler.sendMessage(mainMsg);
+                            Handler handler = MainActivity.mainHandler;
+                            Log.v(TAG, "Sending mainHandler restart message after 3s");
+                            try {
+                                Thread.sleep(3000);
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                            handler.sendMessage(mainMsg);
                             continue;
                         }
 
@@ -107,19 +115,10 @@ public class WorkerServer {
                                 }
                             }, Constants.EXPERIMENT_DURATION);
                         }
-                        TimeLog.worker.start(image.frameNum + ""); // Enqueue
+                        //TimeLog.worker.start(image.frameNum + ""); // Enqueue
                         cnt++;
 
                         ProcessorThread.queue.offer(image);
-
-                        /*if (cnt % 10 == 0) {
-                            StringBuilder sb = new StringBuilder();
-                            sb.append("Thread working progress: ");
-                            for (int i = 0; i < WorkerThread.N_THREAD; i++) {
-                                sb.append(WorkerThread.pt[i].workCount).append(" ");
-                            }
-                            Log.d(TAG, sb.toString());
-                        }*/
                     }
                 } catch (Exception e) {
                     e.printStackTrace();

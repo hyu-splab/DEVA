@@ -1,6 +1,8 @@
 package com.example.edgedashanalytics.advanced.common;
 
-public class CoordinatorMessage {
+import java.io.Serializable;
+
+public class CoordinatorMessage implements Serializable {
     // 1: image data, 2: restart, 3: quit
     public int type;
     public Object data;

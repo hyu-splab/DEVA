@@ -10,21 +10,35 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
-import java.io.InputStreamReader;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Scanner;
 import java.util.StringTokenizer;
 
 public class TestConfig {
+    public boolean isCoordinator;
+    public int testNum;
+    public String innerResultFile, outerResultFile;
+
+    public TestConfig(boolean isCoordinator, int testNum, String innerResultFile, String outerResultFile) {
+        this.isCoordinator = isCoordinator;
+        this.testNum = testNum;
+        this.innerResultFile = innerResultFile;
+        this.outerResultFile = outerResultFile;
+    }
+
     private static final String TAG = "TestConfig";
-    static boolean readConfigs(Context context) throws Exception {
+    public static TestConfig readConfigs(Context context) throws Exception {
         File dir = context.getExternalFilesDir(null);
 
-        int whoAmI = readWhoAmI(dir);
+        String whoAmI = readWhoAmI(dir);
 
-        File file = new File(dir + "/testconfig.txt");
+        File file = new File(dir + "/conf.txt");
         File tempFile = new File(dir + "/temp.txt");
+
+        if (!file.exists()) {
+            File orgFile = new File(dir + "/testconfig.txt");
+            Files.copy(orgFile.toPath(), file.toPath());
+        }
 
         BufferedReader br = new BufferedReader(new FileReader(file));
         BufferedWriter bw = new BufferedWriter(new FileWriter(tempFile));
@@ -33,8 +47,10 @@ public class TestConfig {
         boolean first = true;
 
         int testNum = -1;
-        int coordinatorID = -1;
+        String coordinatorID = null;
         int numWorkers = -1;
+
+        String innerResultFile = null, outerResultFile = null;
 
         while ((line = br.readLine()) != null) {
             if (first) {
@@ -42,7 +58,10 @@ public class TestConfig {
 
                 StringTokenizer st = new StringTokenizer(line);
                 testNum = ri(st);
-                coordinatorID = ri(st);
+                coordinatorID = rs(st);
+
+                innerResultFile = rs(st);
+                outerResultFile = rs(st);
 
                 numWorkers = ri(st);
                 workerNameList = new String[numWorkers];
@@ -52,6 +71,7 @@ public class TestConfig {
             }
             else {
                 bw.write(line);
+                bw.write("\n");
             }
         }
 
@@ -59,12 +79,15 @@ public class TestConfig {
         bw.close();
         file.delete();
 
-        Files.copy(tempFile.toPath(), file.toPath());
+        //if (first) {
+            Files.copy(tempFile.toPath(), file.toPath());
+        //}
         tempFile.delete();
 
         Log.v(TAG, "Test " + testNum + " start");
+        Log.v(TAG, "I am " + whoAmI + " and the coordinator is " + coordinatorID);
 
-        return whoAmI == coordinatorID;
+        return new TestConfig(whoAmI.equals(coordinatorID), testNum, dir + "/" + innerResultFile, dir + "/" + outerResultFile);
     }
 
     static int ri(StringTokenizer st) {
@@ -75,10 +98,10 @@ public class TestConfig {
         return st.nextToken();
     }
 
-    static int readWhoAmI(File dir) throws Exception {
-        Scanner sc = new Scanner(new File(dir + "whoami.txt"));
-        int val = sc.nextInt();
+    static String readWhoAmI(File dir) throws Exception {
+        Scanner sc = new Scanner(new File(dir + "/whoami.txt"));
+        String name = sc.next();
         sc.close();
-        return val;
+        return name;
     }
 }

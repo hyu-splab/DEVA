@@ -4,6 +4,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Handler;
 import android.os.Message;
+import android.util.Log;
 
 import com.example.edgedashanalytics.advanced.common.TimeLog;
 import com.example.edgedashanalytics.advanced.common.Image2;
@@ -11,9 +12,11 @@ import com.example.edgedashanalytics.advanced.common.WorkerResult;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 
 public class ProcessorThread extends Thread {
+    private static final String TAG = "ProcessorThread";
     static public ArrayBlockingQueue<Image2> queue = new ArrayBlockingQueue<>(1000);
     static public Handler handler;
 
@@ -30,12 +33,13 @@ public class ProcessorThread extends Thread {
             try {
                 Image2 img = queue.take();
 
-                TimeLog.worker.add(img.frameNum + ""); // Uncompress
+                //TimeLog.worker.add(img.frameNum + ""); // Uncompress
 
                 Bitmap bitmap = uncompress(img.data);
 
-                TimeLog.worker.add(img.frameNum + ""); // Process Frame
+                //TimeLog.worker.add(img.frameNum + ""); // Process Frame
 
+                int cameraFrameNum = img.cameraFrameNum;
                 int frameNum = img.frameNum;
                 boolean isInner = img.isInner;
                 if (isInner)
@@ -47,10 +51,16 @@ public class ProcessorThread extends Thread {
                 frameProcessor.setCameraFrameNum(img.cameraFrameNum);
 
                 long startTime = System.currentTimeMillis();
-                String resultString = frameProcessor.run();
+                FrameProcessor.ProcessResult result = frameProcessor.run();
                 long endTime = System.currentTimeMillis();
 
-                sendResult(isInner, img.coordinatorStartTime, frameNum, endTime - startTime, endTime - img.workerStartTime, resultString, img.dataSize);
+                //Log.v(TAG, "FrameProcessor: " + frameNum + " " + isInner + " " + (result.hazards == null));
+
+                if (!isInner && result.hazards == null) {
+                    Log.v(TAG, "How is it outer and hazards is null????????");
+                }
+
+                sendResult(isInner, img.coordinatorStartTime, frameNum, cameraFrameNum, endTime - startTime, endTime - img.workerStartTime, result.msg, img.dataSize, result.isDistracted, result.hazards);
                 workCount++;
             } catch (Exception e) {
                 e.printStackTrace();
@@ -71,9 +81,9 @@ public class ProcessorThread extends Thread {
         return bitmap;
     }
 
-    public static void sendResult(boolean isInner, long coordinatorStartTime, int frameNum, long processTime, long totalTime, String resultString, long dataSize) {
+    public static void sendResult(boolean isInner, long coordinatorStartTime, int frameNum, int cameraFrameNum, long processTime, long totalTime, String resultString, long dataSize, boolean isDistracted, List<String> hazards) {
         Message retMsg = Message.obtain();
-        retMsg.obj = new WorkerResult(isInner, coordinatorStartTime, frameNum, processTime, totalTime, resultString, dataSize);
+        retMsg.obj = new WorkerResult(isInner, coordinatorStartTime, frameNum, cameraFrameNum, processTime, totalTime, resultString, dataSize, isDistracted, hazards);
         handler.sendMessage(retMsg);
     }
 }

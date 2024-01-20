@@ -11,14 +11,14 @@ public class Controller {
     private final EDACam innerCam, outerCam;
     private long prevPendingDataSize;
 
-    private static final double INNER_TIME_MULTIPLIER = 2;
-    private static final double CAPACITY_LENIENCY = 1.5;
+    private static final double INNER_TIME_MULTIPLIER = 2.2;
+    private static final double CAPACITY_LENIENCY = 1.2;
     private static final double BELOW_CAPACITY_MULTIPLIER = 0.8;
     private static final double F_WEIGHT = 2.0;
     private static final int F_DEC_AMOUNT = 5, F_INC_AMOUNT = 2;
-    private static final int RQ_DEC_AMOUNT = 3, RQ_INC_AMOUNT = 1;
-    private static final int TOO_MUCH_PENDING = 2000000;
-    private static final int PENDING_STACKED = 1000000;
+    private static final int RQ_DEC_AMOUNT = 2, RQ_INC_AMOUNT = 1;
+    private static final int TOO_MANY_WAITING = 7;
+    private static final int TOO_MUCH_PENDING = 1500000;
 
     public Controller(EDACam innerCam, EDACam outerCam) {
         this.innerCam = innerCam;
@@ -32,10 +32,15 @@ public class Controller {
 
         long pendingDataSize = AdvancedMain.communicator.pendingDataSize;
 
+        int innerWaiting = 0, outerWaiting = 0;
+
         // 1. Calculate average network speed for all workers
         int numHistory = 0;
+        int numWorkers = workers.size();
         for (EDAWorker worker : workers) {
             WorkerStatus status = worker.status;
+            innerWaiting += status.innerWaiting;
+            outerWaiting += status.outerWaiting;
             numHistory += status.innerHistory.history.size() + status.outerHistory.history.size();
         }
 
@@ -63,7 +68,14 @@ public class Controller {
         int iF = innerCamSettings.getF(), oF = outerCamSettings.getF();
         double weightedF = iF * INNER_TIME_MULTIPLIER + oF;
 
-        Log.v(TAG, "workerCapacity = " + workerCapacity + ", F = " + weightedF);
+        //Log.v(TAG, "workerCapacity = " + workerCapacity + ", F = " + weightedF);
+
+        double weightedWaiting = innerWaiting * INNER_TIME_MULTIPLIER + outerWaiting;
+        boolean networkSlow = weightedWaiting > TOO_MANY_WAITING * numWorkers || pendingDataSize > TOO_MUCH_PENDING;
+        boolean networkFast = pendingDataSize < 500000 && weightedWaiting < 0.5 * TOO_MANY_WAITING;
+
+        double RQLevel = innerCamSettings.getNormalizedLevel() + outerCamSettings.getNormalizedLevel();
+        double FLevel = innerCamSettings.getF() + outerCamSettings.getF();
 
         // If there is too much workload, reduce F a little.
         if (workerCapacity < weightedF) {
@@ -82,8 +94,7 @@ public class Controller {
         }
 
         // Otherwise, if we can definitely work more, increase F a little.
-        else if (pendingDataSize < TOO_MUCH_PENDING
-                && workerCapacity * BELOW_CAPACITY_MULTIPLIER > weightedF) {
+        else if (networkFast && FLevel * 2 < RQLevel && workerCapacity * BELOW_CAPACITY_MULTIPLIER > weightedF) {
             if (iF * F_WEIGHT < oF) {
                 if (innerCamSettings.increaseF(F_INC_AMOUNT) > 0) {
                     fpsIncreased = true;
@@ -99,48 +110,43 @@ public class Controller {
         // Need to reduce data throughput if the network is saturated
         // However, if we already decreased F above, we can wait a little to see if this also
         // solves network bottleneck
-        if (!fpsDecreased) {
-            Log.v(TAG, "pending vs prev = " + pendingDataSize + " " + prevPendingDataSize);
-            if (pendingDataSize > PENDING_STACKED
-                    && (pendingDataSize > TOO_MUCH_PENDING || pendingDataSize > prevPendingDataSize)) {
-                int x;
-                // We want to move these at similar rate
-                if (innerCamSettings.getNormalizedLevel() > outerCamSettings.getNormalizedLevel()) {
-                    x = innerCamSettings.decreaseRQ(RQ_DEC_AMOUNT);
-                    Log.v(TAG, "decreased inner: " + x);
-                }
-                else {
-                    x = outerCamSettings.decreaseRQ(RQ_DEC_AMOUNT);
-                    Log.v(TAG, "decreased outer: " + x);
-                }
-                if (x == 0) {
-                    if (iF * F_WEIGHT > oF)
-                    {
-                        if (innerCamSettings.decreaseF(F_DEC_AMOUNT) > 0) {
-                            fpsDecreased = true;
-                        }
-                        else if (outerCamSettings.decreaseF(F_DEC_AMOUNT) > 0) {
-                            fpsDecreased = true;
-                        }
+        if (!fpsDecreased && networkSlow) {
+            //Log.v(TAG, "pending vs prev = " + pendingDataSize + " " + prevPendingDataSize);
+            int x;
+            // We want to move these at similar rate
+            if (innerCamSettings.getNormalizedLevel() > outerCamSettings.getNormalizedLevel()) {
+                x = innerCamSettings.decreaseRQ(RQ_DEC_AMOUNT);
+                //Log.v(TAG, "decreased inner: " + x);
+            }
+            else {
+                x = outerCamSettings.decreaseRQ(RQ_DEC_AMOUNT);
+                //Log.v(TAG, "decreased outer: " + x);
+            }
+            if (x == 0) {
+                if (iF * F_WEIGHT > oF)
+                {
+                    if (innerCamSettings.decreaseF(F_DEC_AMOUNT) > 0) {
+                        fpsDecreased = true;
                     }
                     else if (outerCamSettings.decreaseF(F_DEC_AMOUNT) > 0) {
                         fpsDecreased = true;
                     }
+                }
+                else if (outerCamSettings.decreaseF(F_DEC_AMOUNT) > 0) {
+                    fpsDecreased = true;
                 }
             }
         }
 
         // Similarly, if we increased F above, it might already be threatening network throughput
         // so refrain from increasing RQ at the same time
-        else if (!fpsIncreased) {
+        else if (!fpsIncreased && networkFast) {
             // We have some possibility that we can provide better analysis
-            if (pendingDataSize < PENDING_STACKED) {
-                if (innerCamSettings.getNormalizedLevel() < outerCamSettings.getNormalizedLevel()) {
-                    innerCamSettings.increaseRQ(RQ_INC_AMOUNT);
-                }
-                else {
-                    outerCamSettings.increaseRQ(RQ_INC_AMOUNT);
-                }
+            if (innerCamSettings.getNormalizedLevel() < outerCamSettings.getNormalizedLevel()) {
+                innerCamSettings.increaseRQ(RQ_INC_AMOUNT);
+            }
+            else {
+                outerCamSettings.increaseRQ(RQ_INC_AMOUNT);
             }
         }
 
@@ -150,7 +156,7 @@ public class Controller {
         if (outerCam.outStream != null) {
             outerCam.sendSettings(outerCam.outStream);
         }
-        Log.v(TAG, "pendingDataSize = " + pendingDataSize);
+        //Log.v(TAG, "pendingDataSize = " + pendingDataSize);
 
         for (EDAWorker worker : workers) {
             worker.status.innerHistory.removeOldResults();
@@ -159,5 +165,18 @@ public class Controller {
         }
 
         prevPendingDataSize = pendingDataSize;
+    }
+
+    public void sendRestartMessages(EDACam innerCam, EDACam outerCam) {
+        try {
+            innerCam.outStream.writeInt(-1);
+            innerCam.outStream.flush();
+            innerCam.outStream.reset();
+            outerCam.outStream.writeInt(-1);
+            outerCam.outStream.flush();
+            outerCam.outStream.reset();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }

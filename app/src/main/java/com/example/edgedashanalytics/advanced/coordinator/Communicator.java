@@ -29,24 +29,34 @@ public class Communicator extends Thread {
     private Handler handler;
 
     public ArrayList<EDAWorker> workers;
+    public ArrayList<EDAWorker> allDevices;
 
     public long pendingDataSize;
+    public long innerWaiting, outerWaiting;
 
     public Communicator() {
         workers = new ArrayList<>();
+        allDevices = new ArrayList<>();
         pendingDataSize = 0;
     }
 
     public void addWorker(int workerNum, String ip) {
-        workers.add(new EDAWorker(workerNum, ip));
+        EDAWorker worker = new EDAWorker(workerNum, ip);
+        workers.add(worker);
+        allDevices.add(worker);
         // Should not try connecting now; this method is called from the main thread
+    }
+
+    public void addOther(String ip) {
+        EDAWorker worker = new EDAWorker(-1, ip);
+        allDevices.add(worker);
     }
 
     public Handler getHandler() {
         return handler;
     }
 
-    // Make sure this thread is created after adding ALL the workers to 'workers'
+    // Make sure this thread is created after adding ALL the workers to 'allDevices'
     @Override
     public void run() {
         Looper.prepare();
@@ -56,8 +66,9 @@ public class Communicator extends Thread {
     }
 
     private void connect() {
-        for (int workerNum = 0; workerNum < workers.size(); workerNum++) {
-            EDAWorker worker = workers.get(workerNum);
+        Log.v(TAG, "allDevices.size() = " + allDevices.size());
+        for (int i = 0; i < allDevices.size(); i++) {
+            EDAWorker worker = allDevices.get(i);
             String ip = worker.ip;
             Socket socket;
             ObjectOutputStream outstream;
@@ -98,31 +109,49 @@ public class Communicator extends Thread {
         public void handleMessage(Message msg) {
             int workerNum = msg.arg1;
 
+            CoordinatorMessage cMsg;
+
             try {
+                // Experiment finish message (tell everyone to restart)
+                if (workerNum == -1) {
+                    cMsg = new CoordinatorMessage(2, null);
+                    for (EDAWorker worker : allDevices) {
+                        ObjectOutputStream outStream = worker.outstream;
+                        outStream.writeObject(cMsg);
+                        outStream.flush();
+                        outStream.reset();
+                    }
+                    return;
+                }
+                if (AdvancedMain.isFinished)
+                    return;
+
                 EDAWorker worker = workers.get(workerNum);
                 Image2 data = (Image2) msg.obj;
                 ObjectOutputStream outStream = worker.outstream;
-                TimeLog.coordinator.add(data.frameNum); // Wait for Result
+                //TimeLog.coordinator.add(data.frameNum); // Wait for Result
 
                 if (data.isInner) {
                     worker.status.innerWaiting++;
+                    innerWaiting++;
                 }
                 else {
                     worker.status.outerWaiting++;
+                    outerWaiting++;
                 }
+
+                pendingDataSize += data.data.length;
 
                 data.coordinatorStartTime = System.currentTimeMillis();
                 //Log.d(TAG, "frame " + data.frameNumber + " started at " + data.workerStartTime);
 
-                CoordinatorMessage cMsg = new CoordinatorMessage(1, data);
+                cMsg = new CoordinatorMessage(1, data);
 
                 outStream.writeObject(cMsg);
                 outStream.flush();
                 outStream.reset();
 
-                pendingDataSize += data.data.length;
-
-                TimeLog.coordinator.add(data.frameNum); // After send
+                //TimeLog.coordinator.add(data.frameNum); // After send
 
             } catch (Exception e) {
                 e.printStackTrace();
@@ -145,16 +174,19 @@ public class Communicator extends Thread {
 
                     if (res.isInner) {
                         worker.status.innerWaiting--;
+                        innerWaiting--;
                     }
                     else {
                         worker.status.outerWaiting--;
+                        outerWaiting--;
                     }
 
                     long networkTime = (endTime - res.coordinatorStartTime) - res.totalTime;
+                    long turnaround = endTime - res.coordinatorStartTime;
                     //Log.d(TAG, "frame " + res.frameNumber + ": networkTime = (" + endTime + " - " + res.coordinatorStartTime + ") - " + res.totalTime + " = " + networkTime);
 
-                    FrameResult result = new FrameResult(endTime, res.frameNum, worker.workerNum, res.isInner, res.processTime, networkTime);
-                    FrameLogger.addResult(result);
+                    FrameResult result = new FrameResult(endTime, res.frameNum, res.cameraFrameNum, worker.workerNum, res.isInner, res.totalTime, res.processTime, networkTime, turnaround);
+                    FrameLogger.addResult(result, res.isDistracted, res.hazards);
                     worker.status.addResult(result);
 
                     /*AdvancedMain.processed++;
@@ -162,11 +194,16 @@ public class Communicator extends Thread {
                         AdvancedMain.innerCount++;
                     else
                         AdvancedMain.outerCount++;*/
-                    TimeLog.coordinator.finish(res.frameNum + ""); // Finish
+                    //TimeLog.coordinator.finish(res.cameraFrameNum + ""); // Finish
                     //Log.d(TAG, "Got response from the server: isInner = "
                     //+ res.isInner + ", frameNumber = " + res.frameNumber);
                     //Log.d(TAG, res.msg);
                 } catch(Exception e){
+                    try {
+                        Thread.sleep(1000);
+                    } catch (Exception e2) {
+                        e2.printStackTrace();
+                    }
                     e.printStackTrace();
                 }
             }
