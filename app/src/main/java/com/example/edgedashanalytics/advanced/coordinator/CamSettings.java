@@ -28,9 +28,9 @@ public class CamSettings {
     public CamSettings(boolean isInner) {
         this.isInner = isInner;
         if (isInner)
-            this.p = new Parameters(5, 7, 5);
+            this.p = new Parameters(1, 1, 1);
         else
-            this.p = new Parameters(10, 5, 10);
+            this.p = new Parameters(2, 2, 2);
     }
 
     public Size getR() {
@@ -44,6 +44,58 @@ public class CamSettings {
     public int getF() {
         return p.F;
     }
+
+    public int increase(int amount) {
+        for (int loop = 0; loop < amount; loop++) {
+            if (isInner) {
+                // R >= Q >= F
+                if (p.Ri > p.Qi)
+                    p.increaseQ();
+                else if (p.Qi > p.Fi)
+                    p.increaseF();
+                else if (!p.increaseR())
+                    return loop;
+            } else {
+                // R + Q >= F * 2, Q first
+                if (p.Ri + p.Qi >= (p.Fi + 1) * 2)
+                    p.increaseF();
+                else if (!p.increaseQ()) {
+                    if (!p.increaseR())
+                        return loop;
+                }
+            }
+        }
+        return amount;
+    }
+
+    // between 0 and 9, inclusive
+    public int getTotalLevel() {
+        return p.Ri + p.Qi + p.Fi;
+    }
+
+    public int decrease(int amount) {
+        for (int loop = 0; loop < amount; loop++) {
+            if (isInner) {
+                // R >= Q >= F
+                if (p.Ri > p.Qi)
+                    p.decreaseR();
+                else if (p.Qi > p.Fi)
+                    p.decreaseQ();
+                else if (!p.decreaseF())
+                    return loop;
+            } else {
+                // R + Q >= F * 2, Q first
+                if (p.Ri + p.Qi <= p.Fi * 2)
+                    p.decreaseF();
+                else if (!p.decreaseQ()) {
+                    if (!p.decreaseR())
+                        return loop;
+                }
+            }
+        }
+        return amount;
+    }
+
 
     private int increaseRQInner(int amount) {
         for (int loop = 0; loop < amount; loop++) {
@@ -64,11 +116,11 @@ public class CamSettings {
     private int increaseRQOuter(int amount) {
         for (int loop = 0; loop < amount; loop++) {
             if (p.Q == 0) {
-                if (!p.increaseR()) {
-                    p.increaseQ();
+                if (!p.increaseR_old()) {
+                    p.increaseQ_old();
                 }
             }
-            else if (!p.increaseQ())
+            else if (!p.increaseQ_old())
                 return loop;
         }
         return amount;
@@ -77,10 +129,10 @@ public class CamSettings {
     private int decreaseRQOuter(int amount) {
         for (int loop = 0; loop < amount; loop++) {
             if (p.Q == 0) {
-                if (!p.decreaseR())
+                if (!p.decreaseR_old())
                     return loop;
             }
-            else if (!p.decreaseQ())
+            else if (!p.decreaseQ_old())
                 return loop;
         }
         return amount;

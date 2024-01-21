@@ -66,18 +66,13 @@ public class EDACam extends Thread {
             break;
         }
 
-        Log.v(TAG, "setup completed");
-        Log.v(TAG, "isConnected = " + socket.isConnected());
         ObjectOutputStream tempOutStream = new ObjectOutputStream(socket.getOutputStream());
         inStream = new ObjectInputStream(socket.getInputStream());
-        Log.v(TAG, "can I reach here?");
 
         // to avoid race condition, make sure our first signal is fully sent to the camera
         // before we perform the periodical checks
         // First time connected, send initial settings
-        Log.v(TAG, "before sendSettings");
         sendSettings(tempOutStream);
-        Log.v(TAG, "after sendSettings");
         outStream = tempOutStream;
     }
 
