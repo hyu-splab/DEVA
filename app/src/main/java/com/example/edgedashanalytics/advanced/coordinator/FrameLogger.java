@@ -23,7 +23,7 @@ public class FrameLogger {
     public static InnerResult baseInnerResult;
     public static OuterResult baseOuterResult;
 
-    public static void addResult(FrameResult result, boolean isDistracted, List<String> hazards) {
+    public static void addResult(FrameResult result, boolean isDistracted, List<String> hazards, long dataSize) {
         synchronized (results) {
             results.add(result);
             //Log.v(TAG, "addResult: " + result.frameNum + " " + result.isInner + " " + (hazards == null));
@@ -34,7 +34,7 @@ public class FrameLogger {
                 if (hazards == null) {
                     Log.v(TAG, "How is hazards null???????????");
                 }
-                outerResult.addResult(result.cameraFrameNum, hazards);
+                outerResult.addResult(result.cameraFrameNum, hazards, dataSize, result.workerNum);
             }
         }
     }
@@ -57,7 +57,7 @@ public class FrameLogger {
 
             sb.append(now.format(formatter)).append("\n\n");
 
-            sb.append("frameNum,timestamp,isInner,workerNum,workerTime,processTime,networkTime,turnaround\n");
+            sb.append("frameNum,timestamp,isInner,workerNum,workerTime,processTime,networkTime,turnaround,queueSize\n");
 
             long startTime = results.get(0).timestamp;
 
@@ -69,7 +69,17 @@ public class FrameLogger {
                         .append(result.workerTime).append(",")
                         .append(result.processTime).append(",")
                         .append(result.networkTime).append(",")
-                        .append(result.turnaround).append("\n");
+                        .append(result.turnaround).append(",")
+                        .append(result.queueSize).append("\n");
+            }
+
+            sb.append("\n");
+            for (OuterResult.Result result : outerResult.results) {
+                sb.append(result.frameNum).append(",").append(result.hazards.size());
+                for (String hazard : result.hazards)
+                    sb.append(",").append(hazard);
+                sb.append(",").append(result.frameNum).append(",").append(result.dataSize);
+                sb.append("\n");
             }
 
             sb.append("I.Accuracy,")

@@ -10,6 +10,7 @@ public class Image2 implements Serializable {
     public long workerStartTime;
     public byte[] data;
     public long dataSize;
+    public boolean isTesting = false;
 
     public Image2(boolean isInner, int frameNum, int cameraFrameNum, byte[] data) {
         this.isInner = isInner;

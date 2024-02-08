@@ -12,6 +12,7 @@ import android.util.Log;
 import androidx.preference.PreferenceManager;
 
 import com.example.edgedashanalytics.R;
+import com.example.edgedashanalytics.advanced.worker.OuterProcessor;
 
 import org.tensorflow.lite.Interpreter;
 import org.tensorflow.lite.support.common.FileUtil;
@@ -80,8 +81,10 @@ public class OuterAnalysis extends VideoAnalysis {
             String modelFilename = pref.getString("object_model", context.getString(model));
 
             try (Interpreter interpreter = new Interpreter(FileUtil.loadMappedFile(context, modelFilename))) {
-                if (detectorList.isEmpty())
+                if (detectorList.isEmpty()) {
                     inputSize = interpreter.getInputTensor(0).shape()[1];
+                    OuterProcessor.inputSize = inputSize;
+                }
             } catch (IOException e) {
                 Log.w(I_TAG, String.format("Model failure:\n  %s", e.getMessage()));
             }
@@ -95,18 +98,25 @@ public class OuterAnalysis extends VideoAnalysis {
         }
     }
 
-    long frameCnt = 0;
     long totalTime = 0;
 
     List<Frame> processFrame(Bitmap bitmap, int frameIndex, float scaleFactor) {
         long startTime = System.currentTimeMillis();
-        frameCnt++;
 
         ArrayList<Frame> resultList = new ArrayList<>();
+        Bitmap.Config config = bitmap.getConfig();
+
+        //Log.v(TAG, "bitmap size = " + bitmap.getWidth() + " " + bitmap.getHeight() + " " + config.toString() + " " + scaleFactor);
+        //Log.v(TAG, "==== detection start ====");
         for (ObjectDetector detector : detectorList) {
-            //Log.d(TAG, "1");
-            List<Detection> detectionList = detector.detect(TensorImage.fromBitmap(bitmap));
+            //Log.v(TAG, "detector: " + detector.toString());
+
+            TensorImage ti = TensorImage.fromBitmap(bitmap);
+
+            List<Detection> detectionList = detector.detect(ti);
             List<Hazard> hazards = new ArrayList<>(detectionList.size());
+
+            //Log.v(TAG, "detector detected " + detectionList.size() + " objects");
 
             for (Detection detection : detectionList) {
                 //Log.d(TAG, "2");
@@ -135,6 +145,8 @@ public class OuterAnalysis extends VideoAnalysis {
                         boundingBox
                 ));
             }
+
+            //Log.v(TAG, "==== detection end ====");
 
             //Log.d(TAG, "3");
             if (verbose) {

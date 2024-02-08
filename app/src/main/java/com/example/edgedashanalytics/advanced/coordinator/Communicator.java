@@ -31,7 +31,7 @@ public class Communicator extends Thread {
     public ArrayList<EDAWorker> workers;
     public ArrayList<EDAWorker> allDevices;
 
-    public long pendingDataSize;
+    public long pendingDataSize, totalDataSize;
     public long innerWaiting, outerWaiting;
 
     public Communicator() {
@@ -151,6 +151,8 @@ public class Communicator extends Thread {
                 outStream.flush();
                 outStream.reset();
 
+                totalDataSize += data.data.length;
+
                 //TimeLog.coordinator.add(data.frameNum); // After send
 
             } catch (Exception e) {
@@ -185,8 +187,10 @@ public class Communicator extends Thread {
                     long turnaround = endTime - res.coordinatorStartTime;
                     //Log.d(TAG, "frame " + res.frameNumber + ": networkTime = (" + endTime + " - " + res.coordinatorStartTime + ") - " + res.totalTime + " = " + networkTime);
 
-                    FrameResult result = new FrameResult(endTime, res.frameNum, res.cameraFrameNum, worker.workerNum, res.isInner, res.totalTime, res.processTime, networkTime, turnaround);
-                    FrameLogger.addResult(result, res.isDistracted, res.hazards);
+                    FrameResult result = new FrameResult(
+                            endTime, res.frameNum, res.cameraFrameNum, worker.workerNum, res.isInner,
+                            res.totalTime, res.processTime, networkTime, turnaround, res.queueSize);
+                    FrameLogger.addResult(result, res.isDistracted, res.hazards, res.dataSize);
                     worker.status.addResult(result);
 
                     /*AdvancedMain.processed++;

@@ -12,11 +12,14 @@ public class WorkerResult implements Serializable {
     public int cameraFrameNum;
     public String msg;
     public long dataSize;
+    public long queueSize;
 
     public boolean isDistracted; // Used only for inner
     public List<String> hazards; // Used only for outer
 
-    public WorkerResult(boolean isInner, long coordinatorStartTime, int frameNum, int cameraFrameNum, long processTime, long totalTime, String msg, long dataSize, boolean isDistracted, List<String> hazards) {
+    public WorkerResult(boolean isInner, long coordinatorStartTime, int frameNum, int cameraFrameNum,
+                        long processTime, long totalTime, String msg, long dataSize, long queueSize,
+                        boolean isDistracted, List<String> hazards) {
         this.isInner = isInner;
         this.coordinatorStartTime = coordinatorStartTime;
         this.frameNum = frameNum;
@@ -25,6 +28,7 @@ public class WorkerResult implements Serializable {
         this.totalTime = totalTime;
         this.msg = msg;
         this.dataSize = dataSize;
+        this.queueSize = queueSize;
         this.isDistracted = isDistracted;
         this.hazards = hazards;
     }

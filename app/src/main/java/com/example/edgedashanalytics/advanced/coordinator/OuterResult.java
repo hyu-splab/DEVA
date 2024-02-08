@@ -7,13 +7,13 @@ import java.util.List;
 
 public class OuterResult {
     private static final String TAG = "OuterAnalysisResult";
-    private final List<Result> results;
+    public final List<Result> results;
     public OuterResult() {
         results = new ArrayList<>();
     }
 
-    public void addResult(int frameNum, List<String> hazards) {
-        results.add(new Result(frameNum, hazards));
+    public void addResult(int frameNum, List<String> hazards, long dataSize, int workerNum) {
+        results.add(new Result(frameNum, hazards, dataSize, workerNum));
     }
 
     public String getResultString() {
@@ -109,9 +109,13 @@ public class OuterResult {
     public static class Result {
         int frameNum;
         List<String> hazards;
-        public Result(int frameNum, List<String> hazards) {
+        long dataSize;
+        int workerNum;
+        public Result(int frameNum, List<String> hazards, long dataSize, int workerNum) {
             this.frameNum = frameNum;
             this.hazards = hazards;
+            this.dataSize = dataSize;
+            this.workerNum = workerNum;
         }
     }
 

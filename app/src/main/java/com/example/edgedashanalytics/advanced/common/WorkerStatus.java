@@ -5,6 +5,8 @@ import android.util.Log;
 public class WorkerStatus {
     private static final String TAG = "WorkerStatus";
     private static final double DEFAULT_PERFORMANCE = 1.0;
+    private static final double DEFAULT_INNER_PROCESS_TIME = 50;
+    private static final double DEFAULT_OUTER_PROCESS_TIME = 100;
     public WorkerHistory innerHistory, outerHistory;
     public int innerWaiting, outerWaiting;
     public double networkTime;
@@ -49,18 +51,24 @@ public class WorkerStatus {
     }
 
     public double getPerformance() {
-        int totalWaiting = innerWaiting + outerWaiting;
+        return 1.0 / (getAverageInnerProcessTime() + getAverageOuterProcessTime());
+        /*int totalWaiting = innerWaiting + outerWaiting;
         if (totalWaiting == 0)
             return DEFAULT_PERFORMANCE;
+
         return totalWaiting / (((innerWaiting * getAverageInnerProcessTime())
-                + (outerWaiting * getAverageOuterProcessTime())) / 2.0);
+                + (outerWaiting * getAverageOuterProcessTime())) / 2.0);*/
     }
 
     public double getAverageInnerProcessTime() {
-        return innerHistory.getProcessTime();
+        if (innerHistory.history.isEmpty())
+            return DEFAULT_INNER_PROCESS_TIME;
+        return innerHistory.processTime;
     }
 
     public double getAverageOuterProcessTime() {
-        return outerHistory.getProcessTime();
+        if (outerHistory.history.isEmpty())
+            return DEFAULT_OUTER_PROCESS_TIME;
+        return outerHistory.processTime;
     }
 }

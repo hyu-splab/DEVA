@@ -55,8 +55,4 @@ public class WorkerHistory {
             processTime = (double) totalProcessTime / sz;
         //Log.v(TAG, "processTime = " + processTime);
     }
-
-    public double getProcessTime() {
-        return processTime;
-    }
 }

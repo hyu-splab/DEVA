@@ -23,7 +23,6 @@ import java.util.TimerTask;
 
 public class WorkerServer {
     private static final String TAG = "WorkerServer";
-    public static final int PORT = 5555;
     private Handler inHandler;
     private final Thread thread;
 
@@ -50,8 +49,8 @@ public class WorkerServer {
         public void run() {
             ServerSocket serverSocket = null;
             try {
-                serverSocket = new ServerSocket(PORT);
-                Log.d(TAG, "Worker opened port " + PORT);
+                serverSocket = new ServerSocket(Constants.PORT_WORKER);
+                Log.d(TAG, "Worker opened port " + Constants.PORT_WORKER);
                 Socket socket = serverSocket.accept();
                 ObjectInputStream instream = new ObjectInputStream(socket.getInputStream());
                 ObjectOutputStream outstream = new ObjectOutputStream(socket.getOutputStream());
@@ -107,14 +106,14 @@ public class WorkerServer {
                         image.workerStartTime = System.currentTimeMillis();
                         if (AdvancedMain.isFinished)
                             continue;
-                        if (cnt == 0) {
+                        /*if (cnt == 0) {
                             new Timer().schedule(new TimerTask() {
                                 @Override
                                 public void run() {
                                     TimeLog.worker.writeLogs();
                                 }
                             }, Constants.EXPERIMENT_DURATION);
-                        }
+                        }*/
                         //TimeLog.worker.start(image.frameNum + ""); // Enqueue
                         cnt++;
 

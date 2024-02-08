@@ -28,9 +28,9 @@ public class CamSettings {
     public CamSettings(boolean isInner) {
         this.isInner = isInner;
         if (isInner)
-            this.p = new Parameters(1, 1, 1);
+            this.p = new Parameters(1, 1, 0);
         else
-            this.p = new Parameters(2, 2, 2);
+            this.p = new Parameters(2, 0, 0);
     }
 
     public Size getR() {
@@ -57,10 +57,10 @@ public class CamSettings {
                     return loop;
             } else {
                 // R + Q >= F * 2, Q first
-                if (p.Ri + p.Qi >= (p.Fi + 1) * 2)
+                if (p.Ri + p.Qi > p.Fi * 2)
                     p.increaseF();
-                else if (!p.increaseQ()) {
-                    if (!p.increaseR())
+                else if (!p.increaseR()) {
+                    if (!p.increaseQ())
                         return loop;
                 }
             }
@@ -85,7 +85,7 @@ public class CamSettings {
                     return loop;
             } else {
                 // R + Q >= F * 2, Q first
-                if (p.Ri + p.Qi <= p.Fi * 2)
+                if (p.Ri + p.Qi < p.Fi * 2)
                     p.decreaseF();
                 else if (!p.decreaseQ()) {
                     if (!p.decreaseR())

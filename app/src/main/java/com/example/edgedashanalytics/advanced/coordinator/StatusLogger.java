@@ -18,7 +18,7 @@ public class StatusLogger {
 
     public static final List<StatusLog> statusLogs = new ArrayList<>();
 
-    public static void log(EDACam innerCam, EDACam outerCam, List<EDAWorker> workers) {
+    public static void log(EDACam innerCam, EDACam outerCam, List<EDAWorker> workers, long sizeDelta, int capacityLevel, int networkLevel) {
 
         List<WorkerStatus> workerStatuses = new ArrayList<>();
         for (EDAWorker worker : workers) {
@@ -29,7 +29,8 @@ public class StatusLogger {
 
         StatusLog log = new StatusLog(statusLogs.size() + 1, System.currentTimeMillis(),
                 innerCam.camSettings, outerCam.camSettings,
-                comm.innerWaiting, comm.outerWaiting, comm.pendingDataSize, workerStatuses);
+                comm.innerWaiting, comm.outerWaiting, comm.pendingDataSize, sizeDelta,
+                capacityLevel, networkLevel, workerStatuses);
 
         synchronized (statusLogs) {
             statusLogs.add(log);
@@ -79,7 +80,7 @@ public class StatusLogger {
         // index, time, innerR WxH, innerQ, innerF, outerR WxH, outerQ, outerF, pendingSize, W0, W1, ...
         // Each worker: innerWaiting, innerProcessTime, outerProcessTime, networkTime
 
-        sb.append("Index,Time,InnerR,innerQ,innerF,outerR,outerQ,outerF,innerWaiting,outerWaiting,pendingSize,W0.iw,W0.ip,W0.ow,W0.op,W1.iw,W1.ip,W1.ow,W1.op,W2.iw,W2.ip,W2.ow,W2.op\n");
+        sb.append("Index,Time,InnerR,innerQ,innerF,outerR,outerQ,outerF,innerWaiting,outerWaiting,pendingSize,sizeDelta,capacityLevel,networkLevel,W0.iw,W0.ip,W0.ow,W0.op,W1.iw,W1.ip,W1.ow,W1.op,W2.iw,W2.ip,W2.ow,W2.op\n");
 
         for (StatusLog log : statusLogs) {
             sb.append(log.index).append(",").append(log.timestamp - startTime).append(",");
@@ -88,7 +89,8 @@ public class StatusLogger {
             sb.append(log.outerR.getWidth()).append("x").append(log.outerR.getHeight()).append(",");
             sb.append(log.outerQ).append(",").append(log.outerF).append(",");
             sb.append(log.innerWaiting).append(",").append(log.outerWaiting).append(",");
-            sb.append(log.pendingDataSize).append(",");
+            sb.append(log.pendingDataSize).append(",").append(log.sizeDelta).append(",");
+            sb.append(log.capacityLevel).append(",").append(log.networkLevel).append(",");
             for (WorkerStatusLog status : log.workerStatuses) {
                 sb.append(status.innerWaiting).append(",").append(status.innerProcessTime).append(",");
                 sb.append(status.outerWaiting).append(",").append(status.outerProcessTime).append(",");
@@ -148,12 +150,14 @@ public class StatusLogger {
         Size innerR, outerR;
         int innerQ, innerF, outerQ, outerF;
         long innerWaiting, outerWaiting;
-        long pendingDataSize;
+        long pendingDataSize, sizeDelta;
+        int capacityLevel, networkLevel;
         List<WorkerStatusLog> workerStatuses;
 
         public StatusLog(int index, long timestamp,
                          CamSettings innerCamSettings, CamSettings outerCamSettings,
-                         long innerWaiting, long outerWaiting, long pendingDataSize,
+                         long innerWaiting, long outerWaiting, long pendingDataSize, long sizeDelta,
+                         int capacityLevel, int networkLevel,
                          List<WorkerStatus> workerStatuses) {
             this.index = index;
             this.timestamp = timestamp;
@@ -166,6 +170,9 @@ public class StatusLogger {
             this.innerWaiting = innerWaiting;
             this.outerWaiting = outerWaiting;
             this.pendingDataSize = pendingDataSize;
+            this.sizeDelta = sizeDelta;
+            this.capacityLevel = capacityLevel;
+            this.networkLevel = networkLevel;
             this.workerStatuses = new ArrayList<>();
             for (WorkerStatus status : workerStatuses) {
                 this.workerStatuses.add(new WorkerStatusLog(status));
@@ -178,9 +185,9 @@ public class StatusLogger {
         double innerProcessTime, outerProcessTime;
         public WorkerStatusLog(WorkerStatus status) {
             this.innerWaiting = status.innerWaiting;
-            this.innerProcessTime = status.getAverageInnerProcessTime();
+            this.innerProcessTime = status.innerHistory.processTime;
             this.outerWaiting = status.outerWaiting;
-            this.outerProcessTime = status.getAverageOuterProcessTime();
+            this.outerProcessTime = status.outerHistory.processTime;
         }
     }
 }

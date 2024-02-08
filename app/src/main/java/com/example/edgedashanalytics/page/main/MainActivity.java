@@ -147,8 +147,8 @@ public class MainActivity extends AppCompatActivity implements
         TextView textViewStatus = findViewById(R.id.textViewStatus);
 
         findViewById(R.id.buttonStart).setOnClickListener(view -> {
-            // runTests();
-            Log.d(TAG, "Start");
+            runTests();
+            /*Log.d(TAG, "Start");
             long timeStart = System.currentTimeMillis();
             new Timer().schedule(new TimerTask() {
                 @Override
@@ -160,7 +160,7 @@ public class MainActivity extends AppCompatActivity implements
                 }
             }, 100, 100);
 
-            AdvancedMain.run(getApplicationContext());
+            AdvancedMain.run(getApplicationContext());*/
         });
 
         findViewById(R.id.buttonStop).setOnClickListener(view -> {
@@ -197,7 +197,7 @@ public class MainActivity extends AppCompatActivity implements
     }
 
     private void runTests() {
-        Integer[] qualities = {0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100};
+        /*Integer[] qualities = {0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100};
         Size[] resolutions = {
                 new Size(640, 360),
                 new Size(854, 480),
@@ -212,7 +212,9 @@ public class MainActivity extends AppCompatActivity implements
 
 
         new Thread(() -> VideoTest.testOuterAnalysisAccuracy(getApplicationContext(), "video.mov",
-                Arrays.asList(qualities), Arrays.asList(resolutions), 0, 499)).start();
+                Arrays.asList(qualities), Arrays.asList(resolutions), 0, 499)).start();*/
+
+        //new Thread(() -> VideoTest.testAnalysisSpeed(getApplicationContext(), 500, new Size(1280, 720), 50)).start();
     }
 
     @Override

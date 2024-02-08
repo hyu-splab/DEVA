@@ -11,8 +11,10 @@ public class FrameResult {
     public long networkTime;
     public long workerTime;
     public long turnaround;
+    public long queueSize;
 
-    public FrameResult(long timestamp, int frameNum, int cameraFrameNum, int workerNum, boolean isInner, long workerTime, long processTime, long networkTime, long turnaround) {
+    public FrameResult(long timestamp, int frameNum, int cameraFrameNum, int workerNum, boolean isInner,
+                       long workerTime, long processTime, long networkTime, long turnaround, long queueSize) {
         //Log.v(TAG, "processTime = " + processTime);
         this.timestamp = timestamp;
         this.frameNum = frameNum;
@@ -23,5 +25,6 @@ public class FrameResult {
         this.processTime = processTime;
         this.networkTime = networkTime;
         this.turnaround = turnaround;
+        this.queueSize = queueSize;
     }
 }

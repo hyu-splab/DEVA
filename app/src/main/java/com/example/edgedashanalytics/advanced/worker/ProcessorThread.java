@@ -23,8 +23,8 @@ public class ProcessorThread extends Thread {
     public int tid = 0;
     public int workCount = 0;
 
-    static public InnerProcessor innerProcessor = new InnerProcessor();
-    static public OuterProcessor outerProcessor = new OuterProcessor();
+    public InnerProcessor innerProcessor = new InnerProcessor();
+    public OuterProcessor outerProcessor = new OuterProcessor();
 
     @Override
     public void run() {
@@ -36,6 +36,13 @@ public class ProcessorThread extends Thread {
                 //TimeLog.worker.add(img.frameNum + ""); // Uncompress
 
                 Bitmap bitmap = uncompress(img.data);
+
+                /*if (!img.isInner) {
+                    long sum = 0;
+                    for (int i = 0; i < img.data.length; i++)
+                        sum += img.data[i];
+                    //Log.v(TAG, "frame num: " + img.cameraFrameNum + ", sum = " + sum + ", data size = " + img.data.length + ", resolution = " + bitmap.getWidth() + " " + bitmap.getHeight());
+                }*/
 
                 //TimeLog.worker.add(img.frameNum + ""); // Process Frame
 
@@ -54,13 +61,27 @@ public class ProcessorThread extends Thread {
                 FrameProcessor.ProcessResult result = frameProcessor.run();
                 long endTime = System.currentTimeMillis();
 
+                /*if (!isInner) {
+                    StringBuilder sb = new StringBuilder();
+                    sb.append("frame num ").append(img.cameraFrameNum).append(": ").append(result.hazards.size());
+                    for (String hazard : result.hazards)
+                        sb.append(",").append(hazard);
+                    Log.v(TAG, sb.toString());
+                }*/
+
+                //Log.v(TAG, isInner + ": " + (endTime - startTime) + " ms");
+
                 //Log.v(TAG, "FrameProcessor: " + frameNum + " " + isInner + " " + (result.hazards == null));
 
                 if (!isInner && result.hazards == null) {
                     Log.v(TAG, "How is it outer and hazards is null????????");
                 }
 
-                sendResult(isInner, img.coordinatorStartTime, frameNum, cameraFrameNum, endTime - startTime, endTime - img.workerStartTime, result.msg, img.dataSize, result.isDistracted, result.hazards);
+                if (!img.isTesting) {
+                    sendResult(isInner, img.coordinatorStartTime, frameNum, cameraFrameNum,
+                            endTime - startTime, endTime - img.workerStartTime, result.msg, img.dataSize, queue.size(),
+                            result.isDistracted, result.hazards);
+                }
                 workCount++;
             } catch (Exception e) {
                 e.printStackTrace();
@@ -69,21 +90,16 @@ public class ProcessorThread extends Thread {
     }
 
     private Bitmap uncompress(byte[] data) {
-        InputStream is = new ByteArrayInputStream(data);
+        ByteArrayInputStream is = new ByteArrayInputStream(data);
         BitmapFactory.Options ops = new BitmapFactory.Options();
         ops.inMutable = true;
         Bitmap bitmap = BitmapFactory.decodeStream(is, null, ops);
-        try {
-            is.close();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
         return bitmap;
     }
 
-    public static void sendResult(boolean isInner, long coordinatorStartTime, int frameNum, int cameraFrameNum, long processTime, long totalTime, String resultString, long dataSize, boolean isDistracted, List<String> hazards) {
+    public static void sendResult(boolean isInner, long coordinatorStartTime, int frameNum, int cameraFrameNum, long processTime, long totalTime, String resultString, long dataSize, long queueSize, boolean isDistracted, List<String> hazards) {
         Message retMsg = Message.obtain();
-        retMsg.obj = new WorkerResult(isInner, coordinatorStartTime, frameNum, cameraFrameNum, processTime, totalTime, resultString, dataSize, isDistracted, hazards);
+        retMsg.obj = new WorkerResult(isInner, coordinatorStartTime, frameNum, cameraFrameNum, processTime, totalTime, resultString, dataSize, queueSize, isDistracted, hazards);
         handler.sendMessage(retMsg);
     }
 }

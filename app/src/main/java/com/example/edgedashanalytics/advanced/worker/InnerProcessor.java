@@ -30,12 +30,14 @@ public class InnerProcessor extends FrameProcessor {
 
     public HashMap<Integer, Integer> map = new HashMap<>();
 
+    public static int inputWidth;
+
     @Override
     public ProcessResult run() {
         int videoWidth = frame.getWidth();
         int videoHeight = frame.getHeight();
 
-        float scaleFactor = videoWidth / 192f;
+        float scaleFactor = videoWidth / (float)192;
         int scaledWidth = (int) (videoWidth / scaleFactor);
         int scaledHeight = (int) (videoHeight / scaleFactor);
 

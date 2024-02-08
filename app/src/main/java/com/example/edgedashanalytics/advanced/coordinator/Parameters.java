@@ -43,11 +43,11 @@ public class Parameters {
     };
 
     private static final int[] fps_new = {
-            10, 15, 20, 30
+            5, 10, 15, 20
     };
 
     public Parameters() {
-        this(2, 2, 2);
+        this(1, 1, 1);
     }
 
     public Parameters(int Ri, int Qi, int Fi) {

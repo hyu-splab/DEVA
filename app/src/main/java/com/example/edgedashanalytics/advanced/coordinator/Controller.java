@@ -1,5 +1,7 @@
 package com.example.edgedashanalytics.advanced.coordinator;
 
+import static com.example.edgedashanalytics.advanced.coordinator.AdvancedMain.communicator;
+
 import android.util.Log;
 
 import com.example.edgedashanalytics.advanced.common.WorkerStatus;
@@ -9,19 +11,21 @@ import java.util.List;
 public class Controller {
     private static final String TAG = "Controller";
     private final EDACam innerCam, outerCam;
-    private long prevPendingDataSize;
+    private long prevPendingDataSize, prevTotalDataSize;
 
     private static final double INNER_TIME_MULTIPLIER = 2.2;
-    private static final double CAPACITY_LENIENCY = 1.2;
-    private static final double BELOW_CAPACITY_MULTIPLIER = 0.8;
+    private static final double CAPACITY_LENIENCY = 5.0;
+    private static final double CAPACITY_MULTIPLIER = 0.7;
     private static final double F_WEIGHT = 2.0;
     private static final int F_DEC_AMOUNT = 5, F_INC_AMOUNT = 2;
     private static final int RQ_DEC_AMOUNT = 2, RQ_INC_AMOUNT = 1;
     private static final double TOO_MANY_WAITING = 7;
     private static final double TOO_FEW_WAITING = 1;
-    private static final int TOO_MUCH_PENDING = 1500000;
-    private static final int TOO_LITTLE_PENDING = 500000;
+    private static final int TOO_MUCH_PENDING = 5000000;
+    private static final int TOO_LITTLE_PENDING = 1500000;
     private static final double INNER_OUTER_RATIO = 1.5;
+
+    private static int okStreak = 0;
 
     public Controller(EDACam innerCam, EDACam outerCam) {
         this.innerCam = innerCam;
@@ -34,7 +38,8 @@ public class Controller {
     public void adjustCamSettingsV3(List<EDAWorker> workers, CamSettings innerCamSettings, CamSettings outerCamSettings) {
         double workerCapacity;
 
-        long pendingDataSize = AdvancedMain.communicator.pendingDataSize;
+        long pendingDataSize = communicator.pendingDataSize;
+        long totalDataSize = communicator.totalDataSize;
 
         int innerWaiting = 0, outerWaiting = 0;
 
@@ -58,7 +63,7 @@ public class Controller {
         // capacity is "how many frames can be addressed within a second?"
         // so it's (# of workers) / (average time to process one frame)
         double avgProcessTime = (INNER_TIME_MULTIPLIER * totalInnerProcessTime + totalOuterProcessTime) / numHistory;
-        workerCapacity = workers.size() / avgProcessTime * 1000 * CAPACITY_LENIENCY;
+        workerCapacity = (workers.size() / avgProcessTime) * 1000 * CAPACITY_LENIENCY;
 
         /*
         Four boolean values:
@@ -73,35 +78,47 @@ public class Controller {
         In other words, we only decrease settings if both 1 and 4 hold or both 2 and 3 hold.
          */
 
-        double weightedWaiting = innerWaiting * INNER_TIME_MULTIPLIER + outerWaiting;
+        // No need to weight them since we're only considering network speed here
+        // double weightedWaiting = innerWaiting * INNER_TIME_MULTIPLIER + outerWaiting;
 
-        /* 1 */ boolean networkSlow = weightedWaiting > TOO_MANY_WAITING * numWorkers || pendingDataSize > TOO_MUCH_PENDING;
-        /* 2 */ boolean networkFast = weightedWaiting < TOO_FEW_WAITING && pendingDataSize < TOO_LITTLE_PENDING;
+        int totalWaiting = innerWaiting + outerWaiting;
+
+        /* 1 */ boolean networkSlow = totalWaiting > TOO_MANY_WAITING * numWorkers || pendingDataSize > TOO_MUCH_PENDING;
+        /* 2 */ boolean networkFast = totalWaiting < TOO_FEW_WAITING * numWorkers && pendingDataSize < TOO_LITTLE_PENDING;
 
         int iF = innerCamSettings.getF(), oF = outerCamSettings.getF();
         double weightedF = iF * INNER_TIME_MULTIPLIER + oF;
 
         /* 3 */ boolean workerSlow = workerCapacity < weightedF;
-        /* 4 */ boolean workerFast = workerCapacity * BELOW_CAPACITY_MULTIPLIER > weightedF;
+        /* 4 */ boolean workerFast = workerCapacity * CAPACITY_MULTIPLIER > weightedF;
 
         int innerLevel = innerCamSettings.getTotalLevel();
         int outerLevel = outerCamSettings.getTotalLevel();
 
+        StringBuilder sb = new StringBuilder();
+        sb.append(totalWaiting).append(" ").append(networkSlow).append(" ").append(networkFast).append("\n");
+        sb.append(workerCapacity).append(" ").append(weightedF).append(" ").append(workerSlow).append(" ").append(workerFast).append("\n");
+
+        Log.v(TAG, sb.toString());
+
         if (networkSlow || workerSlow) {
-            if (innerLevel * INNER_OUTER_RATIO < outerLevel) {
-                innerCamSettings.increase(1);
+            if (innerLevel * INNER_OUTER_RATIO > outerLevel) {
+                innerCamSettings.decrease(1);
             }
             else {
-                outerCamSettings.increase(1);
+                outerCamSettings.decrease(1);
             }
         }
 
         else if (networkFast || workerFast) {
-            if (innerLevel * INNER_OUTER_RATIO < outerLevel) {
-                outerCamSettings.decrease(1);
-            }
-            else {
-                innerCamSettings.decrease(1);
+            okStreak++;
+            if (okStreak == 2) {
+                if (innerLevel * INNER_OUTER_RATIO < outerLevel) {
+                    innerCamSettings.increase(1);
+                } else {
+                    outerCamSettings.increase(1);
+                }
+                okStreak = 0;
             }
         }
 
@@ -120,13 +137,20 @@ public class Controller {
         }
 
         prevPendingDataSize = pendingDataSize;
+        long sizeDelta = totalDataSize - prevTotalDataSize;
+        prevTotalDataSize = totalDataSize;
+
+        int capacityLevel = (workerSlow ? 0 : workerFast ? 2 : 1);
+        int networkLevel = (networkSlow ? 0 : networkFast ? 2 : 1);
+
+        StatusLogger.log(innerCam, outerCam, workers, sizeDelta, capacityLevel, networkLevel);
     }
 
     // New version of cam settings adjustment algorithm.
     public void adjustCamSettingsV2(List<EDAWorker> workers, CamSettings innerCamSettings, CamSettings outerCamSettings) {
         double workerCapacity;
 
-        long pendingDataSize = AdvancedMain.communicator.pendingDataSize;
+        long pendingDataSize = communicator.pendingDataSize;
 
         int innerWaiting = 0, outerWaiting = 0;
 
@@ -190,7 +214,7 @@ public class Controller {
         }
 
         // Otherwise, if we can definitely work more, increase F a little.
-        else if (networkFast && FLevel * 2 < RQLevel && workerCapacity * BELOW_CAPACITY_MULTIPLIER > weightedF) {
+        else if (networkFast && FLevel * 2 < RQLevel && workerCapacity * CAPACITY_MULTIPLIER > weightedF) {
             if (iF * F_WEIGHT < oF) {
                 if (innerCamSettings.increaseF(F_INC_AMOUNT) > 0) {
                     fpsIncreased = true;

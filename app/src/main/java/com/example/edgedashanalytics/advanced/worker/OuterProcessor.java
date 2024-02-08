@@ -31,17 +31,31 @@ public class OuterProcessor extends FrameProcessor {
     public ArrayList<AnalysisResult> analysisResults = new ArrayList<>();
 
     public HashMap<Integer, HashMap<String, Integer>> map = new HashMap<>();
+    public static int inputSize;
 
     @Override
     public ProcessResult run() {
         int videoWidth = frame.getWidth();
         int videoHeight = frame.getHeight();
 
-        float scaleFactor = videoWidth / 192f;
+        //Log.v(TAG, "videoWidth = " + videoWidth + ", inputSize = " + inputSize);
+
+        float scaleFactor = videoWidth / (float)inputSize;
         int scaledWidth = (int) (videoWidth / scaleFactor);
         int scaledHeight = (int) (videoHeight / scaleFactor);
 
         List<Frame> result = analyzer.analyse(Bitmap.createScaledBitmap(frame, scaledWidth, scaledHeight, false), scaleFactor);
+
+        OuterFrame outerFrame = (OuterFrame) result.get(0);
+
+        /*StringBuilder sb = new StringBuilder();
+        sb.append(cameraFrameNum).append(",").append(outerFrame.getHazards().size());
+        for (Hazard hazard : outerFrame.getHazards()) {
+            sb.append(",").append(hazard.getCategory());
+        }
+
+        Log.v(TAG, sb.toString());*/
+
         StringBuilder resultString = new StringBuilder();
 
         List<String> hazards = new ArrayList<>();

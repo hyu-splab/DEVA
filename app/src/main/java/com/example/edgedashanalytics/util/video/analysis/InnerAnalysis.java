@@ -14,6 +14,7 @@ import android.util.Log;
 import androidx.preference.PreferenceManager;
 
 import com.example.edgedashanalytics.R;
+import com.example.edgedashanalytics.advanced.worker.InnerProcessor;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.tensorflow.lite.DataType;
@@ -97,6 +98,7 @@ public class InnerAnalysis extends VideoAnalysis {
                     inputWidth = interpreter.getInputTensor(0).shape()[1];
                     inputHeight = interpreter.getInputTensor(0).shape()[2];
                     outputShape = interpreter.getOutputTensor(0).shape();
+                    InnerProcessor.inputWidth = inputWidth;
                 }
                 analyzerList.add(new Analyzer(interpreter));
             } catch (IOException e) {

@@ -5,10 +5,13 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
+import android.util.Size;
 
 import com.example.edgedashanalytics.advanced.common.TestConfig;
 import com.example.edgedashanalytics.advanced.common.WorkerStatus;
+import com.example.edgedashanalytics.advanced.test.VideoTest;
 import com.example.edgedashanalytics.advanced.test.VideoTest2;
+import com.example.edgedashanalytics.advanced.worker.OuterProcessor;
 import com.example.edgedashanalytics.page.main.MainActivity;
 import com.example.edgedashanalytics.util.Constants;
 import com.example.edgedashanalytics.advanced.common.TimeLog;
@@ -19,6 +22,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -32,12 +36,12 @@ public class AdvancedMain {
     public static int totalCount = 0;
     public static int selectedCount = 0;
     public static boolean isFinished = false;
-    public static HashMap<String, String> s22, splab;
+    public static HashMap<String, String> s22, splab, p6;
 
     private static EDACam innerCam, outerCam;
     private static Controller controller;
     private static final long CAMERA_ADJUSTMENT_PERIOD = 500;
-    private static final long EXPERIMENT_DURATION = 3 * 60 * 1000;
+    private static final long EXPERIMENT_DURATION = 60 * 1000;
 
     public static String[] workerNameList;
 
@@ -49,7 +53,33 @@ public class AdvancedMain {
     public static void createVideoAnalysisData(Context context) {
         try {
             new Thread(() -> {
-                VideoTest2.test("video.mov", "outer2.txt", context, false);
+                //VideoTest2.test("video2.mp4", "inner2.txt", context, true);
+                VideoTest2.test("video.mov", "outer.txt", context, false);
+            }).start();
+            return;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void testOuterVideo(Context context) {
+        try {
+            new Thread(() -> {
+                Integer[] qualities = {20, 40, 60, 80, 100};
+                Size[] resolutions = {new Size(960, 540)};
+                Integer[] scaleFactorDivisors = {1, 64, 128, 192, 256, 512};
+                VideoTest.testOuterAnalysisAccuracy(context, "video.mov", Arrays.asList(qualities), Arrays.asList(resolutions), Arrays.asList(scaleFactorDivisors), 0, 200);
+            }).start();
+            return;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void calculateDataSize(Context context) {
+        try {
+            new Thread(() -> {
+                VideoTest.calculateDataSizes(context, "video.mov", "size.txt");
             }).start();
             return;
         } catch (Exception e) {
@@ -58,18 +88,26 @@ public class AdvancedMain {
     }
 
     public static void advancedMain(Context context) {
-        //if (true) {createVideoAnalysisData(context); return;}
+        //if (true){createVideoAnalysisData(context); return;}
         try {
             testConfig = TestConfig.readConfigs(context);
 
             makeBaseInnerResult(testConfig.innerResultFile);
             makeBaseOuterResult(testConfig.outerResultFile);
-
         } catch (Exception e) {
             e.printStackTrace();
         }
 
         workerStart();
+
+        /*try {
+            Thread.sleep(1000);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        Log.v(TAG, "############################");
+        Log.v(TAG, "inputSize = " + OuterProcessor.inputSize);
+        Log.v(TAG, "############################");*/
 
         if (testConfig.isCoordinator) {
             long timeStart = System.currentTimeMillis();
@@ -113,7 +151,7 @@ public class AdvancedMain {
             for (int i = 0; i < numHazards; i++) {
                 hazards.add(rs(st));
             }
-            FrameLogger.baseOuterResult.addResult(frameNum, hazards);
+            FrameLogger.baseOuterResult.addResult(frameNum, hazards, 0, 0);
         }
         br.close();
     }
@@ -150,8 +188,9 @@ public class AdvancedMain {
         new Timer().schedule(new TimerTask() {
             @Override
             public void run() {
-                controller.adjustCamSettingsV2(communicator.workers, innerCam.camSettings, outerCam.camSettings);
-                StatusLogger.log(innerCam, outerCam, communicator.workers);
+                /*controller.adjustCamSettingsV2(communicator.workers, innerCam.camSettings, outerCam.camSettings);
+                StatusLogger.log(innerCam, outerCam, communicator.workers);*/
+                controller.adjustCamSettingsV3(communicator.workers, innerCam.camSettings, outerCam.camSettings);
             }
         }, CAMERA_ADJUSTMENT_PERIOD, CAMERA_ADJUSTMENT_PERIOD);
 
@@ -173,6 +212,7 @@ public class AdvancedMain {
                 // 2
                 StatusLogger.writeLogs(context, testConfig.testNum);
                 FrameLogger.writeLogs(context, testConfig.testNum);
+                DistributionLogger.writeLogs(context, testConfig.testNum);
 
                 Log.v(TAG, "Wrote logs");
 
@@ -211,7 +251,7 @@ public class AdvancedMain {
     public static void connectToWorkers() {
         // This device is the client side
         // Replace this part with actual finding process eventually
-        HashMap<String, String> p = s22;
+        HashMap<String, String> p = p6;
 
         communicator = new Communicator();
         int workerNum = 0;
@@ -221,7 +261,7 @@ public class AdvancedMain {
             communicator.addWorker(workerNum++, p.get(name));
         }
 
-        String[] allDevices = new String[]{"lineage2", "oppo", "oneplus", "pixel5"};
+        String[] allDevices = new String[]{"lineage2", "oppo", "oneplus", "lineage"};
 
         for (String deviceName : allDevices) {
             if (!workerNames.contains(deviceName)) {
@@ -241,16 +281,30 @@ public class AdvancedMain {
         s22.put("oppo", "192.168.118.230");
         s22.put("pixel5", "192.168.118.145");
         s22.put("lineage2", "192.168.118.72");
+        s22.put("s22", "192.168.118.159");
 
         splab = new HashMap<>();
         splab.put("self", "127.0.0.1");
-        splab.put("lineage", "192.168.0.103");
-        splab.put("pixel5", "192.168.0.106");
-        splab.put("oneplus", "192.168.0.107");
-        splab.put("oppo", "192.168.0.105");
+        splab.put("lineage", "192.168.0.105");
+        splab.put("oneplus", "192.168.0.106");
+        splab.put("pixel6", "192.168.0.103");
+        splab.put("oppo", "192.168.0.104");
+        splab.put("pixel5", "192.168.0.101");
+        splab.put("lineage2", "192.168.0.107");
+        splab.put("s22", "192.168.0.108");
 
-        innerCamIP = "192.168.118.159";
-        outerCamIP = "192.168.118.79";
+        p6 = new HashMap<>();
+        p6.put("self", "127.0.0.1");
+        p6.put("lineage", "192.168.9.163");
+        p6.put("oneplus", "192.168.9.191");
+        p6.put("pixel6", "192.168.9.85");
+        p6.put("oppo", "192.168.9.20");
+        p6.put("pixel5", "192.168.9.201");
+        p6.put("lineage2", "192.168.9.213");
+        p6.put("s22", "192.168.9.6");
+
+        innerCamIP = p6.get("pixel5");
+        outerCamIP = p6.get("s22");
     }
 
     public static void workerStart() {
@@ -260,7 +314,7 @@ public class AdvancedMain {
 
     static class Distributer extends Handler {
         private static final int sequenceLength = 50; // tentative
-        private List<Integer> sequence;
+        private ArrayList<Integer> sequence;
         private int sequenceIndex;
 
         public Distributer(Looper looper) {
@@ -273,10 +327,15 @@ public class AdvancedMain {
             int numWorker = communicator.workers.size();
             double[] workerPriority = new double[numWorker];
 
-            List<Double> workerWeight = calculateWorkerWeight();
+            ArrayList<Double> workerWeight = calculateWorkerWeight();
+            double weightSum = 0;
+            for (Double d : workerWeight)
+                weightSum += d;
 
             // The weighted distribution algorithm
             sequence = new ArrayList<>();
+
+            int[] cntArray = new int[workerWeight.size()];
 
             for (int i = 0; i < sequenceLength; i++) {
                 double maxPriority = -1;
@@ -289,12 +348,17 @@ public class AdvancedMain {
                     }
                 }
                 sequence.add(maxIndex);
-                workerPriority[maxIndex] = 0; // WHY DID I FORGET THIS
+                workerPriority[maxIndex] -= weightSum;
+                cntArray[maxIndex]++;
             }
+
+            DistributionLogger.addLog(workerWeight, sequence);
         }
 
-        private List<Double> calculateWorkerWeight() {
-            List<Double> weights = new ArrayList<>();
+
+
+        private ArrayList<Double> calculateWorkerWeight() {
+            ArrayList<Double> weights = new ArrayList<>();
             for (int i = 0; i < communicator.workers.size(); i++) {
                 EDAWorker w = communicator.workers.get(i);
                 WorkerStatus status = w.status;
