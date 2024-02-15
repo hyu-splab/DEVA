@@ -53,8 +53,8 @@ public class AdvancedMain {
     public static void createVideoAnalysisData(Context context) {
         try {
             new Thread(() -> {
-                //VideoTest2.test("video2.mp4", "inner2.txt", context, true);
-                VideoTest2.test("video.mov", "outer.txt", context, false);
+                VideoTest2.test("video2.mp4", "inner_lightning.txt", context, true);
+                VideoTest2.test("video.mov", "outer_mobilenet_v1.txt", context, false);
             }).start();
             return;
         } catch (Exception e) {
@@ -65,10 +65,22 @@ public class AdvancedMain {
     public static void testOuterVideo(Context context) {
         try {
             new Thread(() -> {
-                Integer[] qualities = {20, 40, 60, 80, 100};
-                Size[] resolutions = {new Size(960, 540)};
-                Integer[] scaleFactorDivisors = {1, 64, 128, 192, 256, 512};
-                VideoTest.testOuterAnalysisAccuracy(context, "video.mov", Arrays.asList(qualities), Arrays.asList(resolutions), Arrays.asList(scaleFactorDivisors), 0, 200);
+                final Size[] resolutions = {
+                        /*new Size(640, 360),
+                        new Size(720, 405),
+                        new Size(800, 450)*/
+                        /*new Size(880, 495),
+                        new Size(960, 540),
+                        new Size(1040, 585),*/
+                        new Size(1120, 630),
+                        new Size(1200, 675),
+                        new Size(1280, 720)
+                };
+
+                final Integer[] qualities = {
+                        20, 30, 40, 50, 60, 70, 80, 90, 100
+                };
+                VideoTest.testOuterAnalysisAccuracy(context, "video.mov", Arrays.asList(qualities), Arrays.asList(resolutions), 0, 200);
             }).start();
             return;
         } catch (Exception e) {
@@ -295,13 +307,13 @@ public class AdvancedMain {
 
         p6 = new HashMap<>();
         p6.put("self", "127.0.0.1");
-        p6.put("lineage", "192.168.9.163");
-        p6.put("oneplus", "192.168.9.191");
-        p6.put("pixel6", "192.168.9.85");
-        p6.put("oppo", "192.168.9.20");
-        p6.put("pixel5", "192.168.9.201");
-        p6.put("lineage2", "192.168.9.213");
-        p6.put("s22", "192.168.9.6");
+        p6.put("lineage", "192.168.68.163");
+        p6.put("oneplus", "192.168.68.191");
+        p6.put("pixel6", "192.168.68.85");
+        p6.put("oppo", "192.168.68.20");
+        p6.put("pixel5", "192.168.68.201");
+        p6.put("lineage2", "192.168.68.213");
+        p6.put("s22", "192.168.68.6");
 
         innerCamIP = p6.get("pixel5");
         outerCamIP = p6.get("s22");

@@ -135,7 +135,7 @@ public class VideoTest {
     /*
     Test for outer analysis accuracy
      */
-    public static void testOuterAnalysisAccuracy(Context context, String fileName, List<Integer> qualities, List<Size> resolutions, List<Integer> scaleFactorDivisors, int frameStart, int frameEnd) {
+    public static void testOuterAnalysisAccuracy(Context context, String fileName, List<Integer> qualities, List<Size> resolutions, int frameStart, int frameEnd) {
         String videoPath = context.getExternalFilesDir(null) + "/" + fileName;
         MediaMetadataRetriever retriever = new MediaMetadataRetriever();
         retriever.setDataSource(videoPath);
@@ -152,59 +152,65 @@ public class VideoTest {
         int videoWidth = Integer.parseInt(videoWidthString);
         int videoHeight = Integer.parseInt(videoHeightString);
 
+        String rotationString = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION);
+        int rotation = Integer.parseInt(rotationString);
+        Log.v(TAG, "rotation = " + rotation);
+
+        if (rotation == 270 || rotation == 90) {
+            int temp = videoWidth;
+            videoWidth = videoHeight;
+            videoHeight = temp;
+        }
 
         StringBuilder sb = new StringBuilder();
 
         OuterAnalysis analyzer = new OuterAnalysis(context);
 
-        for (Integer scaleFactorDivisor : scaleFactorDivisors) {
-            sb.append("scaleFactorDivisor: ").append(scaleFactorDivisor).append("\n");
-            float scaleFactor = videoWidth / (float) scaleFactorDivisor;
-            int scaledWidth = (int) (videoWidth / scaleFactor);
-            int scaledHeight = (int) (videoHeight / scaleFactor);
-            // Calculate base things first
-            OuterAnalysisResult baseResult = new OuterAnalysisResult();
-            for (int i = frameStart; i <= frameEnd; i++) {
-                Bitmap bitmap = retriever.getFrameAtIndex(i);
+        float scaleFactor = videoWidth / 512f;
+        int scaledWidth = (int) (videoWidth / scaleFactor);
+        int scaledHeight = (int) (videoHeight / scaleFactor);
+        // Calculate base things first
+        OuterAnalysisResult baseResult = new OuterAnalysisResult();
+        for (int i = frameStart; i <= frameEnd; i++) {
+            Bitmap bitmap = retriever.getFrameAtIndex(i);
 
-                BitmapFactory.Options ops = new BitmapFactory.Options();
-                ops.inMutable = true;
-                ByteArrayOutputStream outStream = new ByteArrayOutputStream();
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 100, outStream);
-                ByteArrayInputStream inStream = new ByteArrayInputStream(outStream.toByteArray());
-                bitmap = BitmapFactory.decodeStream(inStream, null, ops);
+            BitmapFactory.Options ops = new BitmapFactory.Options();
+            ops.inMutable = true;
+            ByteArrayOutputStream outStream = new ByteArrayOutputStream();
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 100, outStream);
+            ByteArrayInputStream inStream = new ByteArrayInputStream(outStream.toByteArray());
+            bitmap = BitmapFactory.decodeStream(inStream, null, ops);
 
-                Frame frame = analyzer.analyse(Bitmap.createScaledBitmap(bitmap, scaledWidth, scaledHeight, false), i, scaleFactor).get(0);
-                baseResult.addResult(i, frame);
-            }
+            Frame frame = analyzer.analyse(Bitmap.createScaledBitmap(bitmap, scaledWidth, scaledHeight, false), i, scaleFactor).get(0);
+            baseResult.addResult(i, frame);
+        }
 
-            for (Integer quality : qualities) {
-                for (Size resolution : resolutions) {
-                    OuterAnalysisResult result = new OuterAnalysisResult();
-                    for (int i = frameStart; i <= frameEnd; i++) {
-                        Bitmap bitmap = retriever.getFrameAtIndex(i);
+        for (Integer quality : qualities) {
+            for (Size resolution : resolutions) {
+                OuterAnalysisResult result = new OuterAnalysisResult();
+                for (int i = frameStart; i <= frameEnd; i++) {
+                    Bitmap bitmap = retriever.getFrameAtIndex(i);
 
-                        if (resolution.getWidth() < 1280) {
-                            bitmap = Bitmap.createScaledBitmap(bitmap, resolution.getWidth(), resolution.getHeight(), true);
-                        }
-
-                        BitmapFactory.Options ops = new BitmapFactory.Options();
-                        ops.inMutable = true;
-                        ByteArrayOutputStream outStream = new ByteArrayOutputStream();
-                        bitmap.compress(Bitmap.CompressFormat.JPEG, quality, outStream);
-                        ByteArrayInputStream inStream = new ByteArrayInputStream(outStream.toByteArray());
-                        bitmap = BitmapFactory.decodeStream(inStream, null, ops);
-
-                        Frame frame = analyzer.analyse(Bitmap.createScaledBitmap(bitmap, scaledWidth, scaledHeight, false), i, scaleFactor).get(0);
-                        result.addResult(i, frame);
+                    if (resolution.getWidth() < 1280) {
+                        bitmap = Bitmap.createScaledBitmap(bitmap, resolution.getWidth(), resolution.getHeight(), true);
                     }
 
-                    sb.append(quality).append(" ").append(resolution.getWidth()).append(" ").append(resolution.getHeight())
-                            .append(": ").append(result.calcAccuracy(baseResult)).append("\n");
+                    BitmapFactory.Options ops = new BitmapFactory.Options();
+                    ops.inMutable = true;
+                    ByteArrayOutputStream outStream = new ByteArrayOutputStream();
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, quality, outStream);
+                    ByteArrayInputStream inStream = new ByteArrayInputStream(outStream.toByteArray());
+                    bitmap = BitmapFactory.decodeStream(inStream, null, ops);
+
+                    Frame frame = analyzer.analyse(Bitmap.createScaledBitmap(bitmap, scaledWidth, scaledHeight, false), i, scaleFactor).get(0);
+                    result.addResult(i, frame);
                 }
+
+                sb.append(quality).append(" ").append(resolution.getWidth()).append(" ").append(resolution.getHeight())
+                        .append(": ").append(result.calcAccuracy(baseResult)).append("\n");
             }
-            sb.append("\n");
         }
+        sb.append("\n");
 
         Log.w(TAG, sb.toString());
     }
@@ -325,21 +331,41 @@ public class VideoTest {
         String totalFramesString = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_FRAME_COUNT);
         int totalFrames = Integer.parseInt(totalFramesString);
 
-        Size resolution = new Size(1280, 720);
-        int quality = 100;
+        final Size[] resolutions = {
+                /*new Size(640, 360),
+                new Size(720, 405),
+                new Size(800, 450)*/
+                /*new Size(880, 495),
+                new Size(960, 540),
+                new Size(1040, 585),*/
+                new Size(1120, 630),
+                new Size(1200, 675),
+                new Size(1280, 720)
+        };
+
+        final int[] qualities = {
+                20, 30, 40, 50, 60, 70, 80, 90, 100
+        };
 
         StringBuilder sb = new StringBuilder();
 
-        for (int i = 0; i < totalFrames; i++) {
-            Bitmap bitmap = retriever.getFrameAtIndex(i);
-            bitmap = Bitmap.createScaledBitmap(bitmap, resolution.getWidth(), resolution.getHeight(), true);
-            BitmapFactory.Options ops = new BitmapFactory.Options();
-            ops.inMutable = true;
-            ByteArrayOutputStream outStream = new ByteArrayOutputStream();
-            bitmap.compress(Bitmap.CompressFormat.JPEG, quality, outStream);
+        for (Size resolution : resolutions) {
+            for (int quality : qualities) {
+                long totalSize = 0;
+                for (int i = 0; i < totalFrames; i++) {
+                    Bitmap bitmap = retriever.getFrameAtIndex(i);
+                    bitmap = Bitmap.createScaledBitmap(bitmap, resolution.getWidth(), resolution.getHeight(), true);
+                    BitmapFactory.Options ops = new BitmapFactory.Options();
+                    ops.inMutable = true;
+                    ByteArrayOutputStream outStream = new ByteArrayOutputStream();
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, quality, outStream);
 
-            byte[] data = outStream.toByteArray();
-            sb.append(i).append(",").append(data.length).append("\n");
+                    byte[] data = outStream.toByteArray();
+                    totalSize += data.length;
+                }
+                sb.append(totalSize / totalFrames).append(",");
+            }
+            sb.deleteCharAt(sb.length() - 1).append("\n");
         }
 
         File outFile = new File(context.getExternalFilesDir(null) + "/" + resFileName);

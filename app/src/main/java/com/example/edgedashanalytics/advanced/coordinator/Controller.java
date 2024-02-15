@@ -103,7 +103,9 @@ public class Controller {
 
         if (networkSlow || workerSlow) {
             if (innerLevel * INNER_OUTER_RATIO > outerLevel) {
-                innerCamSettings.decrease(1);
+                if (innerCamSettings.decrease(1) == 0) {
+                    outerCamSettings.decrease(1);
+                }
             }
             else {
                 outerCamSettings.decrease(1);
@@ -116,7 +118,9 @@ public class Controller {
                 if (innerLevel * INNER_OUTER_RATIO < outerLevel) {
                     innerCamSettings.increase(1);
                 } else {
-                    outerCamSettings.increase(1);
+                    if (outerCamSettings.increase(1) == 0) {
+                        innerCamSettings.increase(1);
+                    }
                 }
                 okStreak = 0;
             }

@@ -49,10 +49,17 @@ public class VideoTest2 {
         int videoWidth = Integer.parseInt(videoWidthString);
         int videoHeight = Integer.parseInt(videoHeightString);
 
-        videoWidth = 1280;
-        videoHeight = 720;
+        String rotationString = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION);
+        int rotation = Integer.parseInt(rotationString);
+        Log.v(TAG, "rotation = " + rotation);
 
-        float scaleFactor = videoWidth / 512f/*(float)(isInner ? InnerProcessor.inputWidth : OuterProcessor.inputSize)*/;
+        if (rotation == 270 || rotation == 90) {
+            int temp = videoWidth;
+            videoWidth = videoHeight;
+            videoHeight = temp;
+        }
+
+        float scaleFactor = videoWidth / (float)(isInner ? InnerProcessor.inputWidth : OuterProcessor.inputSize);
         int scaledWidth = (int) (videoWidth / scaleFactor);
         int scaledHeight = (int) (videoHeight / scaleFactor);
 
