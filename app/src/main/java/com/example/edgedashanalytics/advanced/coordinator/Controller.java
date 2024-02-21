@@ -14,15 +14,16 @@ public class Controller {
     private long prevPendingDataSize, prevTotalDataSize;
 
     private static final double INNER_TIME_MULTIPLIER = 2.2;
-    private static final double CAPACITY_LENIENCY = 5.0;
+    // 3.0 for 2 threads, 2.0 for 1 thread (tentative)
+    private static final double CAPACITY_LENIENCY = 2.0;
     private static final double CAPACITY_MULTIPLIER = 0.7;
     private static final double F_WEIGHT = 2.0;
     private static final int F_DEC_AMOUNT = 5, F_INC_AMOUNT = 2;
     private static final int RQ_DEC_AMOUNT = 2, RQ_INC_AMOUNT = 1;
-    private static final double TOO_MANY_WAITING = 7;
+    private static final double TOO_MANY_WAITING = 3;
     private static final double TOO_FEW_WAITING = 1;
-    private static final int TOO_MUCH_PENDING = 5000000;
-    private static final int TOO_LITTLE_PENDING = 1500000;
+    private static final long TOO_MUCH_PENDING = 5000000;
+    private static final long TOO_LITTLE_PENDING = 2000000;
     private static final double INNER_OUTER_RATIO = 1.5;
 
     private static int okStreak = 0;
@@ -31,6 +32,113 @@ public class Controller {
         this.innerCam = innerCam;
         this.outerCam = outerCam;
         prevPendingDataSize = 0;
+    }
+
+    private double getWorkerCapacity(List<EDAWorker> workers) {
+        int numHistory = 0;
+        for (EDAWorker worker : workers) {
+            WorkerStatus status = worker.status;
+            numHistory += status.innerHistory.history.size() + status.outerHistory.history.size();
+        }
+
+        double totalInnerProcessTime = 0, totalOuterProcessTime = 0;
+        for (EDAWorker worker : workers) {
+            WorkerStatus status = worker.status;
+            totalInnerProcessTime += status.innerProcessTime();
+            totalOuterProcessTime += status.outerProcessTime();
+        }
+
+        // capacity is "how many frames can be addressed within a second?"
+        // so it's (# of workers) / (average time to process one frame)
+        double avgProcessTime = (INNER_TIME_MULTIPLIER * totalInnerProcessTime + totalOuterProcessTime) / numHistory;
+        return (workers.size() / avgProcessTime) * 1000 * CAPACITY_LENIENCY;
+    }
+
+    /*
+    19/02/2014: Resolution and Quality are fixed, only modify frame rate
+     */
+    public void adjustCamSettingsV4(List<EDAWorker> workers, CamSettings innerCamSettings, CamSettings outerCamSettings) {
+        long pendingDataSize = communicator.pendingDataSize;
+        long totalDataSize = communicator.totalDataSize;
+
+        int innerWaiting = 0, outerWaiting = 0;
+        int numWorkers = workers.size();
+
+        // 1. Calculate average network speed for all workers
+        double workerCapacity = getWorkerCapacity(workers);
+
+        for (EDAWorker worker : workers) {
+            WorkerStatus status = worker.status;
+            innerWaiting += status.innerWaiting;
+            outerWaiting += status.outerWaiting;
+        }
+
+        int totalWaiting = innerWaiting + outerWaiting;
+
+        /* 1 */ boolean networkSlow = totalWaiting > TOO_MANY_WAITING * numWorkers || pendingDataSize > TOO_MUCH_PENDING * numWorkers;
+        /* 2 */ boolean networkFast = totalWaiting < TOO_FEW_WAITING * numWorkers && pendingDataSize < TOO_LITTLE_PENDING * numWorkers;
+
+        int iF = innerCamSettings.getF(), oF = outerCamSettings.getF();
+        double weightedF = iF * INNER_TIME_MULTIPLIER + oF;
+
+        /* 3 */ boolean workerSlow = workerCapacity < weightedF;
+        /* 4 */ boolean workerFast = workerCapacity * CAPACITY_MULTIPLIER > weightedF;
+
+        int innerF = innerCamSettings.getF();
+        int outerF = outerCamSettings.getF();
+
+        StringBuilder sb = new StringBuilder();
+        sb.append(totalWaiting).append(" ").append(networkSlow).append(" ").append(networkFast).append("\n");
+        sb.append(workerCapacity).append(" ").append(weightedF).append(" ").append(workerSlow).append(" ").append(workerFast).append("\n");
+
+        Log.v(TAG, sb.toString());
+
+        final int outerPrioritizing = 5;
+
+        if (networkSlow || workerSlow) {
+            innerCamSettings.decreaseV4(1);
+            outerCamSettings.decreaseV4(1);
+            okStreak = 0;
+        }
+
+        else if (networkFast || workerFast) {
+            okStreak++;
+            if (okStreak == 1) {
+                if (innerF + outerPrioritizing < outerF) {
+                    innerCamSettings.increaseV4(1);
+                } else {
+                    if (outerCamSettings.increaseV4(1) == 0) {
+                        innerCamSettings.increaseV4(1);
+                    }
+                }
+                okStreak = 0;
+            }
+        }
+        else {
+            okStreak = 0;
+        }
+
+        if (innerCam.outStream != null) {
+            innerCam.sendSettings(innerCam.outStream);
+        }
+        if (outerCam.outStream != null) {
+            outerCam.sendSettings(outerCam.outStream);
+        }
+
+        for (EDAWorker worker : workers) {
+            worker.status.innerHistory.removeOldResults();
+            worker.status.outerHistory.removeOldResults();
+            worker.status.calcNetworkTime();
+        }
+
+        prevPendingDataSize = pendingDataSize;
+        long sizeDelta = totalDataSize - prevTotalDataSize;
+        prevTotalDataSize = totalDataSize;
+
+        int capacityLevel = (workerSlow ? 0 : workerFast ? 2 : 1);
+        int networkLevel = (networkSlow ? 0 : networkFast ? 2 : 1);
+
+        StatusLogger.log(innerCam, outerCam, workers, sizeDelta, capacityLevel, networkLevel);
     }
 
     // New version: Always move R, Q, F as a whole
@@ -110,6 +218,7 @@ public class Controller {
             else {
                 outerCamSettings.decrease(1);
             }
+            okStreak = 0;
         }
 
         else if (networkFast || workerFast) {
@@ -125,6 +234,8 @@ public class Controller {
                 okStreak = 0;
             }
         }
+        else
+            okStreak = 0;
 
         if (innerCam.outStream != null) {
             innerCam.sendSettings(innerCam.outStream);

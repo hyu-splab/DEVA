@@ -375,4 +375,17 @@ public class VideoTest {
             e.printStackTrace();
         }
     }
+
+    public static void checkFrameSize(Context context, String fileName) {
+        String videoPath = context.getExternalFilesDir(null) + "/" + fileName;
+        MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+        retriever.setDataSource(videoPath);
+
+        String totalFramesString = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_FRAME_COUNT);
+        int totalFrames = Integer.parseInt(totalFramesString);
+
+        for (int i = 0; i < totalFrames; i++) {
+            Bitmap bitmap = retriever.getFrameAtIndex(i);
+        }
+    }
 }

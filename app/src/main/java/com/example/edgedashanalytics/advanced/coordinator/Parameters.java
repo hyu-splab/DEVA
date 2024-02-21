@@ -31,32 +31,48 @@ public class Parameters {
     };
 
     // 4-level settings
-    private static final Size[] resolutions_new = {
+    final Size[] resolutions_new = {
             new Size(640, 360),
-            new Size(854, 480),
+            new Size(720, 405),
+            new Size(800, 450),
+            new Size(880, 495),
             new Size(960, 540),
+            new Size(1040, 585),
+            new Size(1120, 630),
+            new Size(1200, 675),
             new Size(1280, 720)
     };
 
-    private static final int[] qualities_new = {
-            25, 50, 75, 100
+    final int[] qualities_new = {
+            20, 30, 40, 50, 60, 70, 80, 90, 100
     };
 
     private static final int[] fps_new = {
-            5, 10, 15, 20
+            6, 9, 12, 15, 18, 21, 24, 27, 30
     };
 
     public Parameters() {
-        this(1, 1, 1);
+        this(3, 3, 3);
     }
 
-    public Parameters(int Ri, int Qi, int Fi) {
+    // fixed R and Q, only modify F, don't use granularity by index
+    public Parameters(Size R, int Q, int F) {
+        this.R = R;
+        this.Q = Q;
+        this.F = F;
+    }
+
+    private void setIndexes(int Ri, int Qi, int Fi) {
         this.Ri = Ri;
         this.Qi = Qi;
         this.Fi = Fi;
         this.R = resolutions_new[Ri];
         this.Q = qualities_new[Qi];
         this.F = fps_new[Fi];
+    }
+
+    public Parameters(int Ri, int Qi, int Fi) {
+        setIndexes(Ri, Qi, Fi);
     }
 
     public boolean increaseR() {
@@ -100,7 +116,6 @@ public class Parameters {
         F = fps_new[--Fi];
         return true;
     }
-
 
     /*public Parameters() {
         this.Ri = resolutions.length - 5;
@@ -159,5 +174,9 @@ public class Parameters {
             return decreaseR_old();
         else
             return decreaseQ_old();
+    }
+
+    public void setF(int F) {
+        this.F = F;
     }
 }

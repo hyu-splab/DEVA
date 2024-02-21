@@ -57,11 +57,11 @@ public class OuterAnalysis extends VideoAnalysis {
     ));
 
     private static final int[] models = {
-            R.string.mobilenet_v1_key,
+            //R.string.mobilenet_v1_key,
             //R.string.efficientdet_lite0_key,
             //R.string.efficientdet_lite1_key,
             //R.string.efficientdet_lite2_key,
-            //R.string.efficientdet_lite3_key,
+            R.string.efficientdet_lite3_key,
             //R.string.efficientdet_lite4_key
     };
 

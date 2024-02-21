@@ -202,7 +202,7 @@ public class AdvancedMain {
             public void run() {
                 /*controller.adjustCamSettingsV2(communicator.workers, innerCam.camSettings, outerCam.camSettings);
                 StatusLogger.log(innerCam, outerCam, communicator.workers);*/
-                controller.adjustCamSettingsV3(communicator.workers, innerCam.camSettings, outerCam.camSettings);
+                controller.adjustCamSettingsV4(communicator.workers, innerCam.camSettings, outerCam.camSettings);
             }
         }, CAMERA_ADJUSTMENT_PERIOD, CAMERA_ADJUSTMENT_PERIOD);
 
@@ -306,14 +306,17 @@ public class AdvancedMain {
         splab.put("s22", "192.168.0.108");
 
         p6 = new HashMap<>();
+
+        int p6IP = 74;
+
         p6.put("self", "127.0.0.1");
-        p6.put("lineage", "192.168.68.163");
-        p6.put("oneplus", "192.168.68.191");
-        p6.put("pixel6", "192.168.68.85");
-        p6.put("oppo", "192.168.68.20");
-        p6.put("pixel5", "192.168.68.201");
-        p6.put("lineage2", "192.168.68.213");
-        p6.put("s22", "192.168.68.6");
+        p6.put("lineage", "192.168." + p6IP + ".163");
+        p6.put("oneplus", "192.168." + p6IP + ".191");
+        p6.put("pixel6", "192.168." + p6IP + ".85");
+        p6.put("oppo", "192.168." + p6IP + ".20");
+        p6.put("pixel5", "192.168." + p6IP + ".201");
+        p6.put("lineage2", "192.168." + p6IP + ".213");
+        p6.put("s22", "192.168." + p6IP + ".6");
 
         innerCamIP = p6.get("pixel5");
         outerCamIP = p6.get("s22");

@@ -23,14 +23,22 @@ public class CamSettings {
 
     public boolean isInner;
     private static final int MAX_F = 30, MIN_F = 2;
+
+    private static final int INNER_F_MIN = 3, OUTER_F_MIN = 3, INNER_F_MAX = 30, OUTER_F_MAX = 30;
+
     private final Parameters p;
 
     public CamSettings(boolean isInner) {
         this.isInner = isInner;
-        if (isInner)
+        /*if (isInner)
             this.p = new Parameters(1, 1, 0);
         else
-            this.p = new Parameters(2, 0, 0);
+            this.p = new Parameters(2, 0, 0);*/
+
+        if (isInner)
+            this.p = new Parameters(new Size(1280, 720), 100, INNER_F_MIN);
+        else
+            this.p = new Parameters(new Size(1280, 720), 100, OUTER_F_MIN);
     }
 
     public Size getR() {
@@ -184,5 +192,19 @@ public class CamSettings {
             default:
                 throw new RuntimeException("Unknown quality: " + p.Q);
         }
+    }
+
+    public int decreaseV4(int i) {
+        int F = Math.max(isInner ? INNER_F_MIN : OUTER_F_MIN, p.F - i);
+        int ret = p.F - F;
+        p.setF(F);
+        return ret;
+    }
+
+    public int increaseV4(int i) {
+        int F = Math.min(isInner ? INNER_F_MAX : OUTER_F_MAX, p.F + i);
+        int ret = F - p.F;
+        p.setF(F);
+        return ret;
     }
 }

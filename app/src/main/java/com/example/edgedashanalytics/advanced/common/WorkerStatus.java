@@ -4,11 +4,10 @@ import android.util.Log;
 
 public class WorkerStatus {
     private static final String TAG = "WorkerStatus";
-    private static final double DEFAULT_PERFORMANCE = 1.0;
     // 20 for lightning, 50 for thunder
-    private static final double DEFAULT_INNER_PROCESS_TIME = 20;
+    private static final double DEFAULT_INNER_PROCESS_TIME = 50;
     // 20 for mobilenet_v1, 30, 50, 70, 110, 230 for efficientdet-lite0-4
-    private static final double DEFAULT_OUTER_PROCESS_TIME = 20;
+    private static final double DEFAULT_OUTER_PROCESS_TIME = 110;
     public WorkerHistory innerHistory, outerHistory;
     public int innerWaiting, outerWaiting;
     public double networkTime;

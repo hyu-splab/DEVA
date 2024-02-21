@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public class FrameLogger {
     private static final String TAG = "FrameLogger";
@@ -61,6 +62,8 @@ public class FrameLogger {
 
             long startTime = results.get(0).timestamp;
 
+            long totalWorkerTime = 0, totalProcessTime = 0, totalNetworkTime = 0, totalTurnAround = 0, totalQueueSize = 0;
+
             for (FrameResult result : results) {
                 sb.append(result.cameraFrameNum).append(",")
                         .append(result.timestamp - startTime).append(",")
@@ -71,14 +74,25 @@ public class FrameLogger {
                         .append(result.networkTime).append(",")
                         .append(result.turnaround).append(",")
                         .append(result.queueSize).append("\n");
+                totalWorkerTime += result.workerTime;
+                totalProcessTime += result.processTime;
+                totalNetworkTime += result.networkTime;
+                totalTurnAround += result.turnaround;
+                totalQueueSize += result.queueSize;
             }
+            int numResults = results.size();
+            sb.append(",,,,")
+                    .append(D(totalWorkerTime / (double)numResults, 2)).append(",")
+                    .append(D(totalProcessTime / (double)numResults, 2)).append(",")
+                    .append(D(totalNetworkTime / (double)numResults, 2)).append(",")
+                    .append(D(totalTurnAround / (double)numResults, 2)).append(",")
+                    .append(D(totalQueueSize / (double)numResults, 2)).append("\n");
 
             sb.append("\n");
             for (OuterResult.Result result : outerResult.results) {
-                sb.append(result.frameNum).append(",").append(result.hazards.size());
+                sb.append(result.frameNum).append(",").append(result.dataSize).append(",").append(result.hazards.size());
                 for (String hazard : result.hazards)
                     sb.append(",").append(hazard);
-                sb.append(",").append(result.frameNum).append(",").append(result.dataSize);
                 sb.append("\n");
             }
 
@@ -101,5 +115,9 @@ public class FrameLogger {
                 e.printStackTrace();
             }
         }
+    }
+
+    private static String D(double val, int digits) {
+        return String.format(Locale.ENGLISH, "%." + digits + "f", val);
     }
 }
