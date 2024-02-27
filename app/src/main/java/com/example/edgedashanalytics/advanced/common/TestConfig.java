@@ -73,8 +73,8 @@ public class TestConfig {
         String line;
         boolean first = true;
 
-        EXPERIMENT_DURATION = ri(new StringTokenizer(br.readLine()));
-        bw.write(EXPERIMENT_DURATION + "\n");
+        EXPERIMENT_DURATION = ri(new StringTokenizer(br.readLine())) * 1000;
+        bw.write(EXPERIMENT_DURATION / 1000 + "\n");
 
         int testNum = -1;
         String coordinatorID = null;
@@ -97,10 +97,11 @@ public class TestConfig {
                 workerNameList = new String[numWorkers];
                 connectionTimestamps = new ArrayList[numWorkers];
                 for (int i = 0; i < numWorkers; i++) {
+                    connectionTimestamps[i] = new ArrayList<>();
                     workerNameList[i] = rs(st);
                     int numTimestamps = ri(st);
                     for (int j = 0; j < numTimestamps; j++)
-                        connectionTimestamps[i].add(ri(st));
+                        connectionTimestamps[i].add(ri(st) * 1000);
                 }
             }
             else {

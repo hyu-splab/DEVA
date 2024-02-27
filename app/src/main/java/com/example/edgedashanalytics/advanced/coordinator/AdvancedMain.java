@@ -311,7 +311,7 @@ public class AdvancedMain {
 
         p6 = new HashMap<>();
 
-        int p6IP = 74;
+        int p6IP = 185;
 
         p6.put("self", "127.0.0.1");
         p6.put("lineage", "192.168." + p6IP + ".163");
@@ -354,8 +354,6 @@ public class AdvancedMain {
             // The weighted distribution algorithm
             sequence = new ArrayList<>();
 
-            int[] cntArray = new int[workerWeight.size()];
-
             for (int i = 0; i < sequenceLength; i++) {
                 double maxPriority = -1;
                 int maxIndex = -1;
@@ -368,7 +366,6 @@ public class AdvancedMain {
                 }
                 sequence.add(maxIndex);
                 workerPriority[maxIndex] -= weightSum;
-                cntArray[maxIndex]++;
             }
 
             DistributionLogger.addLog(workerWeight, sequence);
@@ -380,9 +377,14 @@ public class AdvancedMain {
             ArrayList<Double> weights = new ArrayList<>();
             for (int i = 0; i < communicator.workers.size(); i++) {
                 EDAWorker w = communicator.workers.get(i);
-                WorkerStatus status = w.status;
+                if (w.status.isConnected) {
+                    WorkerStatus status = w.status;
 
-                weights.add(status.getPerformance());
+                    weights.add(status.getPerformance());
+                }
+                else {
+                    weights.add(0.0);
+                }
             }
 
             return weights;
@@ -400,15 +402,7 @@ public class AdvancedMain {
         @Override
         public void handleMessage(Message inputMessage) {
             totalCount++;
-            TimeLog.coordinator.start(totalCount + ""); // Distribute
             boolean isInner = (inputMessage.what == Constants.IMAGE_INNER);
-
-            int bestWorker = getNextWorker();
-
-            TimeLog.coordinator.setWorkerNum(totalCount + "", bestWorker);
-            selectedCount++;
-
-            EDAWorker worker = communicator.workers.get(bestWorker);
 
             while (communicatorHandler == null) {
                 Log.w(TAG, "communicatorHandler is still null!!");
@@ -418,11 +412,25 @@ public class AdvancedMain {
                 communicatorHandler = communicator.getHandler();
             }
 
+            if (Communicator.availableWorkers == 0) {
+                Log.v(TAG, "No available workers!");
+
+                Message senderMessage = Message.obtain();
+                senderMessage.arg1 = -2;
+                communicatorHandler.sendMessage(senderMessage);
+
+                return;
+            }
+
+            int bestWorker = getNextWorker();
+
+            selectedCount++;
+
             Message senderMessage = Message.obtain();
             senderMessage.what = 999;
             senderMessage.arg1 = bestWorker;
             senderMessage.obj = new Image2(isInner, totalCount, inputMessage.arg1, (byte[]) inputMessage.obj);
-            //TimeLog.coordinator.add(totalCount + ""); // message to network thread
+
             communicatorHandler.sendMessage(senderMessage);
         }
     }

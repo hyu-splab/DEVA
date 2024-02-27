@@ -80,7 +80,7 @@ public class StatusLogger {
         // index, time, innerR WxH, innerQ, innerF, outerR WxH, outerQ, outerF, pendingSize, W0, W1, ...
         // Each worker: innerWaiting, innerProcessTime, outerProcessTime, networkTime
 
-        sb.append("Index,Time,InnerR,innerQ,innerF,outerR,outerQ,outerF,innerWaiting,outerWaiting,pendingSize,sizeDelta,capacityLevel,networkLevel,W0.iw,W0.ip,W0.ow,W0.op,W1.iw,W1.ip,W1.ow,W1.op,W2.iw,W2.ip,W2.ow,W2.op\n");
+        sb.append("Index,Time,InnerR,innerQ,innerF,outerR,outerQ,outerF,innerWaiting,outerWaiting,pendingSize,sizeDelta,capacityLevel,networkLevel,W0.con,W0.iw,W0.ip,W0.ow,W0.op,W1.con,W1.iw,W1.ip,W1.ow,W1.op,W2.con,W2.iw,W2.ip,W2.ow,W2.op\n");
 
         for (StatusLog log : statusLogs) {
             sb.append(log.index).append(",").append(log.timestamp - startTime).append(",");
@@ -92,6 +92,7 @@ public class StatusLogger {
             sb.append(log.pendingDataSize).append(",").append(log.sizeDelta).append(",");
             sb.append(log.capacityLevel).append(",").append(log.networkLevel).append(",");
             for (WorkerStatusLog status : log.workerStatuses) {
+                sb.append(status.isConnected ? 1 : 0).append(",");
                 sb.append(status.innerWaiting).append(",").append(status.innerProcessTime).append(",");
                 sb.append(status.outerWaiting).append(",").append(status.outerProcessTime).append(",");
             }
@@ -174,8 +175,11 @@ public class StatusLogger {
             this.capacityLevel = capacityLevel;
             this.networkLevel = networkLevel;
             this.workerStatuses = new ArrayList<>();
+
+            int i = 0;
             for (WorkerStatus status : workerStatuses) {
                 this.workerStatuses.add(new WorkerStatusLog(status));
+                i++;
             }
         }
     }
@@ -183,11 +187,13 @@ public class StatusLogger {
     static class WorkerStatusLog {
         int innerWaiting, outerWaiting;
         double innerProcessTime, outerProcessTime;
+        boolean isConnected;
         public WorkerStatusLog(WorkerStatus status) {
             this.innerWaiting = status.innerWaiting;
             this.innerProcessTime = status.innerHistory.processTime;
             this.outerWaiting = status.outerWaiting;
             this.outerProcessTime = status.outerHistory.processTime;
+            this.isConnected = status.isConnected;
         }
     }
 }

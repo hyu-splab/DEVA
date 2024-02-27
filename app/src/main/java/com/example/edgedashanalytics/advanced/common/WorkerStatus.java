@@ -11,6 +11,7 @@ public class WorkerStatus {
     public WorkerHistory innerHistory, outerHistory;
     public int innerWaiting, outerWaiting;
     public double networkTime;
+    public boolean isConnected;
 
     public WorkerStatus() {
         innerHistory = new WorkerHistory(50);
@@ -25,6 +26,7 @@ public class WorkerStatus {
         innerWaiting = org.innerWaiting;
         outerWaiting = org.outerWaiting;
         networkTime = org.networkTime;
+        isConnected = org.isConnected;
     }
 
     public synchronized void addResult(FrameResult result) {

@@ -15,13 +15,13 @@ public class Controller {
 
     private static final double INNER_TIME_MULTIPLIER = 2.2;
     // 3.0 for 2 threads, 2.0 for 1 thread (tentative)
-    private static final double CAPACITY_LENIENCY = 2.0;
+    private static final double CAPACITY_LENIENCY = 4.0;
     private static final double CAPACITY_MULTIPLIER = 0.7;
     private static final double F_WEIGHT = 2.0;
     private static final int F_DEC_AMOUNT = 5, F_INC_AMOUNT = 2;
     private static final int RQ_DEC_AMOUNT = 2, RQ_INC_AMOUNT = 1;
-    private static final double TOO_MANY_WAITING = 3;
-    private static final double TOO_FEW_WAITING = 1;
+    private static final double TOO_MANY_WAITING = 5;
+    private static final double TOO_FEW_WAITING = 2;
     private static final long TOO_MUCH_PENDING = 5000000;
     private static final long TOO_LITTLE_PENDING = 2000000;
     private static final double INNER_OUTER_RATIO = 1.5;
@@ -60,11 +60,11 @@ public class Controller {
     19/02/2014: Resolution and Quality are fixed, only modify frame rate
      */
     public void adjustCamSettingsV4(List<EDAWorker> workers, CamSettings innerCamSettings, CamSettings outerCamSettings) {
+        int availableWorkers = Communicator.availableWorkers;
         long pendingDataSize = communicator.pendingDataSize;
         long totalDataSize = communicator.totalDataSize;
 
         int innerWaiting = 0, outerWaiting = 0;
-        int numWorkers = workers.size();
 
         if (connectionChanged) {
             setDefaultFPS(innerCamSettings, outerCamSettings);
@@ -82,8 +82,8 @@ public class Controller {
 
         int totalWaiting = innerWaiting + outerWaiting;
 
-        /* 1 */ boolean networkSlow = totalWaiting > TOO_MANY_WAITING * numWorkers || pendingDataSize > TOO_MUCH_PENDING * numWorkers;
-        /* 2 */ boolean networkFast = totalWaiting < TOO_FEW_WAITING * numWorkers && pendingDataSize < TOO_LITTLE_PENDING * numWorkers;
+        /* 1 */ boolean networkSlow = totalWaiting > TOO_MANY_WAITING * availableWorkers || pendingDataSize > TOO_MUCH_PENDING * availableWorkers;
+        /* 2 */ boolean networkFast = totalWaiting < TOO_FEW_WAITING * availableWorkers && pendingDataSize < TOO_LITTLE_PENDING * availableWorkers;
 
         int iF = innerCamSettings.getF(), oF = outerCamSettings.getF();
         double weightedF = iF * INNER_TIME_MULTIPLIER + oF;
@@ -95,8 +95,12 @@ public class Controller {
         int outerF = outerCamSettings.getF();
 
         StringBuilder sb = new StringBuilder();
-        sb.append(totalWaiting).append(" ").append(networkSlow).append(" ").append(networkFast).append("\n");
-        sb.append(workerCapacity).append(" ").append(weightedF).append(" ").append(workerSlow).append(" ").append(workerFast).append("\n");
+        /*sb.append(totalWaiting).append(" ").append(networkSlow).append(" ").append(networkFast).append("\n");
+        sb.append(workerCapacity).append(" ").append(weightedF).append(" ").append(workerSlow).append(" ").append(workerFast).append("\n");*/
+
+        sb.append("Worker connection status:");
+        for (int i = 0; i < workers.size(); i++)
+            sb.append(" ").append(workers.get(i).status.isConnected ? 1 : 0);
 
         Log.v(TAG, sb.toString());
 
@@ -149,12 +153,8 @@ public class Controller {
     }
 
     private void setDefaultFPS(CamSettings innerCamSettings, CamSettings outerCamSettings) {
-        int numActive = 0;
-        for (int i = 0; i < Communicator.isConnected.length; i++)
-            if (Communicator.isConnected[i])
-                numActive++;
-        innerCamSettings.setF(numActive * 3);
-        outerCamSettings.setF(numActive * 3 + 5);
+        innerCamSettings.setF(Communicator.availableWorkers * 3);
+        outerCamSettings.setF(Communicator.availableWorkers * 3 + 5);
     }
 
     // New version: Always move R, Q, F as a whole
@@ -285,9 +285,10 @@ public class Controller {
 
         int innerWaiting = 0, outerWaiting = 0;
 
+        int numWorkers = workers.size();
+
         // 1. Calculate average network speed for all workers
         int numHistory = 0;
-        int numWorkers = workers.size();
         for (EDAWorker worker : workers) {
             WorkerStatus status = worker.status;
             innerWaiting += status.innerWaiting;

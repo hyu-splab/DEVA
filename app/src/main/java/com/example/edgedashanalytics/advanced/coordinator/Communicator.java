@@ -38,6 +38,7 @@ public class Communicator extends Thread {
 
     public ArrayList<ConnectionTimestamp> connectionTimestamps;
     public static boolean[] isConnected;
+    public static int availableWorkers;
     public long startTime;
 
     static class ConnectionTimestamp implements Comparable<ConnectionTimestamp> {
@@ -157,11 +158,14 @@ public class Communicator extends Thread {
 
             boolean connectionChanged = false;
 
+            availableWorkers = 0;
             for (int i = 0; i < isConnected.length; i++) {
+                workers.get(i).status.isConnected = isConnected[i];
                 if (isConnected[i] != prevConnected[i]) {
                     connectionChanged = true;
-                    break;
                 }
+                if (isConnected[i])
+                    availableWorkers++;
             }
 
             // Inform both distributer and controller independently, as each of them should do their own work
@@ -182,13 +186,18 @@ public class Communicator extends Thread {
                     }
                     return;
                 }
+
+                // No available workers, just to change connection statuses
+                if (workerNum == -2)
+                    return;
+
                 if (AdvancedMain.isFinished)
                     return;
 
-                if (!isConnected[workerNum]) // Discard frames to disconnected workers
+                EDAWorker worker = workers.get(workerNum);
+                if (!worker.status.isConnected)
                     return;
 
-                EDAWorker worker = workers.get(workerNum);
                 Image2 data = (Image2) msg.obj;
                 ObjectOutputStream outStream = worker.outstream;
                 //TimeLog.coordinator.add(data.frameNum); // Wait for Result
