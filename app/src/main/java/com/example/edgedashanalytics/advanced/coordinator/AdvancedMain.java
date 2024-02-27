@@ -23,9 +23,11 @@ import java.io.File;
 import java.io.FileReader;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Queue;
 import java.util.StringTokenizer;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -37,13 +39,15 @@ public class AdvancedMain {
     public static int selectedCount = 0;
     public static boolean isFinished = false;
     public static HashMap<String, String> s22, splab, p6;
+    public static boolean connectionChanged = false;
 
     private static EDACam innerCam, outerCam;
     private static Controller controller;
     private static final long CAMERA_ADJUSTMENT_PERIOD = 500;
-    private static final long EXPERIMENT_DURATION = 60 * 1000;
+    public static long EXPERIMENT_DURATION = (long)1e9; // should be overwritten by testconfig.txt
 
     public static String[] workerNameList;
+    public static ArrayList<Integer>[] connectionTimestamps;
 
     public static TestConfig testConfig;
     private static Handler communicatorHandler = null;
@@ -385,7 +389,8 @@ public class AdvancedMain {
         }
 
         private int getNextWorker() {
-            if (sequenceIndex == sequence.size()) {
+            if (connectionChanged || sequenceIndex == sequence.size()) {
+                connectionChanged = false;
                 makeWorkerSequence();
                 sequenceIndex = 0;
             }

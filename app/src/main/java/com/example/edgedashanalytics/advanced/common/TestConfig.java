@@ -1,6 +1,8 @@
 package com.example.edgedashanalytics.advanced.common;
 
+import static com.example.edgedashanalytics.advanced.coordinator.AdvancedMain.EXPERIMENT_DURATION;
 import static com.example.edgedashanalytics.advanced.coordinator.AdvancedMain.workerNameList;
+import static com.example.edgedashanalytics.advanced.coordinator.AdvancedMain.connectionTimestamps;
 
 import android.content.Context;
 import android.util.Log;
@@ -11,6 +13,9 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.nio.file.Files;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
 import java.util.StringTokenizer;
 
@@ -25,8 +30,30 @@ public class TestConfig {
         this.innerResultFile = innerResultFile;
         this.outerResultFile = outerResultFile;
     }
-
     private static final String TAG = "TestConfig";
+
+
+    /*
+    Config file structure
+
+    In the first line we have experiment duration in seconds
+
+    Each experiment is written on its own line:
+
+    test_num coordinator_name inner_result_file outer_result_file #_of_workers worker0 exp(0) worker1 exp(1) ...
+
+    where exp(x) is:
+
+    #_of_timestamps timestamp1 timestamp2 ...
+
+    where each timestamp is an integer represented in seconds
+
+    Initially each worker is considered disconnected
+
+    For example, if exp(0) is "1 0" then at the beginning the 0th worker is connected and it will keep being connected till the end of the experiment
+
+    For another example, if it's "3 10 20 30" then it is first unconnected at the beginning, and then it's connected at 10th second, disconnected at 20th second, and reconnected at 30th second
+     */
     public static TestConfig readConfigs(Context context) throws Exception {
         File dir = context.getExternalFilesDir(null);
 
@@ -45,6 +72,9 @@ public class TestConfig {
 
         String line;
         boolean first = true;
+
+        EXPERIMENT_DURATION = ri(new StringTokenizer(br.readLine()));
+        bw.write(EXPERIMENT_DURATION + "\n");
 
         int testNum = -1;
         String coordinatorID = null;
@@ -65,8 +95,12 @@ public class TestConfig {
 
                 numWorkers = ri(st);
                 workerNameList = new String[numWorkers];
+                connectionTimestamps = new ArrayList[numWorkers];
                 for (int i = 0; i < numWorkers; i++) {
                     workerNameList[i] = rs(st);
+                    int numTimestamps = ri(st);
+                    for (int j = 0; j < numTimestamps; j++)
+                        connectionTimestamps[i].add(ri(st));
                 }
             }
             else {

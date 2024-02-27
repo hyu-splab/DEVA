@@ -22,6 +22,8 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 public class Communicator extends Thread {
     private static final String TAG = "Communicator";
@@ -34,10 +36,39 @@ public class Communicator extends Thread {
     public long pendingDataSize, totalDataSize;
     public long innerWaiting, outerWaiting;
 
+    public ArrayList<ConnectionTimestamp> connectionTimestamps;
+    public static boolean[] isConnected;
+    public long startTime;
+
+    static class ConnectionTimestamp implements Comparable<ConnectionTimestamp> {
+        int workerNum;
+        int timestamp;
+
+        public ConnectionTimestamp(int workerNum, int timestamp) {
+            this.workerNum = workerNum;
+            this.timestamp = timestamp;
+        }
+
+        @Override
+        public int compareTo(ConnectionTimestamp o) {
+            return this.timestamp - o.timestamp;
+        }
+    }
+
     public Communicator() {
         workers = new ArrayList<>();
         allDevices = new ArrayList<>();
         pendingDataSize = 0;
+
+        connectionTimestamps = new ArrayList<>();
+        for (int i = 0; i < AdvancedMain.connectionTimestamps.length; i++) {
+            List<Integer> cur = AdvancedMain.connectionTimestamps[i];
+            for (Integer timestamp : cur)
+                connectionTimestamps.add(new ConnectionTimestamp(i, timestamp));
+        }
+
+        Collections.sort(connectionTimestamps);
+        isConnected = new boolean[AdvancedMain.connectionTimestamps.length];
     }
 
     public void addWorker(int workerNum, String ip) {
@@ -62,6 +93,7 @@ public class Communicator extends Thread {
         Looper.prepare();
         handler = new CommunicatorHandler(Looper.myLooper());
         connect();
+        startTime = System.currentTimeMillis();
         Looper.loop();
     }
 
@@ -102,6 +134,7 @@ public class Communicator extends Thread {
     }
 
     private class CommunicatorHandler extends Handler {
+        private int connectionTimestampIndex = 0;
         public CommunicatorHandler(Looper looper) {
             super(looper);
         }
@@ -110,6 +143,32 @@ public class Communicator extends Thread {
             int workerNum = msg.arg1;
 
             CoordinatorMessage cMsg;
+
+            long curTime = System.currentTimeMillis() - startTime;
+
+            boolean[] prevConnected = isConnected.clone();
+            while (connectionTimestampIndex < connectionTimestamps.size()) {
+                ConnectionTimestamp ts = connectionTimestamps.get(connectionTimestampIndex);
+                if (ts.timestamp > curTime)
+                    break;
+                isConnected[ts.workerNum] = !isConnected[ts.workerNum];
+                connectionTimestampIndex++;
+            }
+
+            boolean connectionChanged = false;
+
+            for (int i = 0; i < isConnected.length; i++) {
+                if (isConnected[i] != prevConnected[i]) {
+                    connectionChanged = true;
+                    break;
+                }
+            }
+
+            // Inform both distributer and controller independently, as each of them should do their own work
+            if (connectionChanged) {
+                AdvancedMain.connectionChanged = true;
+                Controller.connectionChanged = true;
+            }
 
             try {
                 // Experiment finish message (tell everyone to restart)
@@ -124,6 +183,9 @@ public class Communicator extends Thread {
                     return;
                 }
                 if (AdvancedMain.isFinished)
+                    return;
+
+                if (!isConnected[workerNum]) // Discard frames to disconnected workers
                     return;
 
                 EDAWorker worker = workers.get(workerNum);

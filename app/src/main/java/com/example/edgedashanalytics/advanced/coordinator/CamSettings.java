@@ -53,6 +53,10 @@ public class CamSettings {
         return p.F;
     }
 
+    public void setF(int F) {
+        p.F = F;
+    }
+
     public int increase(int amount) {
         for (int loop = 0; loop < amount; loop++) {
             if (isInner) {

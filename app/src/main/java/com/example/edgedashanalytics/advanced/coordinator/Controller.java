@@ -28,6 +28,8 @@ public class Controller {
 
     private static int okStreak = 0;
 
+    public static boolean connectionChanged = false;
+
     public Controller(EDACam innerCam, EDACam outerCam) {
         this.innerCam = innerCam;
         this.outerCam = outerCam;
@@ -63,6 +65,11 @@ public class Controller {
 
         int innerWaiting = 0, outerWaiting = 0;
         int numWorkers = workers.size();
+
+        if (connectionChanged) {
+            setDefaultFPS(innerCamSettings, outerCamSettings);
+            connectionChanged = false;
+        }
 
         // 1. Calculate average network speed for all workers
         double workerCapacity = getWorkerCapacity(workers);
@@ -139,6 +146,15 @@ public class Controller {
         int networkLevel = (networkSlow ? 0 : networkFast ? 2 : 1);
 
         StatusLogger.log(innerCam, outerCam, workers, sizeDelta, capacityLevel, networkLevel);
+    }
+
+    private void setDefaultFPS(CamSettings innerCamSettings, CamSettings outerCamSettings) {
+        int numActive = 0;
+        for (int i = 0; i < Communicator.isConnected.length; i++)
+            if (Communicator.isConnected[i])
+                numActive++;
+        innerCamSettings.setF(numActive * 3);
+        outerCamSettings.setF(numActive * 3 + 5);
     }
 
     // New version: Always move R, Q, F as a whole
