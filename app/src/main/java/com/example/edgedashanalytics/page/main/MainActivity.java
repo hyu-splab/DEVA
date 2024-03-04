@@ -76,6 +76,8 @@ public class MainActivity extends AppCompatActivity implements
 
     private final FragmentManager supportFragmentManager = getSupportFragmentManager();
     private Fragment activeFragment;
+    public static Context context;
+    public static int startBatteryLevel;
 
     class MainHandler extends Handler {
         @Override
@@ -178,7 +180,8 @@ public class MainActivity extends AppCompatActivity implements
             System.exit(0);
         });
 
-        TimeLog.context = getApplicationContext();
+        context = getApplicationContext();
+        TimeLog.context = context;
 
         /*File path = getApplicationContext().getExternalFilesDir(null);
         new File(path, "wlog.txt").delete();
@@ -193,7 +196,7 @@ public class MainActivity extends AppCompatActivity implements
         storeLogsInFile();
         DashCam.setup(this);
 
-        PowerMonitor.startPowerMonitor(this);
+        startBatteryLevel = PowerMonitor.getBatteryLevel(context);
         AdvancedMain.advancedMain(getApplicationContext());
     }
 

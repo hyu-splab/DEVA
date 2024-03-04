@@ -11,6 +11,7 @@ import android.util.Log;
 import com.example.edgedashanalytics.advanced.common.TimeLog;
 import com.example.edgedashanalytics.advanced.common.Image2;
 import com.example.edgedashanalytics.advanced.common.WorkerResult;
+import com.example.edgedashanalytics.page.main.MainActivity;
 import com.example.edgedashanalytics.util.hardware.PowerMonitor;
 
 import java.io.ByteArrayInputStream;
@@ -102,7 +103,7 @@ public class ProcessorThread extends Thread {
 
     private void sendFailedResult(boolean isInner, long dataSize) {
         Message retMsg = Message.obtain();
-        retMsg.obj = new WorkerResult(isInner, dataSize, PowerMonitor.getTotalPowerConsumption());
+        retMsg.obj = new WorkerResult(isInner, dataSize, MainActivity.startBatteryLevel - PowerMonitor.getBatteryLevel(MainActivity.context));
         handler.sendMessage(retMsg);
     }
 
@@ -116,7 +117,8 @@ public class ProcessorThread extends Thread {
 
     public static void sendResult(boolean isInner, long coordinatorStartTime, int frameNum, int cameraFrameNum, long processTime, long totalTime, String resultString, long dataSize, long queueSize, boolean isDistracted, List<String> hazards) {
         Message retMsg = Message.obtain();
-        retMsg.obj = new WorkerResult(isInner, coordinatorStartTime, frameNum, cameraFrameNum, processTime, totalTime, resultString, dataSize, queueSize, isDistracted, hazards, PowerMonitor.getTotalPowerConsumption());
+        retMsg.obj = new WorkerResult(isInner, coordinatorStartTime, frameNum, cameraFrameNum, processTime,
+                totalTime, resultString, dataSize, queueSize, isDistracted, hazards, MainActivity.startBatteryLevel - PowerMonitor.getBatteryLevel(MainActivity.context));
         handler.sendMessage(retMsg);
     }
 }

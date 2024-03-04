@@ -17,11 +17,11 @@ public class WorkerResult implements Serializable {
 
     public boolean isDistracted; // Used only for inner
     public List<String> hazards; // Used only for outer
-    public long energyConsumed;
+    public int energyConsumed;
 
     public WorkerResult(boolean isInner, long coordinatorStartTime, int frameNum, int cameraFrameNum,
                         long processTime, long totalTime, String msg, long dataSize, long queueSize,
-                        boolean isDistracted, List<String> hazards, long energyConsumed) {
+                        boolean isDistracted, List<String> hazards, int energyConsumed) {
         this.success = true;
         this.isInner = isInner;
         this.coordinatorStartTime = coordinatorStartTime;
@@ -37,7 +37,7 @@ public class WorkerResult implements Serializable {
         this.energyConsumed = energyConsumed;
     }
 
-    public WorkerResult(boolean isInner, long dataSize, long energyConsumed) {
+    public WorkerResult(boolean isInner, long dataSize, int energyConsumed) {
         this.success = false;
         this.isInner = isInner;
         this.dataSize = dataSize;
