@@ -6,6 +6,8 @@ Still can't figure out why certain devices show extra heavy network delays,
 but hopefully this integrated Sender would solve such issues.
  */
 
+import static com.example.edgedashanalytics.advanced.coordinator.AdvancedMain.controller;
+
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
@@ -40,6 +42,7 @@ public class Communicator extends Thread {
     public static boolean[] isConnected;
     public static int availableWorkers;
     public long startTime;
+    public static long failed;
 
     static class ConnectionTimestamp implements Comparable<ConnectionTimestamp> {
         int workerNum;
@@ -172,6 +175,8 @@ public class Communicator extends Thread {
             if (connectionChanged) {
                 AdvancedMain.connectionChanged = true;
                 Controller.connectionChanged = true;
+
+                controller.adjustCamSettingsV4(workers, AdvancedMain.innerCam.camSettings, AdvancedMain.outerCam.camSettings);
             }
 
             try {
@@ -254,13 +259,19 @@ public class Communicator extends Thread {
                         outerWaiting--;
                     }
 
+                    if (!res.success) {
+                        Log.v(TAG, "Got a failed frame");
+                        failed++;
+                        continue;
+                    }
+
                     long networkTime = (endTime - res.coordinatorStartTime) - res.totalTime;
                     long turnaround = endTime - res.coordinatorStartTime;
                     //Log.d(TAG, "frame " + res.frameNumber + ": networkTime = (" + endTime + " - " + res.coordinatorStartTime + ") - " + res.totalTime + " = " + networkTime);
 
                     FrameResult result = new FrameResult(
                             endTime, res.frameNum, res.cameraFrameNum, worker.workerNum, res.isInner,
-                            res.totalTime, res.processTime, networkTime, turnaround, res.queueSize);
+                            res.totalTime, res.processTime, networkTime, turnaround, res.queueSize, res.energyConsumed);
                     FrameLogger.addResult(result, res.isDistracted, res.hazards, res.dataSize);
                     worker.status.addResult(result);
 

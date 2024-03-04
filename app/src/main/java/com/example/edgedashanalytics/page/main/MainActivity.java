@@ -193,6 +193,7 @@ public class MainActivity extends AppCompatActivity implements
         storeLogsInFile();
         DashCam.setup(this);
 
+        PowerMonitor.startPowerMonitor(this);
         AdvancedMain.advancedMain(getApplicationContext());
     }
 

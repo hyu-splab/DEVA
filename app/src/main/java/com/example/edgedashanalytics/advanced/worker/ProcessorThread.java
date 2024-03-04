@@ -1,5 +1,7 @@
 package com.example.edgedashanalytics.advanced.worker;
 
+import static com.example.edgedashanalytics.advanced.worker.WorkerThread.N_THREAD;
+
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Handler;
@@ -9,6 +11,7 @@ import android.util.Log;
 import com.example.edgedashanalytics.advanced.common.TimeLog;
 import com.example.edgedashanalytics.advanced.common.Image2;
 import com.example.edgedashanalytics.advanced.common.WorkerResult;
+import com.example.edgedashanalytics.util.hardware.PowerMonitor;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -17,8 +20,10 @@ import java.util.concurrent.ArrayBlockingQueue;
 
 public class ProcessorThread extends Thread {
     private static final String TAG = "ProcessorThread";
-    static public ArrayBlockingQueue<Image2> queue = new ArrayBlockingQueue<>(1000);
+    static public ArrayBlockingQueue<Image2> queue = new ArrayBlockingQueue<>(100);
     static public Handler handler;
+
+    public static final int QUEUE_FULL = 2; // per thread
 
     public int tid = 0;
     public int workCount = 0;
@@ -32,6 +37,12 @@ public class ProcessorThread extends Thread {
         while (true) {
             try {
                 Image2 img = queue.take();
+
+                if (queue.size() >= QUEUE_FULL * N_THREAD) {
+                    Log.v(TAG, "sending failed message " + img.isInner);
+                    sendFailedResult(img.isInner, img.dataSize);
+                    continue;
+                }
 
                 //TimeLog.worker.add(img.frameNum + ""); // Uncompress
 
@@ -89,6 +100,12 @@ public class ProcessorThread extends Thread {
         }
     }
 
+    private void sendFailedResult(boolean isInner, long dataSize) {
+        Message retMsg = Message.obtain();
+        retMsg.obj = new WorkerResult(isInner, dataSize, PowerMonitor.getTotalPowerConsumption());
+        handler.sendMessage(retMsg);
+    }
+
     private Bitmap uncompress(byte[] data) {
         ByteArrayInputStream is = new ByteArrayInputStream(data);
         BitmapFactory.Options ops = new BitmapFactory.Options();
@@ -99,7 +116,7 @@ public class ProcessorThread extends Thread {
 
     public static void sendResult(boolean isInner, long coordinatorStartTime, int frameNum, int cameraFrameNum, long processTime, long totalTime, String resultString, long dataSize, long queueSize, boolean isDistracted, List<String> hazards) {
         Message retMsg = Message.obtain();
-        retMsg.obj = new WorkerResult(isInner, coordinatorStartTime, frameNum, cameraFrameNum, processTime, totalTime, resultString, dataSize, queueSize, isDistracted, hazards);
+        retMsg.obj = new WorkerResult(isInner, coordinatorStartTime, frameNum, cameraFrameNum, processTime, totalTime, resultString, dataSize, queueSize, isDistracted, hazards, PowerMonitor.getTotalPowerConsumption());
         handler.sendMessage(retMsg);
     }
 }

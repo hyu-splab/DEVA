@@ -17,6 +17,7 @@ import com.example.edgedashanalytics.util.Constants;
 import com.example.edgedashanalytics.advanced.common.TimeLog;
 import com.example.edgedashanalytics.advanced.common.Image2;
 import com.example.edgedashanalytics.advanced.worker.WorkerThread;
+import com.example.edgedashanalytics.util.hardware.PowerMonitor;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -41,8 +42,8 @@ public class AdvancedMain {
     public static HashMap<String, String> s22, splab, p6;
     public static boolean connectionChanged = false;
 
-    private static EDACam innerCam, outerCam;
-    private static Controller controller;
+    public static EDACam innerCam, outerCam;
+    public static Controller controller;
     private static final long CAMERA_ADJUSTMENT_PERIOD = 500;
     public static long EXPERIMENT_DURATION = (long)1e9; // should be overwritten by testconfig.txt
 

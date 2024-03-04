@@ -58,43 +58,53 @@ public class FrameLogger {
 
             sb.append(now.format(formatter)).append("\n\n");
 
-            sb.append("frameNum,timestamp,isInner,workerNum,workerTime,processTime,networkTime,turnaround,queueSize\n");
+            sb.append("frameNum,timestamp,isInner,workerNum,processTime,workerTime,networkTime,turnaround,queueSize,powerConsumed\n");
 
             long startTime = results.get(0).timestamp;
 
             long totalWorkerTime = 0, totalProcessTime = 0, totalNetworkTime = 0, totalTurnAround = 0, totalQueueSize = 0;
+            long inCount = 0, outCount = 0;
 
             for (FrameResult result : results) {
                 sb.append(result.cameraFrameNum).append(",")
                         .append(result.timestamp - startTime).append(",")
                         .append(result.isInner ? "in" : "out").append(",")
                         .append(result.workerNum).append(",")
-                        .append(result.workerTime).append(",")
                         .append(result.processTime).append(",")
+                        .append(result.workerTime).append(",")
                         .append(result.networkTime).append(",")
                         .append(result.turnaround).append(",")
-                        .append(result.queueSize).append("\n");
+                        .append(result.queueSize).append(",")
+                        .append(result.powerConsumed).append("\n");
                 totalWorkerTime += result.workerTime;
                 totalProcessTime += result.processTime;
                 totalNetworkTime += result.networkTime;
                 totalTurnAround += result.turnaround;
                 totalQueueSize += result.queueSize;
+                if (result.isInner)
+                    inCount++;
+                else
+                    outCount++;
             }
             int numResults = results.size();
             sb.append(",,,,")
-                    .append(D(totalWorkerTime / (double)numResults, 2)).append(",")
                     .append(D(totalProcessTime / (double)numResults, 2)).append(",")
+                    .append(D(totalWorkerTime / (double)numResults, 2)).append(",")
                     .append(D(totalNetworkTime / (double)numResults, 2)).append(",")
                     .append(D(totalTurnAround / (double)numResults, 2)).append(",")
                     .append(D(totalQueueSize / (double)numResults, 2)).append("\n");
 
             sb.append("\n");
-            for (OuterResult.Result result : outerResult.results) {
+
+            sb.append("in/out,").append(inCount).append(",").append(outCount).append("\n");
+
+
+            /*for (OuterResult.Result result : outerResult.results) {
                 sb.append(result.frameNum).append(",").append(result.dataSize).append(",").append(result.hazards.size());
                 for (String hazard : result.hazards)
                     sb.append(",").append(hazard);
                 sb.append("\n");
-            }
+            }*/
 
             sb.append("I.Accuracy,")
                     .append(innerAccuracyResult.count).append(",")

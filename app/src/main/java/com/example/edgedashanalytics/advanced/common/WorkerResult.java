@@ -4,6 +4,7 @@ import java.io.Serializable;
 import java.util.List;
 
 public class WorkerResult implements Serializable {
+    public boolean success;
     public boolean isInner;
     public long coordinatorStartTime; // before coordinator's send
     public long processTime; // EDA analysis time
@@ -16,10 +17,12 @@ public class WorkerResult implements Serializable {
 
     public boolean isDistracted; // Used only for inner
     public List<String> hazards; // Used only for outer
+    public long energyConsumed;
 
     public WorkerResult(boolean isInner, long coordinatorStartTime, int frameNum, int cameraFrameNum,
                         long processTime, long totalTime, String msg, long dataSize, long queueSize,
-                        boolean isDistracted, List<String> hazards) {
+                        boolean isDistracted, List<String> hazards, long energyConsumed) {
+        this.success = true;
         this.isInner = isInner;
         this.coordinatorStartTime = coordinatorStartTime;
         this.frameNum = frameNum;
@@ -31,5 +34,13 @@ public class WorkerResult implements Serializable {
         this.queueSize = queueSize;
         this.isDistracted = isDistracted;
         this.hazards = hazards;
+        this.energyConsumed = energyConsumed;
+    }
+
+    public WorkerResult(boolean isInner, long dataSize, long energyConsumed) {
+        this.success = false;
+        this.isInner = isInner;
+        this.dataSize = dataSize;
+        this.energyConsumed = energyConsumed;
     }
 }

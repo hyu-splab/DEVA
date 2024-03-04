@@ -66,67 +66,81 @@ public class Controller {
 
         int innerWaiting = 0, outerWaiting = 0;
 
+        // If connection status is changed, force-set FPS to something reasonably safe
         if (connectionChanged) {
             setDefaultFPS(innerCamSettings, outerCamSettings);
             connectionChanged = false;
         }
 
-        // 1. Calculate average network speed for all workers
-        double workerCapacity = getWorkerCapacity(workers);
+        else {
 
-        for (EDAWorker worker : workers) {
-            WorkerStatus status = worker.status;
-            innerWaiting += status.innerWaiting;
-            outerWaiting += status.outerWaiting;
-        }
+            // 1. Calculate average network speed for all workers
+            double workerCapacity = getWorkerCapacity(workers);
 
-        int totalWaiting = innerWaiting + outerWaiting;
+            for (EDAWorker worker : workers) {
+                WorkerStatus status = worker.status;
+                innerWaiting += status.innerWaiting;
+                outerWaiting += status.outerWaiting;
+            }
 
-        /* 1 */ boolean networkSlow = totalWaiting > TOO_MANY_WAITING * availableWorkers || pendingDataSize > TOO_MUCH_PENDING * availableWorkers;
-        /* 2 */ boolean networkFast = totalWaiting < TOO_FEW_WAITING * availableWorkers && pendingDataSize < TOO_LITTLE_PENDING * availableWorkers;
+            int totalWaiting = innerWaiting + outerWaiting;
 
-        int iF = innerCamSettings.getF(), oF = outerCamSettings.getF();
-        double weightedF = iF * INNER_TIME_MULTIPLIER + oF;
+            /* 1 */
+            boolean networkSlow = totalWaiting > TOO_MANY_WAITING * availableWorkers || pendingDataSize > TOO_MUCH_PENDING * availableWorkers;
+            /* 2 */
+            boolean networkFast = totalWaiting < TOO_FEW_WAITING * availableWorkers && pendingDataSize < TOO_LITTLE_PENDING * availableWorkers;
 
-        /* 3 */ boolean workerSlow = workerCapacity < weightedF;
-        /* 4 */ boolean workerFast = workerCapacity * CAPACITY_MULTIPLIER > weightedF;
+            int iF = innerCamSettings.getF(), oF = outerCamSettings.getF();
+            double weightedF = iF * INNER_TIME_MULTIPLIER + oF;
 
-        int innerF = innerCamSettings.getF();
-        int outerF = outerCamSettings.getF();
+            /* 3 */
+            boolean workerSlow = workerCapacity < weightedF;
+            /* 4 */
+            boolean workerFast = workerCapacity * CAPACITY_MULTIPLIER > weightedF;
 
-        StringBuilder sb = new StringBuilder();
+            int innerF = innerCamSettings.getF();
+            int outerF = outerCamSettings.getF();
+
+            StringBuilder sb = new StringBuilder();
         /*sb.append(totalWaiting).append(" ").append(networkSlow).append(" ").append(networkFast).append("\n");
         sb.append(workerCapacity).append(" ").append(weightedF).append(" ").append(workerSlow).append(" ").append(workerFast).append("\n");*/
 
-        sb.append("Worker connection status:");
-        for (int i = 0; i < workers.size(); i++)
-            sb.append(" ").append(workers.get(i).status.isConnected ? 1 : 0);
+            sb.append("Worker connection status:");
+            for (int i = 0; i < workers.size(); i++)
+                sb.append(" ").append(workers.get(i).status.isConnected ? 1 : 0);
 
-        Log.v(TAG, sb.toString());
+            Log.v(TAG, sb.toString());
 
-        final int outerPrioritizing = 5;
+            final int outerPrioritizing = 5;
 
-        if (networkSlow || workerSlow) {
-            innerCamSettings.decreaseV4(1);
-            outerCamSettings.decreaseV4(1);
-            okStreak = 0;
-        }
-
-        else if (networkFast || workerFast) {
-            okStreak++;
-            if (okStreak == 1) {
-                if (innerF + outerPrioritizing < outerF) {
-                    innerCamSettings.increaseV4(1);
-                } else {
-                    if (outerCamSettings.increaseV4(1) == 0) {
+            if (networkSlow || workerSlow) {
+                innerCamSettings.decreaseV4(1);
+                outerCamSettings.decreaseV4(1);
+                okStreak = 0;
+            } else if (networkFast || workerFast) {
+                okStreak++;
+                if (okStreak == 1) {
+                    if (innerF + outerPrioritizing < outerF) {
                         innerCamSettings.increaseV4(1);
+                    } else {
+                        if (outerCamSettings.increaseV4(1) == 0) {
+                            innerCamSettings.increaseV4(1);
+                        }
                     }
+                    okStreak = 0;
                 }
+            } else {
                 okStreak = 0;
             }
-        }
-        else {
-            okStreak = 0;
+
+            prevPendingDataSize = pendingDataSize;
+            long sizeDelta = totalDataSize - prevTotalDataSize;
+            prevTotalDataSize = totalDataSize;
+
+            int capacityLevel = (workerSlow ? 0 : workerFast ? 2 : 1);
+            int networkLevel = (networkSlow ? 0 : networkFast ? 2 : 1);
+
+            StatusLogger.log(innerCam, outerCam, workers, sizeDelta, capacityLevel, networkLevel);
         }
 
         if (innerCam.outStream != null) {
@@ -141,15 +155,6 @@ public class Controller {
             worker.status.outerHistory.removeOldResults();
             worker.status.calcNetworkTime();
         }
-
-        prevPendingDataSize = pendingDataSize;
-        long sizeDelta = totalDataSize - prevTotalDataSize;
-        prevTotalDataSize = totalDataSize;
-
-        int capacityLevel = (workerSlow ? 0 : workerFast ? 2 : 1);
-        int networkLevel = (networkSlow ? 0 : networkFast ? 2 : 1);
-
-        StatusLogger.log(innerCam, outerCam, workers, sizeDelta, capacityLevel, networkLevel);
     }
 
     private void setDefaultFPS(CamSettings innerCamSettings, CamSettings outerCamSettings) {
