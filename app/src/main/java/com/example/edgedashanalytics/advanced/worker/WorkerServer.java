@@ -88,6 +88,7 @@ public class WorkerServer {
                     while (true) {
                         CoordinatorMessage cMsg = (CoordinatorMessage) instream.readObject();
 
+                        long sTime = System.currentTimeMillis();
                         if (cMsg.type != 1) {
                             Message mainMsg = Message.obtain();
                             mainMsg.arg1 = cMsg.type;
@@ -118,6 +119,7 @@ public class WorkerServer {
                         cnt++;
 
                         ProcessorThread.queue.offer(image);
+                        long eTime = System.currentTimeMillis();
                     }
                 } catch (Exception e) {
                     e.printStackTrace();

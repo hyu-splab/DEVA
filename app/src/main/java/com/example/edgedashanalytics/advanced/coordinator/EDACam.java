@@ -78,16 +78,16 @@ public class EDACam extends Thread {
 
     private void doWork() throws Exception {
         while (true) {
-
             int frameNum = inStream.readInt();
             byte[] data = (byte[]) inStream.readObject();
-
+            long sTime = System.currentTimeMillis();
             Message msg = Message.obtain();
             msg.arg1 = frameNum;
             msg.what = msgCode;
             msg.obj = data;
 
             handler.sendMessage(msg);
+            long eTime = System.currentTimeMillis();
         }
     }
 

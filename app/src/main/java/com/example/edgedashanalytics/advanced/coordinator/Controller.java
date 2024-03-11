@@ -15,13 +15,13 @@ public class Controller {
 
     private static final double INNER_TIME_MULTIPLIER = 2.2;
     // 3.0 for 2 threads, 2.0 for 1 thread (tentative)
-    private static final double CAPACITY_LENIENCY = 4.0;
+    private static final double CAPACITY_LENIENCY = 3.0;
     private static final double CAPACITY_MULTIPLIER = 0.7;
     private static final double F_WEIGHT = 2.0;
     private static final int F_DEC_AMOUNT = 5, F_INC_AMOUNT = 2;
     private static final int RQ_DEC_AMOUNT = 2, RQ_INC_AMOUNT = 1;
     private static final double TOO_MANY_WAITING = 5;
-    private static final double TOO_FEW_WAITING = 2;
+    private static final double TOO_FEW_WAITING = 2.5;
     private static final long TOO_MUCH_PENDING = 5000000;
     private static final long TOO_LITTLE_PENDING = 2000000;
     private static final double INNER_OUTER_RATIO = 1.5;
@@ -79,8 +79,10 @@ public class Controller {
 
             for (EDAWorker worker : workers) {
                 WorkerStatus status = worker.status;
-                innerWaiting += status.innerWaiting;
-                outerWaiting += status.outerWaiting;
+                if (status.isConnected) {
+                    innerWaiting += status.innerWaiting;
+                    outerWaiting += status.outerWaiting;
+                }
             }
 
             int totalWaiting = innerWaiting + outerWaiting;
@@ -113,13 +115,13 @@ public class Controller {
 
             final int outerPrioritizing = 5;
 
-            if (networkSlow || workerSlow) {
+            if (networkSlow /*|| workerSlow*/) {
                 innerCamSettings.decreaseV4(1);
                 outerCamSettings.decreaseV4(1);
                 okStreak = 0;
-            } else if (networkFast || workerFast) {
+            } else if (networkFast/* || workerFast*/) {
                 okStreak++;
-                if (okStreak == 1) {
+                if (okStreak == 6) {
                     if (innerF + outerPrioritizing < outerF) {
                         innerCamSettings.increaseV4(1);
                     } else {
@@ -158,8 +160,10 @@ public class Controller {
     }
 
     private void setDefaultFPS(CamSettings innerCamSettings, CamSettings outerCamSettings) {
-        innerCamSettings.setF(Communicator.availableWorkers * 3);
-        outerCamSettings.setF(Communicator.availableWorkers * 3 + 5);
+        int outF = Communicator.availableWorkers * 2 + 3;
+        int inF = Math.max(3, outF - 5);
+        innerCamSettings.setF(inF);
+        outerCamSettings.setF(outF);
     }
 
     // New version: Always move R, Q, F as a whole

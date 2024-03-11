@@ -24,7 +24,7 @@ public class CamSettings {
     public boolean isInner;
     private static final int MAX_F = 30, MIN_F = 2;
 
-    private static final int INNER_F_MIN = 5, OUTER_F_MIN = 5, INNER_F_MAX = 30, OUTER_F_MAX = 30;
+    private static final int INNER_F_MIN = 3, OUTER_F_MIN = 3, INNER_F_MAX = 30, OUTER_F_MAX = 30;
 
     private final Parameters p;
 

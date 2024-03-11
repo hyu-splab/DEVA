@@ -1,5 +1,7 @@
 package com.example.edgedashanalytics.advanced.coordinator;
 
+import static com.example.edgedashanalytics.advanced.worker.WorkerThread.N_THREAD;
+
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
@@ -114,6 +116,9 @@ public class AdvancedMain {
         } catch (Exception e) {
             e.printStackTrace();
         }
+
+        if (testConfig.isCoordinator)
+            N_THREAD--;
 
         workerStart();
 
@@ -278,7 +283,7 @@ public class AdvancedMain {
             communicator.addWorker(workerNum++, p.get(name));
         }
 
-        String[] allDevices = new String[]{"lineage2", "oppo", "oneplus", "lineage"};
+        String[] allDevices = new String[]{"lineage2", "lineage", "pixel5"};
 
         for (String deviceName : allDevices) {
             if (!workerNames.contains(deviceName)) {
@@ -312,7 +317,7 @@ public class AdvancedMain {
 
         p6 = new HashMap<>();
 
-        int p6IP = 185;
+        int p6IP = 169;
 
         p6.put("self", "127.0.0.1");
         p6.put("lineage", "192.168." + p6IP + ".163");
@@ -323,7 +328,7 @@ public class AdvancedMain {
         p6.put("lineage2", "192.168." + p6IP + ".213");
         p6.put("s22", "192.168." + p6IP + ".6");
 
-        innerCamIP = p6.get("pixel5");
+        innerCamIP = p6.get("oneplus");
         outerCamIP = p6.get("s22");
     }
 
@@ -333,17 +338,18 @@ public class AdvancedMain {
     }
 
     static class Distributer extends Handler {
-        private static final int sequenceLength = 50; // tentative
-        private ArrayList<Integer> sequence;
-        private int sequenceIndex;
+        private static final int sequenceLength = 10; // tentative
+        private ArrayList<Integer> innerSequence, outerSequence;
+        private int innerSequenceIndex, outerSequenceIndex;
 
         public Distributer(Looper looper) {
             super(looper);
-            sequence = new ArrayList<>();
-            sequenceIndex = 0;
+            innerSequence = new ArrayList<>();
+            outerSequence = new ArrayList<>();
+            innerSequenceIndex = outerSequenceIndex = 0;
         }
 
-        private void makeWorkerSequence() {
+        private ArrayList<Integer> makeWorkerSequence() {
             int numWorker = communicator.workers.size();
             double[] workerPriority = new double[numWorker];
 
@@ -353,7 +359,7 @@ public class AdvancedMain {
                 weightSum += d;
 
             // The weighted distribution algorithm
-            sequence = new ArrayList<>();
+            ArrayList<Integer> sequence = new ArrayList<>();
 
             for (int i = 0; i < sequenceLength; i++) {
                 double maxPriority = -1;
@@ -370,6 +376,8 @@ public class AdvancedMain {
             }
 
             DistributionLogger.addLog(workerWeight, sequence);
+
+            return sequence;
         }
 
 
@@ -381,7 +389,11 @@ public class AdvancedMain {
                 if (w.status.isConnected) {
                     WorkerStatus status = w.status;
 
-                    weights.add(status.getPerformance());
+                    double weight = status.getPerformance();
+                    if (i == 0)
+                        weight /= 2;
+                    weight *= Math.max(0.5, 1.0 - (status.innerWaiting + status.outerWaiting * 2) * 0.05);
+                    weights.add(weight);
                 }
                 else {
                     weights.add(0.0);
@@ -391,13 +403,21 @@ public class AdvancedMain {
             return weights;
         }
 
-        private int getNextWorker() {
-            if (connectionChanged || sequenceIndex == sequence.size()) {
+        private int getNextWorker(boolean isInner) {
+            if (connectionChanged
+                    || (isInner && innerSequenceIndex == innerSequence.size())
+                    || (!isInner && outerSequenceIndex == outerSequence.size())) {
                 connectionChanged = false;
-                makeWorkerSequence();
-                sequenceIndex = 0;
+                if (isInner || connectionChanged) {
+                    innerSequence = makeWorkerSequence();
+                    innerSequenceIndex = 0;
+                }
+                if (!isInner || connectionChanged) {
+                    outerSequence = makeWorkerSequence();
+                    outerSequenceIndex = 0;
+                }
             }
-            return sequence.get(sequenceIndex++);
+            return (isInner ? innerSequence.get(innerSequenceIndex++) : outerSequence.get(outerSequenceIndex++));
         }
 
         @Override
@@ -423,7 +443,7 @@ public class AdvancedMain {
                 return;
             }
 
-            int bestWorker = getNextWorker();
+            int bestWorker = getNextWorker(isInner);
 
             selectedCount++;
 

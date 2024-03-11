@@ -5,17 +5,17 @@ import android.util.Log;
 public class WorkerStatus {
     private static final String TAG = "WorkerStatus";
     // 20 for lightning, 50 for thunder
-    private static final double DEFAULT_INNER_PROCESS_TIME = 50;
+    private static final double DEFAULT_INNER_PROCESS_TIME = 80;
     // 20 for mobilenet_v1, 30, 50, 70, 110, 230 for efficientdet-lite0-4
-    private static final double DEFAULT_OUTER_PROCESS_TIME = 110;
+    private static final double DEFAULT_OUTER_PROCESS_TIME = 200;
     public WorkerHistory innerHistory, outerHistory;
     public int innerWaiting, outerWaiting;
     public double networkTime;
     public boolean isConnected;
 
     public WorkerStatus() {
-        innerHistory = new WorkerHistory(50);
-        outerHistory = new WorkerHistory(100);
+        innerHistory = new WorkerHistory((int)DEFAULT_INNER_PROCESS_TIME);
+        outerHistory = new WorkerHistory((int)DEFAULT_OUTER_PROCESS_TIME);
         innerWaiting = outerWaiting = 0;
         networkTime = 0;
     }

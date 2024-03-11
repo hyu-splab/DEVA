@@ -205,7 +205,6 @@ public class Communicator extends Thread {
 
                 Image2 data = (Image2) msg.obj;
                 ObjectOutputStream outStream = worker.outstream;
-                //TimeLog.coordinator.add(data.frameNum); // Wait for Result
 
                 if (data.isInner) {
                     worker.status.innerWaiting++;
@@ -219,7 +218,6 @@ public class Communicator extends Thread {
                 pendingDataSize += data.data.length;
 
                 data.coordinatorStartTime = System.currentTimeMillis();
-                //Log.d(TAG, "frame " + data.frameNumber + " started at " + data.workerStartTime);
 
                 cMsg = new CoordinatorMessage(1, data);
 
@@ -228,8 +226,6 @@ public class Communicator extends Thread {
                 outStream.reset();
 
                 totalDataSize += data.data.length;
-
-                //TimeLog.coordinator.add(data.frameNum); // After send
 
             } catch (Exception e) {
                 e.printStackTrace();

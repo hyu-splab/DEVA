@@ -24,7 +24,7 @@ public class ProcessorThread extends Thread {
     static public ArrayBlockingQueue<Image2> queue = new ArrayBlockingQueue<>(100);
     static public Handler handler;
 
-    public static final int QUEUE_FULL = 2; // per thread
+    public static final int QUEUE_FULL = 100; // per thread
 
     public int tid = 0;
     public int workCount = 0;
@@ -45,18 +45,7 @@ public class ProcessorThread extends Thread {
                     continue;
                 }
 
-                //TimeLog.worker.add(img.frameNum + ""); // Uncompress
-
                 Bitmap bitmap = uncompress(img.data);
-
-                /*if (!img.isInner) {
-                    long sum = 0;
-                    for (int i = 0; i < img.data.length; i++)
-                        sum += img.data[i];
-                    //Log.v(TAG, "frame num: " + img.cameraFrameNum + ", sum = " + sum + ", data size = " + img.data.length + ", resolution = " + bitmap.getWidth() + " " + bitmap.getHeight());
-                }*/
-
-                //TimeLog.worker.add(img.frameNum + ""); // Process Frame
 
                 int cameraFrameNum = img.cameraFrameNum;
                 int frameNum = img.frameNum;
@@ -73,26 +62,11 @@ public class ProcessorThread extends Thread {
                 FrameProcessor.ProcessResult result = frameProcessor.run();
                 long endTime = System.currentTimeMillis();
 
-                /*if (!isInner) {
-                    StringBuilder sb = new StringBuilder();
-                    sb.append("frame num ").append(img.cameraFrameNum).append(": ").append(result.hazards.size());
-                    for (String hazard : result.hazards)
-                        sb.append(",").append(hazard);
-                    Log.v(TAG, sb.toString());
-                }*/
-
-                //Log.v(TAG, isInner + ": " + (endTime - startTime) + " ms");
-
-                //Log.v(TAG, "FrameProcessor: " + frameNum + " " + isInner + " " + (result.hazards == null));
-
-                if (!isInner && result.hazards == null) {
-                    Log.v(TAG, "How is it outer and hazards is null????????");
-                }
-
                 if (!img.isTesting) {
                     sendResult(isInner, img.coordinatorStartTime, frameNum, cameraFrameNum,
                             endTime - startTime, endTime - img.workerStartTime, result.msg, img.dataSize, queue.size(),
                             result.isDistracted, result.hazards);
+                    Log.v(TAG, "Analysis done");
                 }
                 workCount++;
             } catch (Exception e) {
