@@ -73,12 +73,12 @@ public class TestConfig {
         String line;
         boolean first = true;
 
-        EXPERIMENT_DURATION = ri(new StringTokenizer(br.readLine())) * 1000;
+        EXPERIMENT_DURATION = ri(new StringTokenizer(br.readLine())) * 1000L;
         bw.write(EXPERIMENT_DURATION / 1000 + "\n");
 
         int testNum = -1;
         String coordinatorID = null;
-        int numWorkers = -1;
+        int numWorkers;
 
         String innerResultFile = null, outerResultFile = null;
 
@@ -118,9 +118,6 @@ public class TestConfig {
             Files.copy(tempFile.toPath(), file.toPath());
         //}
         tempFile.delete();
-
-        Log.v(TAG, "Test " + testNum + " start");
-        Log.v(TAG, "I am " + whoAmI + " and the coordinator is " + coordinatorID);
 
         return new TestConfig(whoAmI.equals(coordinatorID), testNum, dir + "/" + innerResultFile, dir + "/" + outerResultFile);
     }

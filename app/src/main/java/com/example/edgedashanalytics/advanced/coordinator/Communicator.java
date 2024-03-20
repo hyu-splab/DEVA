@@ -14,10 +14,9 @@ import android.os.Message;
 import android.util.Log;
 
 import com.example.edgedashanalytics.advanced.common.CoordinatorMessage;
-import com.example.edgedashanalytics.advanced.common.FrameResult;
+import com.example.edgedashanalytics.advanced.common.AnalysisResult;
 import com.example.edgedashanalytics.util.Constants;
-import com.example.edgedashanalytics.advanced.common.TimeLog;
-import com.example.edgedashanalytics.advanced.common.Image2;
+import com.example.edgedashanalytics.advanced.common.FrameData;
 import com.example.edgedashanalytics.advanced.common.WorkerResult;
 
 import java.io.ObjectInputStream;
@@ -36,7 +35,7 @@ public class Communicator extends Thread {
     public ArrayList<EDAWorker> allDevices;
 
     public long pendingDataSize, totalDataSize;
-    public long innerWaiting, outerWaiting;
+    public final Object pendingDataSizeLock = new Object();
 
     public ArrayList<ConnectionTimestamp> connectionTimestamps;
     public static boolean[] isConnected;
@@ -117,7 +116,6 @@ public class Communicator extends Thread {
 
                     outstream = new ObjectOutputStream(socket.getOutputStream());
                     instream = new ObjectInputStream(socket.getInputStream());
-
                 } catch (Exception e) {
                     e.printStackTrace();
                     Log.w(TAG, "Retrying for " + ip + "...");
@@ -176,7 +174,7 @@ public class Communicator extends Thread {
                 AdvancedMain.connectionChanged = true;
                 Controller.connectionChanged = true;
 
-                controller.adjustCamSettingsV4(workers, AdvancedMain.innerCam.camSettings, AdvancedMain.outerCam.camSettings);
+                controller.adjustCamSettingsV4(workers, AdvancedMain.innerCam.camParameter, AdvancedMain.outerCam.camParameter);
             }
 
             try {
@@ -203,19 +201,19 @@ public class Communicator extends Thread {
                 if (!worker.status.isConnected)
                     return;
 
-                Image2 data = (Image2) msg.obj;
+                FrameData data = (FrameData) msg.obj;
                 ObjectOutputStream outStream = worker.outstream;
 
                 if (data.isInner) {
                     worker.status.innerWaiting++;
-                    innerWaiting++;
                 }
                 else {
                     worker.status.outerWaiting++;
-                    outerWaiting++;
                 }
 
-                pendingDataSize += data.data.length;
+                synchronized (pendingDataSizeLock) {
+                    pendingDataSize += data.data.length;
+                }
 
                 data.coordinatorStartTime = System.currentTimeMillis();
 
@@ -244,16 +242,19 @@ public class Communicator extends Thread {
                 try {
                     WorkerResult res = (WorkerResult) worker.instream.readObject();
                     long endTime = System.currentTimeMillis();
-                    pendingDataSize -= res.dataSize;
+
+                    synchronized (pendingDataSizeLock) {
+                        pendingDataSize -= res.dataSize;
+                    }
 
                     if (res.isInner) {
                         worker.status.innerWaiting--;
-                        innerWaiting--;
                     }
                     else {
                         worker.status.outerWaiting--;
-                        outerWaiting--;
                     }
+
+                    worker.status.latestQueueSize = res.queueSize;
 
                     if (!res.success) {
                         Log.v(TAG, "Got a failed frame");
@@ -263,23 +264,13 @@ public class Communicator extends Thread {
 
                     long networkTime = (endTime - res.coordinatorStartTime) - res.totalTime;
                     long turnaround = endTime - res.coordinatorStartTime;
-                    //Log.d(TAG, "frame " + res.frameNumber + ": networkTime = (" + endTime + " - " + res.coordinatorStartTime + ") - " + res.totalTime + " = " + networkTime);
 
-                    FrameResult result = new FrameResult(
+                    AnalysisResult result = new AnalysisResult(
                             endTime, res.frameNum, res.cameraFrameNum, worker.workerNum, res.isInner,
                             res.totalTime, res.processTime, networkTime, turnaround, res.queueSize, res.energyConsumed);
                     FrameLogger.addResult(result, res.isDistracted, res.hazards, res.dataSize);
                     worker.status.addResult(result);
-
-                    /*AdvancedMain.processed++;
-                    if (res.isInner)
-                        AdvancedMain.innerCount++;
-                    else
-                        AdvancedMain.outerCount++;*/
-                    //TimeLog.coordinator.finish(res.cameraFrameNum + ""); // Finish
-                    //Log.d(TAG, "Got response from the server: isInner = "
-                    //+ res.isInner + ", frameNumber = " + res.frameNumber);
-                    //Log.d(TAG, res.msg);
+                    worker.status.temperature = res.temperature;
                 } catch(Exception e){
                     try {
                         Thread.sleep(1000);

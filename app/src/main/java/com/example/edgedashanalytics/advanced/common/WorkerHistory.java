@@ -1,13 +1,11 @@
 package com.example.edgedashanalytics.advanced.common;
 
-import android.util.Log;
-
 import java.util.ArrayDeque;
 import java.util.Deque;
 
 public class WorkerHistory {
     private static final String TAG = "WorkerHistory";
-    public Deque<FrameResult> history;
+    public Deque<AnalysisResult> history;
     public static final long HISTORY_DURATION = 2000;
 
     public double processTime;
@@ -28,9 +26,8 @@ public class WorkerHistory {
         totalNetworkTime = org.totalNetworkTime;
     }
 
-    public synchronized void addResult(FrameResult result) {
+    public synchronized void addResult(AnalysisResult result) {
         history.add(result);
-        //Log.v(TAG, "history added: size = " + history.size());
         totalProcessTime += result.processTime;
         totalNetworkTime += result.networkTime;
 
@@ -40,8 +37,7 @@ public class WorkerHistory {
     public synchronized void removeOldResults() {
         long curTime = System.currentTimeMillis();
         while (!history.isEmpty() && curTime - history.peek().timestamp > HISTORY_DURATION) {
-            FrameResult old = history.pop();
-            //Log.v(TAG, "Removing history: time = " + (curTime - old.timestamp));
+            AnalysisResult old = history.pop();
             totalProcessTime -= old.processTime;
             totalNetworkTime -= old.networkTime;
         }
@@ -53,6 +49,5 @@ public class WorkerHistory {
         int sz = history.size();
         if (sz != 0)
             processTime = (double) totalProcessTime / sz;
-        //Log.v(TAG, "processTime = " + processTime);
     }
 }

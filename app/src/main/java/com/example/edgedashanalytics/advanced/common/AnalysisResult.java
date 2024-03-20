@@ -1,6 +1,6 @@
 package com.example.edgedashanalytics.advanced.common;
 
-public class FrameResult {
+public class AnalysisResult {
     private static final String TAG = "FrameResult";
     public long timestamp;
     public int frameNum;
@@ -14,9 +14,8 @@ public class FrameResult {
     public long queueSize;
     public int powerConsumed;
 
-    public FrameResult(long timestamp, int frameNum, int cameraFrameNum, int workerNum, boolean isInner,
-                       long workerTime, long processTime, long networkTime, long turnaround, long queueSize, int powerConsumed) {
-        //Log.v(TAG, "processTime = " + processTime);
+    public AnalysisResult(long timestamp, int frameNum, int cameraFrameNum, int workerNum, boolean isInner,
+                          long workerTime, long processTime, long networkTime, long turnaround, long queueSize, int powerConsumed) {
         this.timestamp = timestamp;
         this.frameNum = frameNum;
         this.cameraFrameNum = cameraFrameNum;

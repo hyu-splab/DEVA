@@ -5,15 +5,11 @@ import android.os.Message;
 import android.util.Log;
 import android.util.Size;
 
-import com.example.edgedashanalytics.advanced.common.TimeLog;
 import com.example.edgedashanalytics.util.Constants;
 
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.Timer;
-import java.util.TimerTask;
 
 public class EDACam extends Thread {
     static final String TAG = "EDACam";
@@ -25,7 +21,7 @@ public class EDACam extends Thread {
     public ObjectInputStream inStream;
     public ObjectOutputStream outStream;
     private Socket socket;
-    public CamSettings camSettings;
+    public Parameter camParameter;
 
     public EDACam(Handler handler, String ip, boolean isInner) {
         // handler: the handler for the processing thread to hand over the image data
@@ -33,14 +29,13 @@ public class EDACam extends Thread {
         this.ip = ip;
         this.msgCode = isInner ? Constants.IMAGE_INNER : Constants.IMAGE_OUTER;
         this.socket = null;
-        camSettings = new CamSettings(isInner);
+        camParameter = new Parameter(isInner);
     }
 
     @Override
     public void run() {
         try {
             setup();
-            Log.v(TAG, "now starting doWork()");
             doWork();
         } catch (Exception e) {
             e.printStackTrace();
@@ -80,7 +75,6 @@ public class EDACam extends Thread {
         while (true) {
             int frameNum = inStream.readInt();
             byte[] data = (byte[]) inStream.readObject();
-            long sTime = System.currentTimeMillis();
             Message msg = Message.obtain();
             msg.arg1 = frameNum;
             msg.what = msgCode;
@@ -92,16 +86,11 @@ public class EDACam extends Thread {
     }
 
     public void sendSettings(ObjectOutputStream outputStream) {
-        //Log.v(TAG, "Sending settings (" + camSettings.getRQLevel() + "/" + camSettings.getRQListSize() + ")");
-        sendSettings(outputStream, camSettings.getR(), camSettings.getQ(), camSettings.getF());
+        sendSettings(outputStream, (int) Math.round(camParameter.fps));
     }
 
-    public static void sendSettings(ObjectOutputStream outputStream, Size resolution, int quality, int frameRate) {
+    public static void sendSettings(ObjectOutputStream outputStream, int frameRate) {
         try {
-            //Log.v(TAG, "Sending settings: " + resolution.getWidth() + " " + resolution.getHeight() + " " + quality + " " + frameRate);
-            outputStream.writeInt(resolution.getWidth());
-            outputStream.writeInt(resolution.getHeight());
-            outputStream.writeInt(quality);
             outputStream.writeInt(frameRate);
             outputStream.flush();
             outputStream.reset();

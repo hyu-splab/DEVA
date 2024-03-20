@@ -13,24 +13,18 @@ import com.example.edgedashanalytics.advanced.common.TestConfig;
 import com.example.edgedashanalytics.advanced.common.WorkerStatus;
 import com.example.edgedashanalytics.advanced.test.VideoTest;
 import com.example.edgedashanalytics.advanced.test.VideoTest2;
-import com.example.edgedashanalytics.advanced.worker.OuterProcessor;
-import com.example.edgedashanalytics.page.main.MainActivity;
 import com.example.edgedashanalytics.util.Constants;
-import com.example.edgedashanalytics.advanced.common.TimeLog;
-import com.example.edgedashanalytics.advanced.common.Image2;
+import com.example.edgedashanalytics.advanced.common.FrameData;
 import com.example.edgedashanalytics.advanced.worker.WorkerThread;
-import com.example.edgedashanalytics.util.hardware.PowerMonitor;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Queue;
 import java.util.StringTokenizer;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -42,6 +36,8 @@ public class AdvancedMain {
     public static int selectedCount = 0;
     public static boolean isFinished = false;
     public static HashMap<String, String> s22, splab, p6;
+    public static final int p6IP = 248;
+    public static String[] allDevices;
     public static boolean connectionChanged = false;
 
     public static EDACam innerCam, outerCam;
@@ -106,8 +102,19 @@ public class AdvancedMain {
         }
     }
 
+    public static void testAnalysisSpeed(Context context, int numFrames, int numTest) {
+        try {
+            new Thread(() -> {
+                VideoTest.testAnalysisSpeed(context, numFrames, new Size(1280, 720), 100, numTest);
+            }).start();;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     public static void advancedMain(Context context) {
         //if (true){createVideoAnalysisData(context); return;}
+        if (true) { testAnalysisSpeed(context, 100, 99999999); return; }
         try {
             testConfig = TestConfig.readConfigs(context);
 
@@ -117,22 +124,12 @@ public class AdvancedMain {
             e.printStackTrace();
         }
 
-        if (testConfig.isCoordinator)
-            N_THREAD--;
+        //if (testConfig.isCoordinator)
+        //    N_THREAD--;
 
         workerStart();
 
-        /*try {
-            Thread.sleep(1000);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        Log.v(TAG, "############################");
-        Log.v(TAG, "inputSize = " + OuterProcessor.inputSize);
-        Log.v(TAG, "############################");*/
-
         if (testConfig.isCoordinator) {
-            long timeStart = System.currentTimeMillis();
             run(context);
         }
     }
@@ -187,6 +184,10 @@ public class AdvancedMain {
 
         createDeviceList();
 
+        allDevices = new String[]{"oppo", "oneplus", "lineage2", "lineage"};
+        innerCamIP = p6.get("pixel5");
+        outerCamIP = p6.get("s22");
+
         new Timer().schedule(new TimerTask() {
             @Override
             public void run() {
@@ -210,9 +211,7 @@ public class AdvancedMain {
         new Timer().schedule(new TimerTask() {
             @Override
             public void run() {
-                /*controller.adjustCamSettingsV2(communicator.workers, innerCam.camSettings, outerCam.camSettings);
-                StatusLogger.log(innerCam, outerCam, communicator.workers);*/
-                controller.adjustCamSettingsV4(communicator.workers, innerCam.camSettings, outerCam.camSettings);
+                controller.adjustCamSettingsV4(communicator.workers, innerCam.camParameter, outerCam.camParameter);
             }
         }, CAMERA_ADJUSTMENT_PERIOD, CAMERA_ADJUSTMENT_PERIOD);
 
@@ -259,13 +258,9 @@ public class AdvancedMain {
         innerCam = new EDACam(handler, innerCamIP, true);
         innerCam.start();
 
-        Log.v(TAG, "innerCam created");
-
         // Outer DashCam
         outerCam = new EDACam(handler, outerCamIP, false);
         outerCam.start();
-
-        Log.v(TAG, "outerCam created");
 
         controller = new Controller(innerCam, outerCam);
     }
@@ -282,8 +277,6 @@ public class AdvancedMain {
             workerNames.add(name);
             communicator.addWorker(workerNum++, p.get(name));
         }
-
-        String[] allDevices = new String[]{"lineage2", "lineage", "pixel5"};
 
         for (String deviceName : allDevices) {
             if (!workerNames.contains(deviceName)) {
@@ -317,8 +310,6 @@ public class AdvancedMain {
 
         p6 = new HashMap<>();
 
-        int p6IP = 169;
-
         p6.put("self", "127.0.0.1");
         p6.put("lineage", "192.168." + p6IP + ".163");
         p6.put("oneplus", "192.168." + p6IP + ".191");
@@ -327,9 +318,6 @@ public class AdvancedMain {
         p6.put("pixel5", "192.168." + p6IP + ".201");
         p6.put("lineage2", "192.168." + p6IP + ".213");
         p6.put("s22", "192.168." + p6IP + ".6");
-
-        innerCamIP = p6.get("oneplus");
-        outerCamIP = p6.get("s22");
     }
 
     public static void workerStart() {
@@ -450,7 +438,7 @@ public class AdvancedMain {
             Message senderMessage = Message.obtain();
             senderMessage.what = 999;
             senderMessage.arg1 = bestWorker;
-            senderMessage.obj = new Image2(isInner, totalCount, inputMessage.arg1, (byte[]) inputMessage.obj);
+            senderMessage.obj = new FrameData(isInner, totalCount, inputMessage.arg1, (byte[]) inputMessage.obj);
 
             communicatorHandler.sendMessage(senderMessage);
         }

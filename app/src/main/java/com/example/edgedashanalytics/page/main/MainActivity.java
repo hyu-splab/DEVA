@@ -13,10 +13,10 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
+import android.os.HardwarePropertiesManager;
 import android.os.Message;
 import android.provider.Settings;
 import android.util.Log;
-import android.util.Size;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.WindowManager;
@@ -33,7 +33,6 @@ import com.example.edgedashanalytics.BuildConfig;
 import com.example.edgedashanalytics.R;
 import com.example.edgedashanalytics.advanced.coordinator.FrameLogger;
 import com.example.edgedashanalytics.advanced.coordinator.StatusLogger;
-import com.example.edgedashanalytics.advanced.test.VideoTest;
 import com.example.edgedashanalytics.data.result.ResultRepository;
 import com.example.edgedashanalytics.data.video.ExternalStorageVideosRepository;
 import com.example.edgedashanalytics.data.video.ProcessingVideosRepository;
@@ -47,7 +46,6 @@ import com.example.edgedashanalytics.advanced.coordinator.AdvancedMain;
 import com.example.edgedashanalytics.util.dashcam.DashCam;
 import com.example.edgedashanalytics.util.file.FileManager;
 import com.example.edgedashanalytics.util.hardware.PowerMonitor;
-import com.example.edgedashanalytics.advanced.common.TimeLog;
 import com.example.edgedashanalytics.util.nearby.Endpoint;
 import com.example.edgedashanalytics.util.nearby.NearbyFragment;
 import com.example.edgedashanalytics.util.video.eventhandler.ProcessingVideosEventHandler;
@@ -55,10 +53,10 @@ import com.example.edgedashanalytics.util.video.eventhandler.RawVideosEventHandl
 import com.example.edgedashanalytics.util.video.eventhandler.ResultEventHandler;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
-import java.io.File;
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.text.SimpleDateFormat;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.Locale;
 import java.util.Timer;
@@ -79,6 +77,10 @@ public class MainActivity extends AppCompatActivity implements
     private Fragment activeFragment;
     public static Context context;
     public static int startBatteryLevel;
+
+    public static int cpuTemperatureIndex = -1;
+    public static int cpuTemperature = -1;
+
 
     class MainHandler extends Handler {
         @Override
@@ -149,24 +151,16 @@ public class MainActivity extends AppCompatActivity implements
         mainHandler = new MainHandler();
 
         TextView textViewTimer = findViewById(R.id.textViewTimer);
-        TextView textViewStatus = findViewById(R.id.textViewStatus);
+        //TextView textViewStatus = findViewById(R.id.textViewStatus);
 
-        findViewById(R.id.buttonStart).setOnClickListener(view -> {
-            runTests();
-            /*Log.d(TAG, "Start");
-            long timeStart = System.currentTimeMillis();
-            new Timer().schedule(new TimerTask() {
-                @Override
-                public void run() {
-                    textViewTimer.setText(String.format(Locale.getDefault(),
-                            "%.1f", (double)(System.currentTimeMillis() - timeStart) / 1000));
-                    String statusText = StatusLogger.getLatestLogText();
-                    textViewStatus.setText(statusText);
-                }
-            }, 100, 100);
-
-            AdvancedMain.run(getApplicationContext());*/
-        });
+        long timeStart = System.currentTimeMillis();
+        new Timer().schedule(new TimerTask() {
+            @Override
+            public void run() {
+                textViewTimer.setText(String.format(Locale.getDefault(),
+                        "%.1f", (double)(System.currentTimeMillis() - timeStart) / 1000));
+            }
+        }, 100, 100);
 
         findViewById(R.id.buttonStop).setOnClickListener(view -> {
             StatusLogger.writeLogs(getApplicationContext(), -1);
@@ -184,7 +178,6 @@ public class MainActivity extends AppCompatActivity implements
         });
 
         context = getApplicationContext();
-        TimeLog.context = context;
 
         /*File path = getApplicationContext().getExternalFilesDir(null);
         new File(path, "wlog.txt").delete();
@@ -198,6 +191,66 @@ public class MainActivity extends AppCompatActivity implements
         FileManager.initialiseDirectories();
         storeLogsInFile();
         DashCam.setup(this);
+
+        try {
+            for (int i = 0; i < 200; i++) {
+                Process process1 = Runtime.getRuntime().exec("cat sys/class/thermal/thermal_zone" + i + "/temp");
+                Process process2 = Runtime.getRuntime().exec("cat sys/class/thermal/thermal_zone" + i + "/type");
+                process1.waitFor();
+                process2.waitFor();
+
+                BufferedReader br = new BufferedReader(new InputStreamReader(process1.getInputStream()));
+                String line = br.readLine();
+                if (line == null) {
+                    br.close();
+                    continue;
+                }
+
+                int temp = Integer.parseInt(line);
+                br.close();
+
+                br = new BufferedReader(new InputStreamReader(process2.getInputStream()));
+                String type = br.readLine();
+                br.close();
+
+                if (type.equals("cpu-0-0-usr")) {
+                    cpuTemperatureIndex = i;
+                    cpuTemperature = temp;
+                    break;
+                }
+            }
+
+            new Timer().schedule(new TimerTask() {
+                @Override
+                public void run() {
+                    try {
+                        Process process1 = Runtime.getRuntime().exec("cat sys/class/thermal/thermal_zone" + cpuTemperatureIndex + "/temp");
+                        process1.waitFor();
+
+                        BufferedReader br = new BufferedReader(new InputStreamReader(process1.getInputStream()));
+                        String line = br.readLine();
+                        if (line == null) {
+                            br.close();
+                            Log.w(TAG, "What? CPU temperature information is not available!");
+                            return;
+                        }
+
+                        int temp = Integer.parseInt(line);
+                        br.close();
+
+                        cpuTemperature = temp;
+
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+            }, 500, 500);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+
 
         startBatteryLevel = PowerMonitor.getBatteryLevel(context);
         AdvancedMain.advancedMain(getApplicationContext());

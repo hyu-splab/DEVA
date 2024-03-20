@@ -9,12 +9,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class DistributionLogger {
-    private static final String TAG = "StatusLogger";
+    private static final String TAG = "DistributionLogger";
 
     public static final List<DistributionLog> logs = new ArrayList<>();
 
     public static void addLog(ArrayList<Double> workerWeight, ArrayList<Integer> sequence) {
-        logs.add(new DistributionLog(workerWeight, sequence));
+        synchronized (logs) {
+            logs.add(new DistributionLog(workerWeight, sequence));
+        }
     }
 
     public static void writeLogs(Context context, int testNum) {

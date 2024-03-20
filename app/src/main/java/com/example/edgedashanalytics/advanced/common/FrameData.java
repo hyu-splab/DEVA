@@ -2,7 +2,7 @@ package com.example.edgedashanalytics.advanced.common;
 
 import java.io.Serializable;
 
-public class Image2 implements Serializable {
+public class FrameData implements Serializable {
     public boolean isInner;
     public int frameNum;
     public int cameraFrameNum;
@@ -12,7 +12,7 @@ public class Image2 implements Serializable {
     public long dataSize;
     public boolean isTesting = false;
 
-    public Image2(boolean isInner, int frameNum, int cameraFrameNum, byte[] data) {
+    public FrameData(boolean isInner, int frameNum, int cameraFrameNum, byte[] data) {
         this.isInner = isInner;
         this.frameNum = frameNum;
         this.cameraFrameNum = cameraFrameNum;

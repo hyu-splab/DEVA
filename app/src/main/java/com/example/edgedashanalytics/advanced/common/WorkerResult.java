@@ -18,29 +18,41 @@ public class WorkerResult implements Serializable {
     public boolean isDistracted; // Used only for inner
     public List<String> hazards; // Used only for outer
     public int energyConsumed;
+    public int temperature;
 
-    public WorkerResult(boolean isInner, long coordinatorStartTime, int frameNum, int cameraFrameNum,
-                        long processTime, long totalTime, String msg, long dataSize, long queueSize,
-                        boolean isDistracted, List<String> hazards, int energyConsumed) {
-        this.success = true;
-        this.isInner = isInner;
-        this.coordinatorStartTime = coordinatorStartTime;
-        this.frameNum = frameNum;
-        this.cameraFrameNum = cameraFrameNum;
-        this.processTime = processTime;
-        this.totalTime = totalTime;
-        this.msg = msg;
-        this.dataSize = dataSize;
-        this.queueSize = queueSize;
-        this.isDistracted = isDistracted;
-        this.hazards = hazards;
-        this.energyConsumed = energyConsumed;
+    public WorkerResult() {
+
     }
 
-    public WorkerResult(boolean isInner, long dataSize, int energyConsumed) {
-        this.success = false;
-        this.isInner = isInner;
-        this.dataSize = dataSize;
-        this.energyConsumed = energyConsumed;
+    public static WorkerResult createResult(boolean isInner, long coordinatorStartTime, int frameNum, int cameraFrameNum,
+                                            long processTime, long totalTime, String msg, long dataSize, long queueSize,
+                                            boolean isDistracted, List<String> hazards, int energyConsumed, int temperature) {
+        WorkerResult res = new WorkerResult();
+        res.success = true;
+        res.isInner = isInner;
+        res.coordinatorStartTime = coordinatorStartTime;
+        res.frameNum = frameNum;
+        res.cameraFrameNum = cameraFrameNum;
+        res.processTime = processTime;
+        res.totalTime = totalTime;
+        res.msg = msg;
+        res.dataSize = dataSize;
+        res.queueSize = queueSize;
+        res.isDistracted = isDistracted;
+        res.hazards = hazards;
+        res.energyConsumed = energyConsumed;
+        res.temperature = temperature;
+        return res;
+    }
+
+    public static WorkerResult createFailedResult(boolean isInner, long dataSize, long queueSize, int energyConsumed, int temperature) {
+        WorkerResult res = new WorkerResult();
+        res.success = false;
+        res.isInner = isInner;
+        res.dataSize = dataSize;
+        res.queueSize = queueSize;
+        res.energyConsumed = energyConsumed;
+        res.temperature = temperature;
+        return res;
     }
 }

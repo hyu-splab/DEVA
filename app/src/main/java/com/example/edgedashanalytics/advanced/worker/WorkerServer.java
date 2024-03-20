@@ -9,8 +9,7 @@ import com.example.edgedashanalytics.advanced.common.CoordinatorMessage;
 import com.example.edgedashanalytics.advanced.coordinator.AdvancedMain;
 import com.example.edgedashanalytics.page.main.MainActivity;
 import com.example.edgedashanalytics.util.Constants;
-import com.example.edgedashanalytics.advanced.common.TimeLog;
-import com.example.edgedashanalytics.advanced.common.Image2;
+import com.example.edgedashanalytics.advanced.common.FrameData;
 import com.example.edgedashanalytics.advanced.common.WorkerResult;
 
 import java.io.IOException;
@@ -18,8 +17,6 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.Timer;
-import java.util.TimerTask;
 
 public class WorkerServer {
     private static final String TAG = "WorkerServer";
@@ -62,18 +59,13 @@ public class WorkerServer {
                         public void handleMessage(Message msg) {
                             try {
                                 WorkerResult res = (WorkerResult) msg.obj;
-                                //Log.v(TAG, "Frame " + res.frameNum + ": isInner = " + res.isInner + ", hazards is null = " + (res.hazards == null));
                                 if (res.isInner)
                                     innerCount++;
                                 else
                                     outerCount++;
 
-                                // Log.d(TAG, "processTime = " + res.processTime);
-
-                                //TimeLog.worker.add(res.frameNum + ""); // Return Result
                                 outstream.writeObject(res);
                                 outstream.flush();
-                                //TimeLog.worker.finish(res.frameNum + ""); // After send
                             } catch (IOException e) {
                                 throw new RuntimeException(e);
                             }
@@ -103,19 +95,10 @@ public class WorkerServer {
                             continue;
                         }
 
-                        Image2 image = (Image2) cMsg.data;
+                        FrameData image = (FrameData) cMsg.data;
                         image.workerStartTime = System.currentTimeMillis();
                         if (AdvancedMain.isFinished)
                             continue;
-                        /*if (cnt == 0) {
-                            new Timer().schedule(new TimerTask() {
-                                @Override
-                                public void run() {
-                                    TimeLog.worker.writeLogs();
-                                }
-                            }, Constants.EXPERIMENT_DURATION);
-                        }*/
-                        //TimeLog.worker.start(image.frameNum + ""); // Enqueue
                         cnt++;
 
                         ProcessorThread.queue.offer(image);

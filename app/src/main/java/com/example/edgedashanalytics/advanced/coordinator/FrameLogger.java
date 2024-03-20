@@ -3,7 +3,7 @@ package com.example.edgedashanalytics.advanced.coordinator;
 import android.content.Context;
 import android.util.Log;
 
-import com.example.edgedashanalytics.advanced.common.FrameResult;
+import com.example.edgedashanalytics.advanced.common.AnalysisResult;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -16,7 +16,7 @@ import java.util.Locale;
 public class FrameLogger {
     private static final String TAG = "FrameLogger";
 
-    public static final List<FrameResult> results = new ArrayList<>();
+    public static final List<AnalysisResult> results = new ArrayList<>();
 
     public static final InnerResult innerResult = new InnerResult();
     public static final OuterResult outerResult = new OuterResult();
@@ -24,17 +24,13 @@ public class FrameLogger {
     public static InnerResult baseInnerResult;
     public static OuterResult baseOuterResult;
 
-    public static void addResult(FrameResult result, boolean isDistracted, List<String> hazards, long dataSize) {
+    public static void addResult(AnalysisResult result, boolean isDistracted, List<String> hazards, long dataSize) {
         synchronized (results) {
             results.add(result);
-            //Log.v(TAG, "addResult: " + result.frameNum + " " + result.isInner + " " + (hazards == null));
             if (result.isInner) {
                 innerResult.addResult(result.cameraFrameNum, isDistracted);
             }
             else {
-                if (hazards == null) {
-                    Log.v(TAG, "How is hazards null???????????");
-                }
                 outerResult.addResult(result.cameraFrameNum, hazards, dataSize, result.workerNum);
             }
         }
@@ -65,7 +61,7 @@ public class FrameLogger {
             long totalWorkerTime = 0, totalProcessTime = 0, totalNetworkTime = 0, totalTurnAround = 0, totalQueueSize = 0;
             long inCount = 0, outCount = 0;
 
-            for (FrameResult result : results) {
+            for (AnalysisResult result : results) {
                 sb.append(result.cameraFrameNum).append(",")
                         .append(result.timestamp - startTime).append(",")
                         .append(result.isInner ? "in" : "out").append(",")
@@ -95,16 +91,9 @@ public class FrameLogger {
                     .append(D(totalQueueSize / (double)numResults, 2)).append("\n");
 
             sb.append("\n");
+            sb.append("Dropped,").append(Communicator.failed).append("\n");
 
             sb.append("in/out,").append(inCount).append(",").append(outCount).append("\n");
-
-
-            /*for (OuterResult.Result result : outerResult.results) {
-                sb.append(result.frameNum).append(",").append(result.dataSize).append(",").append(result.hazards.size());
-                for (String hazard : result.hazards)
-                    sb.append(",").append(hazard);
-                sb.append("\n");
-            }*/
 
             sb.append("I.Accuracy,")
                     .append(innerAccuracyResult.count).append(",")

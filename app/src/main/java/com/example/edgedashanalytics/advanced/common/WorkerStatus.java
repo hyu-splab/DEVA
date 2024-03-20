@@ -1,7 +1,5 @@
 package com.example.edgedashanalytics.advanced.common;
 
-import android.util.Log;
-
 public class WorkerStatus {
     private static final String TAG = "WorkerStatus";
     // 20 for lightning, 50 for thunder
@@ -10,17 +8,21 @@ public class WorkerStatus {
     private static final double DEFAULT_OUTER_PROCESS_TIME = 200;
     public WorkerHistory innerHistory, outerHistory;
     public int innerWaiting, outerWaiting;
+    public long latestQueueSize;
     public double networkTime;
     public boolean isConnected;
+    public int temperature;
 
     public WorkerStatus() {
         innerHistory = new WorkerHistory((int)DEFAULT_INNER_PROCESS_TIME);
         outerHistory = new WorkerHistory((int)DEFAULT_OUTER_PROCESS_TIME);
         innerWaiting = outerWaiting = 0;
         networkTime = 0;
+        latestQueueSize = 0;
     }
 
     public WorkerStatus(WorkerStatus org) {
+        temperature = org.temperature;
         innerHistory = new WorkerHistory(org.innerHistory);
         outerHistory = new WorkerHistory(org.outerHistory);
         innerWaiting = org.innerWaiting;
@@ -29,7 +31,7 @@ public class WorkerStatus {
         isConnected = org.isConnected;
     }
 
-    public synchronized void addResult(FrameResult result) {
+    public synchronized void addResult(AnalysisResult result) {
         WorkerHistory history = result.isInner ? innerHistory : outerHistory;
         history.addResult(result);
         calcNetworkTime();

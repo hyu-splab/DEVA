@@ -1,7 +1,5 @@
 package com.example.edgedashanalytics.advanced.test;
 
-import static com.example.edgedashanalytics.advanced.coordinator.AdvancedMain.workerStart;
-
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -9,13 +7,11 @@ import android.media.MediaMetadataRetriever;
 import android.util.Log;
 import android.util.Size;
 
-import com.example.edgedashanalytics.advanced.common.Image2;
-import com.example.edgedashanalytics.advanced.common.TimeLog;
+import com.example.edgedashanalytics.advanced.common.FrameData;
 import com.example.edgedashanalytics.advanced.coordinator.AdvancedMain;
 import com.example.edgedashanalytics.advanced.worker.ProcessorThread;
 import com.example.edgedashanalytics.util.video.analysis.Frame;
 import com.example.edgedashanalytics.util.video.analysis.InnerAnalysis;
-import com.example.edgedashanalytics.util.video.analysis.InnerFrame;
 import com.example.edgedashanalytics.util.video.analysis.OuterAnalysis;
 import com.example.edgedashanalytics.util.video.analysis.VideoAnalysis;
 
@@ -215,7 +211,7 @@ public class VideoTest {
         Log.w(TAG, sb.toString());
     }
 
-    public static void testAnalysisSpeed(Context context, int numFrames, Size resolution, int quality) {
+    public static void testAnalysisSpeed(Context context, int numFrames, Size resolution, int quality, int numTest) {
         final String innerVideoFileName = "video2.mp4";
         final String outerVideoFileName = "video.mov";
 
@@ -223,15 +219,15 @@ public class VideoTest {
 
         AdvancedMain.workerStart();
 
-        byte[][] innerBitmaps = getScaledBitmaps(context, innerVideoFileName, numFrames, resolution, quality);
+        //byte[][] innerBitmaps = getScaledBitmaps(context, innerVideoFileName, numFrames, resolution, quality);
         byte[][] outerBitmaps = getScaledBitmaps(context, outerVideoFileName, numFrames, resolution, quality);
 
         long startTime, endTime, duration;
 
-        Log.v(TAG, "inner-only test");
+        /*Log.v(TAG, "inner-only test");
         startTime = System.currentTimeMillis();
         for (int i = 0; i < numFrames; i++) {
-            Image2 image = new Image2(true, i, i, innerBitmaps[i]);
+            FrameData image = new FrameData(true, i, i, innerBitmaps[i]);
             image.isTesting = true;
             try {
                 ProcessorThread.queue.put(image);
@@ -248,14 +244,17 @@ public class VideoTest {
         }
         endTime = System.currentTimeMillis();
         duration = endTime - startTime;
-        sb.append("inner-only test: ").append(duration).append(" ms, avg: ").append(1000.0 * numFrames / duration).append(" fps\n");
+        sb.append("inner-only test: ").append(duration).append(" ms, avg: ").append(1000.0 * numFrames / duration).append(" fps\n");*/
 
         Log.v(TAG, "outer-only test");
         startTime = System.currentTimeMillis();
-        for (int i = 0; i < numFrames; i++) {
-            Image2 image = new Image2(false, i, i, outerBitmaps[i]);
+        for (int i = 0; i < numTest; i++) {
+            FrameData image = new FrameData(false, i, i, outerBitmaps[i % numFrames]);
             image.isTesting = true;
             try {
+                while (ProcessorThread.queue.size() > 10) {
+                    Thread.sleep(100);
+                }
                 ProcessorThread.queue.put(image);
             } catch (Exception e) {
                 e.printStackTrace();
@@ -272,11 +271,11 @@ public class VideoTest {
         duration = endTime - startTime;
         sb.append("outer-only test: ").append(duration).append(" ms, avg: ").append(1000.0 * numFrames / duration).append(" fps\n");
 
-        Log.v(TAG, "alternating test");
+        /*Log.v(TAG, "alternating test");
         startTime = System.currentTimeMillis();
         for (int i = 0; i < numFrames; i++) {
-            Image2 image = new Image2(true, i, i, innerBitmaps[i]);
-            Image2 image2 = new Image2(false, i, i, outerBitmaps[i]);
+            FrameData image = new FrameData(true, i, i, innerBitmaps[i]);
+            FrameData image2 = new FrameData(false, i, i, outerBitmaps[i]);
             image.isTesting = image2.isTesting = true;
             try {
                 ProcessorThread.queue.put(image);
@@ -294,7 +293,7 @@ public class VideoTest {
         }
         endTime = System.currentTimeMillis();
         duration = endTime - startTime;
-        sb.append("alternating test: ").append(duration).append(" ms, avg: ").append(1000.0 * numFrames * 2 / duration).append(" fps\n");
+        sb.append("alternating test: ").append(duration).append(" ms, avg: ").append(1000.0 * numFrames * 2 / duration).append(" fps\n");*/
 
         Log.w(TAG, sb.toString());
     }
