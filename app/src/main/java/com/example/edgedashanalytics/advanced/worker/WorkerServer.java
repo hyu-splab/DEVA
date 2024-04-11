@@ -6,6 +6,7 @@ import android.os.Message;
 import android.util.Log;
 
 import com.example.edgedashanalytics.advanced.common.CoordinatorMessage;
+import com.example.edgedashanalytics.advanced.common.WorkerInitialInfo;
 import com.example.edgedashanalytics.advanced.coordinator.AdvancedMain;
 import com.example.edgedashanalytics.page.main.MainActivity;
 import com.example.edgedashanalytics.util.Constants;
@@ -52,6 +53,8 @@ public class WorkerServer {
                 ObjectInputStream instream = new ObjectInputStream(socket.getInputStream());
                 ObjectOutputStream outstream = new ObjectOutputStream(socket.getOutputStream());
 
+                outstream.writeObject(new WorkerInitialInfo(MainActivity.temperatureNames, MainActivity.frequencyNames));
+
                 Thread resThread = new Thread(() -> {
                     Looper.prepare();
                     inHandler = new Handler(Looper.myLooper()) {
@@ -76,11 +79,9 @@ public class WorkerServer {
                 resThread.start();
 
                 try {
-                    int cnt = 0;
                     while (true) {
                         CoordinatorMessage cMsg = (CoordinatorMessage) instream.readObject();
 
-                        long sTime = System.currentTimeMillis();
                         if (cMsg.type != 1) {
                             Message mainMsg = Message.obtain();
                             mainMsg.arg1 = cMsg.type;
@@ -96,13 +97,17 @@ public class WorkerServer {
                         }
 
                         FrameData image = (FrameData) cMsg.data;
+
+                        if (image.isBusy != AdvancedMain.isBusy) {
+                            Log.v(TAG, "isBusy status changed to " + (image.isBusy ? "busy" : "free"));
+                            AdvancedMain.isBusy = image.isBusy;
+                        }
+
                         image.workerStartTime = System.currentTimeMillis();
                         if (AdvancedMain.isFinished)
                             continue;
-                        cnt++;
 
                         ProcessorThread.queue.offer(image);
-                        long eTime = System.currentTimeMillis();
                     }
                 } catch (Exception e) {
                     e.printStackTrace();

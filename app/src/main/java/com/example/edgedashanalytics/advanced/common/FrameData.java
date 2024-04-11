@@ -1,5 +1,10 @@
 package com.example.edgedashanalytics.advanced.common;
 
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.Serializable;
 
 public class FrameData implements Serializable {
@@ -11,12 +16,28 @@ public class FrameData implements Serializable {
     public byte[] data;
     public long dataSize;
     public boolean isTesting = false;
+    public boolean isBusy;
 
-    public FrameData(boolean isInner, int frameNum, int cameraFrameNum, byte[] data) {
+    public FrameData(boolean isInner, int frameNum, int cameraFrameNum, byte[] data, boolean isBusy) {
         this.isInner = isInner;
         this.frameNum = frameNum;
         this.cameraFrameNum = cameraFrameNum;
         this.data = data;
         this.dataSize = data.length;
+        this.isBusy = isBusy;
+    }
+
+    private static FrameData meaninglessFrame;
+    public static FrameData getMeaninglessFrame() {
+        if (meaninglessFrame == null) {
+            Bitmap bitmap = Bitmap.createBitmap(1280, 720, Bitmap.Config.ARGB_8888);
+            BitmapFactory.Options ops = new BitmapFactory.Options();
+            ops.inMutable = true;
+            ByteArrayOutputStream outStream = new ByteArrayOutputStream();
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 100, outStream);
+            byte[] data = outStream.toByteArray();
+            meaninglessFrame = new FrameData(false, -1, -1, data, true);
+        }
+        return meaninglessFrame;
     }
 }

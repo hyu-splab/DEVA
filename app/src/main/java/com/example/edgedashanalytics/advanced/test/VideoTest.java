@@ -226,10 +226,13 @@ public class VideoTest {
 
         /*Log.v(TAG, "inner-only test");
         startTime = System.currentTimeMillis();
-        for (int i = 0; i < numFrames; i++) {
-            FrameData image = new FrameData(true, i, i, innerBitmaps[i]);
+        for (int i = 0; i < numTest; i++) {
+            FrameData image = new FrameData(true, i, i, innerBitmaps[i % numFrames], false);
             image.isTesting = true;
             try {
+                while (ProcessorThread.queue.size() > 10) {
+                    Thread.sleep(100);
+                }
                 ProcessorThread.queue.put(image);
             } catch (Exception e) {
                 e.printStackTrace();
@@ -249,7 +252,7 @@ public class VideoTest {
         Log.v(TAG, "outer-only test");
         startTime = System.currentTimeMillis();
         for (int i = 0; i < numTest; i++) {
-            FrameData image = new FrameData(false, i, i, outerBitmaps[i % numFrames]);
+            FrameData image = new FrameData(false, i, i, outerBitmaps[i % numFrames], false);
             image.isTesting = true;
             try {
                 while (ProcessorThread.queue.size() > 10) {

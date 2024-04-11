@@ -1,6 +1,9 @@
 package com.example.edgedashanalytics.advanced.coordinator;
 
 import static com.example.edgedashanalytics.advanced.coordinator.AdvancedMain.communicator;
+import static com.example.edgedashanalytics.advanced.coordinator.AdvancedMain.testConfig;
+import static com.example.edgedashanalytics.advanced.coordinator.DeviceLogger.DeviceLog;
+import static com.example.edgedashanalytics.advanced.coordinator.DeviceLogger.DeviceLog.IndividualDeviceLog;
 
 import android.os.HardwarePropertiesManager;
 import android.util.Log;
@@ -8,24 +11,25 @@ import android.util.Log;
 import com.example.edgedashanalytics.advanced.common.WorkerStatus;
 import com.example.edgedashanalytics.page.main.MainActivity;
 
+import java.util.ArrayList;
 import java.util.List;
 
-public class Controller {
+public class Controller extends Thread {
     private static final String TAG = "Controller";
     private final EDACam innerCam, outerCam;
     private long prevTotalDataSize;
 
     // when inner + outer is 20 fps
-    private static final double TOO_MANY_WAITING = 3;
+    private static final double TOO_MANY_WAITING = 2;
     private static final double TOO_FEW_WAITING = 0.1;
-    private static final long TOO_MUCH_PENDING = 10000000;
-    private static final long TOO_LITTLE_PENDING = 500000;
 
     public static int lastAction = 0;
 
     public static long prevPendingDataSize = 0;
 
     public static boolean connectionChanged = false;
+    public static double performanceLostRatio;
+    public static int deviceAdded;
 
     public Controller(EDACam innerCam, EDACam outerCam) {
         this.innerCam = innerCam;
@@ -33,10 +37,44 @@ public class Controller {
         prevPendingDataSize = 0;
     }
 
+    private static final long CAMERA_ADJUSTMENT_PERIOD = 500;
+    public List<EDAWorker> workers;
+    public Parameter innerCamParameter, outerCamParameter;
+    public boolean checkNeeded;
+    private long startTime, nextCheckpoint;
+    public static int sensitive;
+
+    @Override
+    public void run() {
+        checkNeeded = false;
+        startTime = System.currentTimeMillis();
+        MainActivity.readDeviceStatus(startTime);
+        nextCheckpoint = startTime + CAMERA_ADJUSTMENT_PERIOD;
+        try {
+            Thread.sleep(CAMERA_ADJUSTMENT_PERIOD);
+            while (true) {
+                long curTime = System.currentTimeMillis();
+                if (checkNeeded || curTime >= nextCheckpoint) {
+                    if (testConfig.isCoordinator) {
+                        adjustCamSettingsV4();
+                    }
+                    checkNeeded = false;
+                    if (curTime >= nextCheckpoint) {
+                        //MainActivity.readDeviceStatus(nextCheckpoint);
+                        nextCheckpoint += CAMERA_ADJUSTMENT_PERIOD;
+                    }
+                }
+                Thread.sleep(50);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     /*
     19/02/2014: Resolution and Quality are fixed, only modify frame rate
      */
-    public void adjustCamSettingsV4(List<EDAWorker> workers, Parameter innerCamParameter, Parameter outerCamParameter) {
+    public void adjustCamSettingsV4() {
         int availableWorkers = Communicator.availableWorkers;
         long pendingDataSize = communicator.pendingDataSize;
         long totalDataSize = communicator.totalDataSize;
@@ -61,12 +99,12 @@ public class Controller {
                 }
             }
 
-            int totalWaiting = innerWaiting + outerWaiting;
+            int totalWaiting;
             double currentFPS = innerCamParameter.fps + outerCamParameter.fps;
 
             totalWaiting = (int)totalQueueSize;
 
-            double weightedWaiting = (20.0 / currentFPS) * totalWaiting;
+            double weightedWaiting = (20.0 / currentFPS) * totalWaiting / (1 + (0.5 * (availableWorkers - 1)));
             //double weightedPending = pendingDataSize;
 
             Log.v(TAG, "FPS = " + currentFPS + ", waiting = " + totalWaiting + ", available = " + availableWorkers + ", weighted = " + weightedWaiting);
@@ -75,13 +113,6 @@ public class Controller {
             boolean networkSlow = weightedWaiting > TOO_MANY_WAITING; // || weightedPending > TOO_MUCH_PENDING;
             /* 2 */
             boolean networkFast = weightedWaiting < TOO_FEW_WAITING; // && weightedPending < TOO_LITTLE_PENDING;
-
-            StringBuilder sb = new StringBuilder();
-
-            for (int i = 0; i < workers.size(); i++)
-                sb.append(" ").append(workers.get(i).status.isConnected ? 1 : 0);
-
-            Log.v(TAG, sb.toString());
 
             final double outerPrioritizing = 1.5;
 
@@ -97,7 +128,9 @@ public class Controller {
                 if (lastAction != 1) {
                     lastAction = 1;
                     if (innerCamParameter.fps * outerPrioritizing < outerCamParameter.fps) {
-                        innerCamParameter.increase();
+                        if (innerCamParameter.increase() == 0) {
+                            outerCamParameter.increase();
+                        };
                     } else {
                         if (outerCamParameter.increase() == 0) {
                             innerCamParameter.increase();
@@ -115,7 +148,7 @@ public class Controller {
 
             int networkLevel = (networkSlow ? 0 : networkFast ? 2 : 1);
 
-            StatusLogger.log(innerCam, outerCam, workers, sizeDelta, networkLevel);
+            StatusLogger.log(innerCam, outerCam, workers, nextCheckpoint - startTime, sizeDelta, networkLevel);
         }
 
         if (innerCam.outStream != null) {
@@ -125,18 +158,37 @@ public class Controller {
             outerCam.sendSettings(outerCam.outStream);
         }
 
+        ArrayList<IndividualDeviceLog> logs = new ArrayList<>();
         for (EDAWorker worker : workers) {
             worker.status.innerHistory.removeOldResults();
             worker.status.outerHistory.removeOldResults();
             worker.status.calcNetworkTime();
+
+            IndividualDeviceLog log = new IndividualDeviceLog(worker.status.temperatures, worker.status.frequencies);
+            logs.add(log);
         }
+        DeviceLogger.addLog(new DeviceLog(nextCheckpoint - startTime, logs));
+
+        if (sensitive > 0)
+            sensitive--;
     }
 
     private void setDefaultFPS(Parameter innerCamParameter, Parameter outerCamParameter) {
-        int inF = Communicator.availableWorkers * 2 + 1;
-        int outF = (int)(inF * 1.5);
+
+        double totalFPS = innerCamParameter.fps + outerCamParameter.fps;
+
+        if (performanceLostRatio > 0) {
+            totalFPS = Math.max(6, totalFPS * (1 - performanceLostRatio));
+        }
+
+        totalFPS += deviceAdded * 6;
+
+        int inF = (int)Math.round(totalFPS / 3);
+        int outF = (int)Math.round(totalFPS * 2 / 3);
         innerCamParameter.fps = inF;
         outerCamParameter.fps = outF;
+
+        sensitive = 10; // double rate change for 10 / 2 = 5 seconds
     }
 
     public void sendRestartMessages(EDACam innerCam, EDACam outerCam) {

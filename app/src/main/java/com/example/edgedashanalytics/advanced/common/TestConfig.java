@@ -73,7 +73,8 @@ public class TestConfig {
         String line;
         boolean first = true;
 
-        EXPERIMENT_DURATION = ri(new StringTokenizer(br.readLine())) * 1000L;
+        // It's common that ~2s of log at the end is missing because of various preparation phases
+        EXPERIMENT_DURATION = (ri(new StringTokenizer(br.readLine())) + 5) * 1000L;
         bw.write(EXPERIMENT_DURATION / 1000 + "\n");
 
         int testNum = -1;
@@ -100,8 +101,11 @@ public class TestConfig {
                     connectionTimestamps[i] = new ArrayList<>();
                     workerNameList[i] = rs(st);
                     int numTimestamps = ri(st);
-                    for (int j = 0; j < numTimestamps; j++)
-                        connectionTimestamps[i].add(ri(st) * 1000);
+                    for (int j = 0; j < numTimestamps; j++) {
+                        int ts = ri(st);
+                        Log.v(TAG, "timestamp = " + ts);
+                        connectionTimestamps[i].add(ts * 1000);
+                    }
                 }
             }
             else {

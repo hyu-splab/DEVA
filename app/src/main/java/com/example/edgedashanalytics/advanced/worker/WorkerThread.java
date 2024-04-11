@@ -5,7 +5,7 @@ import android.os.Handler;
 public class WorkerThread extends Thread {
     private static final String TAG = "WorkerThread";
     private static WorkerServer workerServer = null;
-    public static int N_THREAD = 1;
+    public static int N_THREAD = 2;
 
     public static ProcessorThread[] pt;
     public WorkerThread() {
@@ -13,8 +13,8 @@ public class WorkerThread extends Thread {
 
     @Override
     public void run() {
-        pt = new ProcessorThread[N_THREAD];
-        for (int i = 0; i < N_THREAD; i++) {
+        pt = new ProcessorThread[N_THREAD + 1];
+        for (int i = 0; i < N_THREAD + 1; i++) {
             pt[i] = new ProcessorThread();
             pt[i].tid = i;
             pt[i].start();

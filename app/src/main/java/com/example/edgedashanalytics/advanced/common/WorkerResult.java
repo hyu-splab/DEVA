@@ -1,6 +1,7 @@
 package com.example.edgedashanalytics.advanced.common;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 
 public class WorkerResult implements Serializable {
@@ -18,7 +19,8 @@ public class WorkerResult implements Serializable {
     public boolean isDistracted; // Used only for inner
     public List<String> hazards; // Used only for outer
     public int energyConsumed;
-    public int temperature;
+    public ArrayList<Integer> temperatures;
+    public ArrayList<Integer> frequencies;
 
     public WorkerResult() {
 
@@ -26,7 +28,7 @@ public class WorkerResult implements Serializable {
 
     public static WorkerResult createResult(boolean isInner, long coordinatorStartTime, int frameNum, int cameraFrameNum,
                                             long processTime, long totalTime, String msg, long dataSize, long queueSize,
-                                            boolean isDistracted, List<String> hazards, int energyConsumed, int temperature) {
+                                            boolean isDistracted, List<String> hazards, int energyConsumed, ArrayList<Integer> temperatures, ArrayList<Integer> frequencies) {
         WorkerResult res = new WorkerResult();
         res.success = true;
         res.isInner = isInner;
@@ -41,18 +43,20 @@ public class WorkerResult implements Serializable {
         res.isDistracted = isDistracted;
         res.hazards = hazards;
         res.energyConsumed = energyConsumed;
-        res.temperature = temperature;
+        res.temperatures = temperatures;
+        res.frequencies = frequencies;
         return res;
     }
 
-    public static WorkerResult createFailedResult(boolean isInner, long dataSize, long queueSize, int energyConsumed, int temperature) {
+    public static WorkerResult createFailedResult(boolean isInner, long dataSize, long queueSize, int energyConsumed, ArrayList<Integer> temperatures, ArrayList<Integer> frequencies) {
         WorkerResult res = new WorkerResult();
         res.success = false;
         res.isInner = isInner;
         res.dataSize = dataSize;
         res.queueSize = queueSize;
         res.energyConsumed = energyConsumed;
-        res.temperature = temperature;
+        res.temperatures = temperatures;
+        res.frequencies = frequencies;
         return res;
     }
 }

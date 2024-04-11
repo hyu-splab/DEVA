@@ -36,13 +36,11 @@ public class AdvancedMain {
     public static int selectedCount = 0;
     public static boolean isFinished = false;
     public static HashMap<String, String> s22, splab, p6;
-    public static final int p6IP = 248;
     public static String[] allDevices;
     public static boolean connectionChanged = false;
 
     public static EDACam innerCam, outerCam;
     public static Controller controller;
-    private static final long CAMERA_ADJUSTMENT_PERIOD = 500;
     public static long EXPERIMENT_DURATION = (long)1e9; // should be overwritten by testconfig.txt
 
     public static String[] workerNameList;
@@ -52,6 +50,7 @@ public class AdvancedMain {
     private static Handler communicatorHandler = null;
 
     private static String innerCamIP, outerCamIP;
+    public static boolean isBusy;
 
     public static void createVideoAnalysisData(Context context) {
         try {
@@ -113,9 +112,9 @@ public class AdvancedMain {
     }
 
     public static void advancedMain(Context context) {
-        //if (true){createVideoAnalysisData(context); return;}
-        if (true) { testAnalysisSpeed(context, 100, 99999999); return; }
+        //if (true) { testAnalysisSpeed(context, 100, 99999999); return; }
         try {
+            Thread.sleep(500);
             testConfig = TestConfig.readConfigs(context);
 
             makeBaseInnerResult(testConfig.innerResultFile);
@@ -124,13 +123,14 @@ public class AdvancedMain {
             e.printStackTrace();
         }
 
-        //if (testConfig.isCoordinator)
-        //    N_THREAD--;
-
         workerStart();
 
         if (testConfig.isCoordinator) {
             run(context);
+        }
+        else {
+            controller = new Controller(null, null);
+            controller.start();
         }
     }
 
@@ -184,18 +184,14 @@ public class AdvancedMain {
 
         createDeviceList();
 
-        allDevices = new String[]{"oppo", "oneplus", "lineage2", "lineage"};
-        innerCamIP = p6.get("pixel5");
-        outerCamIP = p6.get("s22");
-
         new Timer().schedule(new TimerTask() {
             @Override
             public void run() {
                 run2(context);
             }
-        }, 5000);
+        }, 7000);
 
-        Log.v(TAG, "Starting experiment in 5s...");
+        Log.v(TAG, "Starting experiment in 7s...");
     }
 
     public static void run2(Context context) {
@@ -207,13 +203,11 @@ public class AdvancedMain {
 
         connectToDashCam();
 
-        // Camera adjustment every fixed time
-        new Timer().schedule(new TimerTask() {
-            @Override
-            public void run() {
-                controller.adjustCamSettingsV4(communicator.workers, innerCam.camParameter, outerCam.camParameter);
-            }
-        }, CAMERA_ADJUSTMENT_PERIOD, CAMERA_ADJUSTMENT_PERIOD);
+        controller.workers = communicator.workers;
+        controller.innerCamParameter = innerCam.camParameter;
+        controller.outerCamParameter = outerCam.camParameter;
+
+        controller.start();
 
         // Finish experiment and restart
         new Timer().schedule(new TimerTask() {
@@ -234,6 +228,7 @@ public class AdvancedMain {
                 StatusLogger.writeLogs(context, testConfig.testNum);
                 FrameLogger.writeLogs(context, testConfig.testNum);
                 DistributionLogger.writeLogs(context, testConfig.testNum);
+                //DeviceLogger.writeLogs(context, testConfig.testNum);
 
                 Log.v(TAG, "Wrote logs");
 
@@ -310,6 +305,8 @@ public class AdvancedMain {
 
         p6 = new HashMap<>();
 
+        final int p6IP = 41;
+
         p6.put("self", "127.0.0.1");
         p6.put("lineage", "192.168." + p6IP + ".163");
         p6.put("oneplus", "192.168." + p6IP + ".191");
@@ -318,6 +315,10 @@ public class AdvancedMain {
         p6.put("pixel5", "192.168." + p6IP + ".201");
         p6.put("lineage2", "192.168." + p6IP + ".213");
         p6.put("s22", "192.168." + p6IP + ".6");
+
+        allDevices = new String[]{"oneplus", "oppo", "lineage2"};
+        innerCamIP = p6.get("lineage");
+        outerCamIP = p6.get("pixel5");
     }
 
     public static void workerStart() {
@@ -326,7 +327,7 @@ public class AdvancedMain {
     }
 
     static class Distributer extends Handler {
-        private static final int sequenceLength = 10; // tentative
+        private static final int sequenceLength = 20; // tentative
         private ArrayList<Integer> innerSequence, outerSequence;
         private int innerSequenceIndex, outerSequenceIndex;
 
@@ -379,8 +380,8 @@ public class AdvancedMain {
 
                     double weight = status.getPerformance();
                     if (i == 0)
-                        weight /= 2;
-                    weight *= Math.max(0.5, 1.0 - (status.innerWaiting + status.outerWaiting * 2) * 0.05);
+                        weight *= 1.0;
+                    weight *= Math.max(0.5, 1.0 - status.latestQueueSize * 0.1);
                     weights.add(weight);
                 }
                 else {
@@ -422,7 +423,7 @@ public class AdvancedMain {
             }
 
             if (Communicator.availableWorkers == 0) {
-                Log.v(TAG, "No available workers!");
+                //Log.v(TAG, "No available workers!");
 
                 Message senderMessage = Message.obtain();
                 senderMessage.arg1 = -2;
@@ -438,7 +439,8 @@ public class AdvancedMain {
             Message senderMessage = Message.obtain();
             senderMessage.what = 999;
             senderMessage.arg1 = bestWorker;
-            senderMessage.obj = new FrameData(isInner, totalCount, inputMessage.arg1, (byte[]) inputMessage.obj);
+            senderMessage.arg2 = inputMessage.arg2;
+            senderMessage.obj = new FrameData(isInner, totalCount, inputMessage.arg1, (byte[]) inputMessage.obj, Communicator.isBusy[bestWorker]);
 
             communicatorHandler.sendMessage(senderMessage);
         }

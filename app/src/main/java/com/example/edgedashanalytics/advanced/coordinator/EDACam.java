@@ -5,6 +5,7 @@ import android.os.Message;
 import android.util.Log;
 import android.util.Size;
 
+import com.example.edgedashanalytics.page.main.MainActivity;
 import com.example.edgedashanalytics.util.Constants;
 
 import java.io.ObjectInputStream;
@@ -79,9 +80,11 @@ public class EDACam extends Thread {
             msg.arg1 = frameNum;
             msg.what = msgCode;
             msg.obj = data;
+            msg.arg2 = (int)(System.currentTimeMillis() - MainActivity.timeStart);
+
+            Communicator.todo++;
 
             handler.sendMessage(msg);
-            long eTime = System.currentTimeMillis();
         }
     }
 

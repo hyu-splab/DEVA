@@ -31,6 +31,7 @@ import androidx.fragment.app.FragmentManager;
 
 import com.example.edgedashanalytics.BuildConfig;
 import com.example.edgedashanalytics.R;
+import com.example.edgedashanalytics.advanced.coordinator.DeviceLogger;
 import com.example.edgedashanalytics.advanced.coordinator.FrameLogger;
 import com.example.edgedashanalytics.advanced.coordinator.StatusLogger;
 import com.example.edgedashanalytics.data.result.ResultRepository;
@@ -57,7 +58,9 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -77,10 +80,6 @@ public class MainActivity extends AppCompatActivity implements
     private Fragment activeFragment;
     public static Context context;
     public static int startBatteryLevel;
-
-    public static int cpuTemperatureIndex = -1;
-    public static int cpuTemperature = -1;
-
 
     class MainHandler extends Handler {
         @Override
@@ -141,6 +140,120 @@ public class MainActivity extends AppCompatActivity implements
         activeFragment = newFragment;
     }
 
+    static private ArrayList<Integer> temperatureIndices = new ArrayList<>();
+    static public ArrayList<String> temperatureNames = new ArrayList<>();
+    static public ArrayList<String> frequencyNames = new ArrayList<>();
+    static public ArrayList<Integer> latestTemperatures;
+    static public ArrayList<Integer> latestFrequencies;
+    static public final long timeStart = System.currentTimeMillis();
+
+    private void findTemperatureFiles() {
+        HashSet<String> names = new HashSet<>();
+
+        for (int i = 0; i < 20; i++) {
+            for (int j = 0; j < 20; j++) {
+                names.add("cpu-" + i + "-" + j + "-usr");
+                names.add("cpu-" + i + "-" + j);
+            }
+        }
+
+        names.add("battery");
+
+        try {
+            for (int i = 0; i < 200; i++) {
+                Process process = Runtime.getRuntime().exec("cat /sys/class/thermal/thermal_zone" + i + "/type");
+                process.waitFor();
+
+                BufferedReader br = new BufferedReader(new InputStreamReader(process.getInputStream()));
+                String type = br.readLine();
+                br.close();
+
+                Log.v(TAG, i + ": " + type);
+
+                if (names.contains(type)) {
+                    temperatureNames.add(type);
+                    temperatureIndices.add(i);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void findFrequencyFiles() {
+        try {
+            for (int i = 0; i < 20; i++) {
+                Process process = Runtime.getRuntime().exec("cat /sys/devices/system/cpu/cpu" + i + "/cpufreq/scaling_cur_freq");
+                process.waitFor();
+
+                try {
+                    BufferedReader br = new BufferedReader(new InputStreamReader(process.getInputStream()));
+                    String freq = br.readLine();
+                    br.close();
+                    Integer.parseInt(freq);
+                } catch (Exception e) {
+                    continue;
+                }
+
+                frequencyNames.add("cpu" + i);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void readDeviceStatus(long timestamp) {
+        if (true) return;
+        ArrayList<Integer> temperatures = new ArrayList<>();
+        for (Integer temperatureIndex : temperatureIndices) {
+            try {
+                Process process = Runtime.getRuntime().exec("cat /sys/class/thermal/thermal_zone" + temperatureIndex + "/temp");
+                process.waitFor();
+
+                BufferedReader br = new BufferedReader(new InputStreamReader(process.getInputStream()));
+                String line = br.readLine();
+                if (line == null) {
+                    br.close();
+                    Log.w(TAG, "What? CPU temperature information is not available!");
+                    return;
+                }
+
+                int temp = Integer.parseInt(line);
+                br.close();
+
+                temperatures.add(temp);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        ArrayList<Integer> frequencies = new ArrayList<>();
+        for (String frequencyName : frequencyNames) {
+            try {
+                Process process = Runtime.getRuntime().exec("cat /sys/devices/system/cpu/" + frequencyName + "/cpufreq/scaling_cur_freq");
+                process.waitFor();
+
+                BufferedReader br = new BufferedReader(new InputStreamReader(process.getInputStream()));
+                String line = br.readLine();
+                if (line == null) {
+                    br.close();
+                    Log.w(TAG, "What? CPU frequency information is not available!");
+                    return;
+                }
+
+                int freq = Integer.parseInt(line);
+                br.close();
+
+                frequencies.add(freq);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        latestFrequencies = frequencies;
+        latestTemperatures = temperatures;
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -153,7 +266,6 @@ public class MainActivity extends AppCompatActivity implements
         TextView textViewTimer = findViewById(R.id.textViewTimer);
         //TextView textViewStatus = findViewById(R.id.textViewStatus);
 
-        long timeStart = System.currentTimeMillis();
         new Timer().schedule(new TimerTask() {
             @Override
             public void run() {
@@ -179,10 +291,6 @@ public class MainActivity extends AppCompatActivity implements
 
         context = getApplicationContext();
 
-        /*File path = getApplicationContext().getExternalFilesDir(null);
-        new File(path, "wlog.txt").delete();
-        new File(path, "clog.txt").delete();*/
-
         checkPermissions();
         scanVideoDirectories();
         setToolBarAsTheAppBar();
@@ -192,65 +300,8 @@ public class MainActivity extends AppCompatActivity implements
         storeLogsInFile();
         DashCam.setup(this);
 
-        try {
-            for (int i = 0; i < 200; i++) {
-                Process process1 = Runtime.getRuntime().exec("cat sys/class/thermal/thermal_zone" + i + "/temp");
-                Process process2 = Runtime.getRuntime().exec("cat sys/class/thermal/thermal_zone" + i + "/type");
-                process1.waitFor();
-                process2.waitFor();
-
-                BufferedReader br = new BufferedReader(new InputStreamReader(process1.getInputStream()));
-                String line = br.readLine();
-                if (line == null) {
-                    br.close();
-                    continue;
-                }
-
-                int temp = Integer.parseInt(line);
-                br.close();
-
-                br = new BufferedReader(new InputStreamReader(process2.getInputStream()));
-                String type = br.readLine();
-                br.close();
-
-                if (type.equals("cpu-0-0-usr")) {
-                    cpuTemperatureIndex = i;
-                    cpuTemperature = temp;
-                    break;
-                }
-            }
-
-            new Timer().schedule(new TimerTask() {
-                @Override
-                public void run() {
-                    try {
-                        Process process1 = Runtime.getRuntime().exec("cat sys/class/thermal/thermal_zone" + cpuTemperatureIndex + "/temp");
-                        process1.waitFor();
-
-                        BufferedReader br = new BufferedReader(new InputStreamReader(process1.getInputStream()));
-                        String line = br.readLine();
-                        if (line == null) {
-                            br.close();
-                            Log.w(TAG, "What? CPU temperature information is not available!");
-                            return;
-                        }
-
-                        int temp = Integer.parseInt(line);
-                        br.close();
-
-                        cpuTemperature = temp;
-
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                }
-            }, 500, 500);
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-
+        findTemperatureFiles();
+        findFrequencyFiles();
 
         startBatteryLevel = PowerMonitor.getBatteryLevel(context);
         AdvancedMain.advancedMain(getApplicationContext());
