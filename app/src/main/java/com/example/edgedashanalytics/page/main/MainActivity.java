@@ -148,6 +148,7 @@ public class MainActivity extends AppCompatActivity implements
     static public final long timeStart = System.currentTimeMillis();
 
     private void findTemperatureFiles() {
+        if (true) return;
         HashSet<String> names = new HashSet<>();
 
         for (int i = 0; i < 20; i++) {
@@ -181,6 +182,7 @@ public class MainActivity extends AppCompatActivity implements
     }
 
     private void findFrequencyFiles() {
+        if (true) return;
         try {
             for (int i = 0; i < 20; i++) {
                 Process process = Runtime.getRuntime().exec("cat /sys/devices/system/cpu/cpu" + i + "/cpufreq/scaling_cur_freq");

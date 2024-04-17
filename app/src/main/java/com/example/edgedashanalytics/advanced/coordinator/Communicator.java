@@ -7,16 +7,14 @@ but hopefully this integrated Sender would solve such issues.
  */
 
 import static com.example.edgedashanalytics.advanced.coordinator.AdvancedMain.controller;
+import static com.example.edgedashanalytics.advanced.coordinator.AdvancedMain.distributer;
 
-import android.os.Handler;
 import android.os.Looper;
-import android.os.Message;
 import android.util.Log;
 
 import com.example.edgedashanalytics.advanced.common.CoordinatorMessage;
 import com.example.edgedashanalytics.advanced.common.AnalysisResult;
 import com.example.edgedashanalytics.advanced.common.WorkerInitialInfo;
-import com.example.edgedashanalytics.page.main.MainActivity;
 import com.example.edgedashanalytics.util.Constants;
 import com.example.edgedashanalytics.advanced.common.FrameData;
 import com.example.edgedashanalytics.advanced.common.WorkerResult;
@@ -29,11 +27,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.ArrayBlockingQueue;
 
 public class Communicator extends Thread {
     private static final String TAG = "Communicator";
-
-    private Handler handler;
+    public static ArrayBlockingQueue<CommunicatorMessage> msgQueue = new ArrayBlockingQueue<>(100);
 
     public ArrayList<EDAWorker> workers;
     public ArrayList<EDAWorker> allDevices;
@@ -47,7 +45,6 @@ public class Communicator extends Thread {
     public static int availableWorkers;
     public long startTime;
     public static long failed;
-    public static long todo;
 
     static class ConnectionTimestamp implements Comparable<ConnectionTimestamp> {
         int type;
@@ -103,15 +100,10 @@ public class Communicator extends Thread {
         allDevices.add(worker);
     }
 
-    public Handler getHandler() {
-        return handler;
-    }
-
     // Make sure this thread is created after adding ALL the workers to 'allDevices'
     @Override
     public void run() {
         Looper.prepare();
-        handler = new CommunicatorHandler(Looper.myLooper());
         connect();
         startTime = System.currentTimeMillis();
         Looper.loop();
@@ -161,142 +153,154 @@ public class Communicator extends Thread {
 
             new ListenerThread(worker).start();
         }
+
+        new SenderThread().start();
     }
 
-    private class CommunicatorHandler extends Handler {
+    private class SenderThread extends Thread {
         private int connectionTimestampIndex = 0;
         private long totalCnt = 0;
 
         private long coordinatorTimeTotal = 0;
         private ArrayDeque<Long> coordinatorTime = new ArrayDeque<>();
-        public CommunicatorHandler(Looper looper) {
-            super(looper);
-        }
         @Override
-        public void handleMessage(Message msg) {
-            todo--;
-            if ((++totalCnt % 100) == 0) {
-                Log.v(TAG, "totalCnt = " + totalCnt + ", todo = " + todo);
-            }
-            int workerNum = msg.arg1;
-
-            CoordinatorMessage cMsg;
-
-            long curTime = System.currentTimeMillis() - startTime;
-
-            boolean[] prevConnected = isConnected.clone();
-            while (connectionTimestampIndex < connectionTimestamps.size()) {
-                ConnectionTimestamp ts = connectionTimestamps.get(connectionTimestampIndex);
-                if (ts.timestamp > curTime)
-                    break;
-                Log.w(TAG, "timestamp = " + ts.timestamp + ", type = " + ts.type);
-                if (ts.type == 1) {
-                    isConnected[ts.workerNum] = !isConnected[ts.workerNum];
+        public void run() {
+            while (true) {
+                CommunicatorMessage msg;
+                try {
+                    msg = msgQueue.take();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    continue;
                 }
-                else if (ts.type == 2) {
-                    isBusy[ts.workerNum] = !isBusy[ts.workerNum];
-                    Log.v(TAG, ts.workerNum + " is now in " + (isBusy[ts.workerNum] ? "busy" : "free") + " state");
-                }
-                connectionTimestampIndex++;
-            }
 
-            boolean connectionChanged = false;
+                CoordinatorMessage cMsg;
 
-            availableWorkers = 0;
-            double[] performances = new double[isConnected.length];
-            double performanceSum = 0, performanceLost = 0;
-            int devicesAdded = 0;
-            for (int i = 0; i < isConnected.length; i++) {
-                workers.get(i).status.isConnected = isConnected[i];
-                double performance = workers.get(i).status.getPerformance();
-                if (prevConnected[i]) {
-                    performanceSum += performance;
-                    performances[i] = performance;
-                }
-                if (isConnected[i] != prevConnected[i]) {
-                    connectionChanged = true;
-                    if (!isConnected[i]) {
-                        performanceLost += performance;
-                    }
-                    else {
-                        devicesAdded++;
-                    }
-                }
-                if (isConnected[i])
-                    availableWorkers++;
-            }
-
-            // Inform both distributer and controller independently, as each of them should do their own work
-            if (connectionChanged) {
-                Controller.performanceLostRatio = (performanceSum == 0 ? 0 : performanceLost / performanceSum);
-                Log.v(TAG, String.format(Locale.ENGLISH, "Lost ratio: %.4f / %.4f = %.4f", performanceLost, performanceSum, Controller.performanceLostRatio));
-                Controller.deviceAdded = devicesAdded;
-
-                AdvancedMain.connectionChanged = true;
-                Controller.connectionChanged = true;
-
-                controller.checkNeeded = true;
-            }
-
-            try {
                 // Experiment finish message (tell everyone to restart)
-                if (workerNum == -1) {
-                    cMsg = new CoordinatorMessage(2, null);
-                    for (EDAWorker worker : allDevices) {
-                        ObjectOutputStream outStream = worker.outstream;
-                        outStream.writeObject(cMsg);
-                        outStream.flush();
-                        outStream.reset();
+                if (msg.type == -1) {
+                    try {
+                        cMsg = new CoordinatorMessage(2, null);
+                        for (EDAWorker worker : allDevices) {
+                            ObjectOutputStream outStream = worker.outstream;
+                            outStream.writeObject(cMsg);
+                            outStream.flush();
+                            outStream.reset();
+                        }
+                        continue;
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        continue;
                     }
-                    return;
                 }
 
-                // No available workers, just to change connection statuses
-                if (workerNum == -2)
-                    return;
+                int workerNum = distributer.getNextWorker(msg.isInner);
 
-                if (AdvancedMain.isFinished)
-                    return;
+                long curTime = System.currentTimeMillis() - startTime;
 
-                EDAWorker worker = workers.get(workerNum);
-                if (!worker.status.isConnected)
-                    return;
+                boolean[] prevConnected = isConnected.clone();
 
-                FrameData data = (FrameData) msg.obj;
-                ObjectOutputStream outStream = worker.outstream;
-
-                if (data.isInner) {
-                    worker.status.innerWaiting++;
-                }
-                else {
-                    worker.status.outerWaiting++;
-                }
-
-                synchronized (pendingDataSizeLock) {
-                    pendingDataSize += data.data.length;
+                while (connectionTimestampIndex < connectionTimestamps.size()) {
+                    ConnectionTimestamp ts = connectionTimestamps.get(connectionTimestampIndex);
+                    if (ts.timestamp > curTime)
+                        break;
+                    Log.w(TAG, "timestamp = " + ts.timestamp + ", type = " + ts.type);
+                    if (ts.type == 1) {
+                        isConnected[ts.workerNum] = !isConnected[ts.workerNum];
+                    } else if (ts.type == 2) {
+                        isBusy[ts.workerNum] = !isBusy[ts.workerNum];
+                        Log.v(TAG, ts.workerNum + " is now in " + (isBusy[ts.workerNum] ? "busy" : "free") + " state");
+                    }
+                    connectionTimestampIndex++;
                 }
 
-                data.coordinatorStartTime = System.currentTimeMillis();
+                boolean connectionChanged = false;
 
-                cMsg = new CoordinatorMessage(1, data);
-
-                long tt = (System.currentTimeMillis() - MainActivity.timeStart - msg.arg2);
-                coordinatorTimeTotal += tt;
-                coordinatorTime.push(tt);
-                if (coordinatorTime.size() == 100) {
-                    Log.v(TAG, "Average time spent in coordinator: " + (double)coordinatorTimeTotal / 100);
-                    coordinatorTimeTotal = 0;
-                    coordinatorTime.clear();
+                availableWorkers = 0;
+                double[] performances = new double[isConnected.length];
+                double performanceSum = 0, performanceLost = 0;
+                int devicesAdded = 0;
+                for (int i = 0; i < isConnected.length; i++) {
+                    workers.get(i).status.isConnected = isConnected[i];
+                    double performance = workers.get(i).status.getPerformance();
+                    if (prevConnected[i]) {
+                        performanceSum += performance;
+                        performances[i] = performance;
+                    }
+                    if (isConnected[i] != prevConnected[i]) {
+                        connectionChanged = true;
+                        if (!isConnected[i]) {
+                            performanceLost += performance;
+                        } else {
+                            devicesAdded++;
+                        }
+                    }
+                    if (isConnected[i])
+                        availableWorkers++;
                 }
 
-                outStream.writeObject(cMsg);
-                outStream.flush();
-                outStream.reset();
+                // Inform both distributer and controller independently, as each of them should do their own work
+                if (connectionChanged) {
+                    Controller.performanceLostRatio = (performanceSum == 0 ? 0 : performanceLost / performanceSum);
+                    Log.v(TAG, String.format(Locale.ENGLISH, "Lost ratio: %.4f / %.4f = %.4f", performanceLost, performanceSum, Controller.performanceLostRatio));
+                    Controller.deviceAdded = devicesAdded;
 
-                totalDataSize += data.data.length;
+                    AdvancedMain.connectionChanged = true;
+                    Controller.connectionChanged = true;
 
-            } catch (Exception e) {
-                e.printStackTrace();
+                    controller.checkNeeded = true;
+                }
+
+                if ((++totalCnt % 100) == 0) {
+                    Log.v(TAG, "totalCnt = " + totalCnt + ", msgQueue size = " + msgQueue.size());
+                }
+
+                try {
+                    // No available workers, just to change connection statuses
+                    if (workerNum == -2)
+                        continue;
+
+                    if (AdvancedMain.isFinished)
+                        continue;
+
+                    EDAWorker worker = workers.get(workerNum);
+                    if (!worker.status.isConnected)
+                        continue;
+
+                    FrameData data = new FrameData(msg.isInner, (int)totalCnt, msg.frameNum, msg.data, isBusy[workerNum]);
+                    ObjectOutputStream outStream = worker.outstream;
+
+                    if (data.isInner) {
+                        worker.status.innerWaiting++;
+                    } else {
+                        worker.status.outerWaiting++;
+                    }
+
+                    synchronized (pendingDataSizeLock) {
+                        pendingDataSize += data.data.length;
+                    }
+
+                    data.coordinatorStartTime = System.currentTimeMillis();
+
+                    cMsg = new CoordinatorMessage(1, data);
+
+                    long tt = (System.currentTimeMillis() - msg.receivedTime);
+                    coordinatorTimeTotal += tt;
+                    coordinatorTime.push(tt);
+                    if (coordinatorTime.size() == 100) {
+                        Log.v(TAG, "Average time spent in coordinator: " + (double) coordinatorTimeTotal / 100);
+                        coordinatorTimeTotal = 0;
+                        coordinatorTime.clear();
+                    }
+
+                    outStream.writeObject(cMsg);
+                    outStream.flush();
+                    outStream.reset();
+
+                    totalDataSize += data.data.length;
+
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
         }
     }

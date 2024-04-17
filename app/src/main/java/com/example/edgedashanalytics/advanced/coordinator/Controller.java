@@ -16,6 +16,7 @@ import java.util.List;
 
 public class Controller extends Thread {
     private static final String TAG = "Controller";
+    public static int queueWarn;
     private final EDACam innerCam, outerCam;
     private long prevTotalDataSize;
 
@@ -109,10 +110,14 @@ public class Controller extends Thread {
 
             Log.v(TAG, "FPS = " + currentFPS + ", waiting = " + totalWaiting + ", available = " + availableWorkers + ", weighted = " + weightedWaiting);
 
+            if (queueWarn != 0) {
+                Log.w(TAG, "queueWarn level " + queueWarn);
+            }
+
             /* 1 */
-            boolean networkSlow = weightedWaiting > TOO_MANY_WAITING; // || weightedPending > TOO_MUCH_PENDING;
+            boolean networkSlow = queueWarn == 2 || weightedWaiting > TOO_MANY_WAITING; // || weightedPending > TOO_MUCH_PENDING;
             /* 2 */
-            boolean networkFast = weightedWaiting < TOO_FEW_WAITING; // && weightedPending < TOO_LITTLE_PENDING;
+            boolean networkFast = queueWarn == 0 && weightedWaiting < TOO_FEW_WAITING; // && weightedPending < TOO_LITTLE_PENDING;
 
             final double outerPrioritizing = 1.5;
 
@@ -171,20 +176,22 @@ public class Controller extends Thread {
 
         if (sensitive > 0)
             sensitive--;
+        queueWarn = 0;
     }
 
     private void setDefaultFPS(Parameter innerCamParameter, Parameter outerCamParameter) {
-
         double totalFPS = innerCamParameter.fps + outerCamParameter.fps;
 
         if (performanceLostRatio > 0) {
-            totalFPS = Math.max(6, totalFPS * (1 - performanceLostRatio));
+            totalFPS = Math.max(5, totalFPS * (1 - performanceLostRatio));
         }
 
-        totalFPS += deviceAdded * 6;
+        Log.v(TAG, "deviceAdded = " + deviceAdded);
 
-        int inF = (int)Math.round(totalFPS / 3);
-        int outF = (int)Math.round(totalFPS * 2 / 3);
+        totalFPS += deviceAdded * 5;
+
+        double inF = totalFPS * 2 / 5;
+        double outF = totalFPS * 3 / 5;
         innerCamParameter.fps = inF;
         outerCamParameter.fps = outF;
 

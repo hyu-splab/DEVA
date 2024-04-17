@@ -15,7 +15,6 @@ import java.net.Socket;
 public class EDACam extends Thread {
     static final String TAG = "EDACam";
 
-    private final Handler handler;
     private final String ip;
     private final int msgCode;
 
@@ -23,11 +22,11 @@ public class EDACam extends Thread {
     public ObjectOutputStream outStream;
     private Socket socket;
     public Parameter camParameter;
+    public boolean isInner;
 
-    public EDACam(Handler handler, String ip, boolean isInner) {
-        // handler: the handler for the processing thread to hand over the image data
-        this.handler = handler;
+    public EDACam(String ip, boolean isInner) {
         this.ip = ip;
+        this.isInner = isInner;
         this.msgCode = isInner ? Constants.IMAGE_INNER : Constants.IMAGE_OUTER;
         this.socket = null;
         camParameter = new Parameter(isInner);
@@ -76,15 +75,22 @@ public class EDACam extends Thread {
         while (true) {
             int frameNum = inStream.readInt();
             byte[] data = (byte[]) inStream.readObject();
-            Message msg = Message.obtain();
-            msg.arg1 = frameNum;
-            msg.what = msgCode;
-            msg.obj = data;
-            msg.arg2 = (int)(System.currentTimeMillis() - MainActivity.timeStart);
+            int waiting = inStream.readInt();
 
-            Communicator.todo++;
+            int mx = Math.max(waiting, Communicator.msgQueue.size());
 
-            handler.sendMessage(msg);
+            if (mx >= 2) {
+                if (mx >= 4) {
+                    Controller.queueWarn = 2;
+                }
+                else if (Controller.queueWarn == 0) {
+                    Controller.queueWarn = 1;
+                }
+                continue;
+            }
+
+            CommunicatorMessage msg = new CommunicatorMessage(1, isInner, frameNum, data, System.currentTimeMillis());
+            Communicator.msgQueue.put(msg);
         }
     }
 

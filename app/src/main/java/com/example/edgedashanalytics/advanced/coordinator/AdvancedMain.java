@@ -32,8 +32,6 @@ import java.util.TimerTask;
 public class AdvancedMain {
     private static final String TAG = "AdvancedMain";
     public static Communicator communicator;
-    public static int totalCount = 0;
-    public static int selectedCount = 0;
     public static boolean isFinished = false;
     public static HashMap<String, String> s22, splab, p6;
     public static String[] allDevices;
@@ -47,10 +45,10 @@ public class AdvancedMain {
     public static ArrayList<Integer>[] connectionTimestamps;
 
     public static TestConfig testConfig;
-    private static Handler communicatorHandler = null;
 
     private static String innerCamIP, outerCamIP;
     public static boolean isBusy;
+    public static Distributer distributer;
 
     public static void createVideoAnalysisData(Context context) {
         try {
@@ -112,7 +110,6 @@ public class AdvancedMain {
     }
 
     public static void advancedMain(Context context) {
-        //if (true) { testAnalysisSpeed(context, 100, 99999999); return; }
         try {
             Thread.sleep(500);
             testConfig = TestConfig.readConfigs(context);
@@ -124,6 +121,9 @@ public class AdvancedMain {
         }
 
         workerStart();
+
+        // If the test is running but it's not a participant, do some warmup while it's done
+        if (/*true || */(testConfig.testNum != -1 && !testConfig.isWorker)) { testAnalysisSpeed(context, 100, 99999999); return; }
 
         if (testConfig.isCoordinator) {
             run(context);
@@ -238,9 +238,11 @@ public class AdvancedMain {
                 Log.v(TAG, "Sent cameras restart message");
 
                 // 3
-                Message senderMessage = Message.obtain();
-                senderMessage.arg1 = -1;
-                communicatorHandler.sendMessage(senderMessage);
+                try {
+                    Communicator.msgQueue.put(new CommunicatorMessage(-1));
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
 
                 Log.v(TAG, "Sent workers restart message");
             }
@@ -248,13 +250,13 @@ public class AdvancedMain {
     }
 
     private static void connectToDashCam() {
-        Handler handler = new Distributer(Looper.getMainLooper());
+        distributer = new Distributer();
         // Inner DashCam
-        innerCam = new EDACam(handler, innerCamIP, true);
+        innerCam = new EDACam(innerCamIP, true);
         innerCam.start();
 
         // Outer DashCam
-        outerCam = new EDACam(handler, outerCamIP, false);
+        outerCam = new EDACam(outerCamIP, false);
         outerCam.start();
 
         controller = new Controller(innerCam, outerCam);
@@ -283,42 +285,67 @@ public class AdvancedMain {
     }
 
     public static void createDeviceList() {
-        s22 = new HashMap<>();
-        s22.put("self", "127.0.0.1");
-        s22.put("lineage", "192.168.118.32");
-        s22.put("oneplus", "192.168.118.172");
-        s22.put("pixel6", "192.168.118.79");
-        s22.put("oppo", "192.168.118.230");
-        s22.put("pixel5", "192.168.118.145");
-        s22.put("lineage2", "192.168.118.72");
-        s22.put("s22", "192.168.118.159");
+        {
+            s22 = new HashMap<>();
+            s22.put("self", "127.0.0.1");
+            s22.put("lineage", "192.168.118.32");
+            s22.put("oneplus", "192.168.118.172");
+            s22.put("pixel6", "192.168.118.79");
+            s22.put("oppo", "192.168.118.230");
+            s22.put("pixel5", "192.168.118.145");
+            s22.put("lineage2", "192.168.118.72");
+            s22.put("s22", "192.168.118.159");
+        } // s22
+        {
+            splab = new HashMap<>();
+            splab.put("self", "127.0.0.1");
+            splab.put("lineage", "192.168.0.105");
+            splab.put("oneplus", "192.168.0.106");
+            splab.put("pixel6", "192.168.0.103");
+            splab.put("oppo", "192.168.0.104");
+            splab.put("pixel5", "192.168.0.101");
+            splab.put("lineage2", "192.168.0.107");
+            splab.put("s22", "192.168.0.108");
+        } // splab
 
-        splab = new HashMap<>();
-        splab.put("self", "127.0.0.1");
-        splab.put("lineage", "192.168.0.105");
-        splab.put("oneplus", "192.168.0.106");
-        splab.put("pixel6", "192.168.0.103");
-        splab.put("oppo", "192.168.0.104");
-        splab.put("pixel5", "192.168.0.101");
-        splab.put("lineage2", "192.168.0.107");
-        splab.put("s22", "192.168.0.108");
+        final int p6IP = 59;
+        {
+            p6 = new HashMap<>();
+            p6.put("self", "127.0.0.1");
+            p6.put("lineage", "192.168." + p6IP + ".163");
+            p6.put("oneplus", "192.168." + p6IP + ".191");
+            p6.put("pixel6", "192.168." + p6IP + ".85");
+            p6.put("oppo", "192.168." + p6IP + ".20");
+            p6.put("pixel5", "192.168." + p6IP + ".201");
+            p6.put("lineage2", "192.168." + p6IP + ".213");
+            p6.put("s22", "192.168." + p6IP + ".6");
+        } // pixel6
 
-        p6 = new HashMap<>();
-
-        final int p6IP = 41;
-
-        p6.put("self", "127.0.0.1");
-        p6.put("lineage", "192.168." + p6IP + ".163");
-        p6.put("oneplus", "192.168." + p6IP + ".191");
-        p6.put("pixel6", "192.168." + p6IP + ".85");
-        p6.put("oppo", "192.168." + p6IP + ".20");
-        p6.put("pixel5", "192.168." + p6IP + ".201");
-        p6.put("lineage2", "192.168." + p6IP + ".213");
-        p6.put("s22", "192.168." + p6IP + ".6");
-
-        allDevices = new String[]{"oneplus", "oppo", "lineage2"};
-        innerCamIP = p6.get("lineage");
-        outerCamIP = p6.get("pixel5");
+        int exp = 7;
+        switch (exp) {
+            case 1:
+                allDevices = new String[]{"oneplus", "oppo", "s22", "lineage2"};
+                innerCamIP = p6.get("lineage");
+                outerCamIP = p6.get("pixel5");
+                break;
+            case 2:
+                allDevices = new String[]{"lineage2", "lineage", "pixel5"};
+                innerCamIP = p6.get("oneplus");
+                outerCamIP = p6.get("oppo");
+                break;
+            case 3:
+                allDevices = new String[]{"oneplus", "lineage2", "pixel5"};
+                innerCamIP = p6.get("lineage");
+                outerCamIP = p6.get("oppo");
+                break;
+            case 7:
+                allDevices = new String[]{"oneplus", "oppo", "s22"};
+                innerCamIP = p6.get("lineage");
+                outerCamIP = p6.get("pixel5");
+                break;
+            default:
+                throw new RuntimeException();
+        }
     }
 
     public static void workerStart() {
@@ -326,13 +353,12 @@ public class AdvancedMain {
         workerThread.start();
     }
 
-    static class Distributer extends Handler {
+    static class Distributer {
         private static final int sequenceLength = 20; // tentative
         private ArrayList<Integer> innerSequence, outerSequence;
         private int innerSequenceIndex, outerSequenceIndex;
 
-        public Distributer(Looper looper) {
-            super(looper);
+        public Distributer() {
             innerSequence = new ArrayList<>();
             outerSequence = new ArrayList<>();
             innerSequenceIndex = outerSequenceIndex = 0;
@@ -369,8 +395,6 @@ public class AdvancedMain {
             return sequence;
         }
 
-
-
         private ArrayList<Double> calculateWorkerWeight() {
             ArrayList<Double> weights = new ArrayList<>();
             for (int i = 0; i < communicator.workers.size(); i++) {
@@ -380,7 +404,7 @@ public class AdvancedMain {
 
                     double weight = status.getPerformance();
                     if (i == 0)
-                        weight *= 1.0;
+                        weight *= 0.8;
                     weight *= Math.max(0.5, 1.0 - status.latestQueueSize * 0.1);
                     weights.add(weight);
                 }
@@ -392,11 +416,14 @@ public class AdvancedMain {
             return weights;
         }
 
-        private int getNextWorker(boolean isInner) {
+        public int getNextWorker(boolean isInner) {
+            if (Communicator.availableWorkers == 0) {
+                Log.v(TAG, "No available workers!");
+                return -2;
+            }
             if (connectionChanged
                     || (isInner && innerSequenceIndex == innerSequence.size())
                     || (!isInner && outerSequenceIndex == outerSequence.size())) {
-                connectionChanged = false;
                 if (isInner || connectionChanged) {
                     innerSequence = makeWorkerSequence();
                     innerSequenceIndex = 0;
@@ -405,44 +432,9 @@ public class AdvancedMain {
                     outerSequence = makeWorkerSequence();
                     outerSequenceIndex = 0;
                 }
+                connectionChanged = false;
             }
             return (isInner ? innerSequence.get(innerSequenceIndex++) : outerSequence.get(outerSequenceIndex++));
-        }
-
-        @Override
-        public void handleMessage(Message inputMessage) {
-            totalCount++;
-            boolean isInner = (inputMessage.what == Constants.IMAGE_INNER);
-
-            while (communicatorHandler == null) {
-                Log.w(TAG, "communicatorHandler is still null!!");
-                try {
-                    Thread.sleep(100);
-                } catch (Exception e) { e.printStackTrace(); }
-                communicatorHandler = communicator.getHandler();
-            }
-
-            if (Communicator.availableWorkers == 0) {
-                //Log.v(TAG, "No available workers!");
-
-                Message senderMessage = Message.obtain();
-                senderMessage.arg1 = -2;
-                communicatorHandler.sendMessage(senderMessage);
-
-                return;
-            }
-
-            int bestWorker = getNextWorker(isInner);
-
-            selectedCount++;
-
-            Message senderMessage = Message.obtain();
-            senderMessage.what = 999;
-            senderMessage.arg1 = bestWorker;
-            senderMessage.arg2 = inputMessage.arg2;
-            senderMessage.obj = new FrameData(isInner, totalCount, inputMessage.arg1, (byte[]) inputMessage.obj, Communicator.isBusy[bestWorker]);
-
-            communicatorHandler.sendMessage(senderMessage);
         }
     }
 }

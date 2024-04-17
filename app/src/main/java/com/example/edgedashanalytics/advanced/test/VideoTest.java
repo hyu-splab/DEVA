@@ -217,7 +217,7 @@ public class VideoTest {
 
         StringBuilder sb = new StringBuilder();
 
-        AdvancedMain.workerStart();
+        //AdvancedMain.workerStart();
 
         //byte[][] innerBitmaps = getScaledBitmaps(context, innerVideoFileName, numFrames, resolution, quality);
         byte[][] outerBitmaps = getScaledBitmaps(context, outerVideoFileName, numFrames, resolution, quality);

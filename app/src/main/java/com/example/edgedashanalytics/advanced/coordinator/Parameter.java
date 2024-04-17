@@ -4,8 +4,8 @@ import android.util.Size;
 
 public class Parameter {
 
-    private static final double INNER_F_MIN = 3, OUTER_F_MIN = 3, INNER_F_MAX = 20, OUTER_F_MAX = 20;
-    private static final double INNER_FPS_DEFAULT = 5, OUTER_FPS_DEFAULT = 5;
+    private static final double INNER_F_MIN = 1, OUTER_F_MIN = 1, INNER_F_MAX = 30, OUTER_F_MAX = 30;
+    public static final double INNER_FPS_DEFAULT = 4, OUTER_FPS_DEFAULT = 6;
     private static final double INC_MULTIPLIER = 1.03, DEC_MULTIPLIER = 0.95;
     private static final double INC_MIN = 0.3, DEC_MIN = 0.5;
     public boolean isInner;
@@ -13,12 +13,7 @@ public class Parameter {
 
     public Parameter(boolean isInner) {
         this.isInner = isInner;
-        if (isInner) {
-            fps = INNER_FPS_DEFAULT;
-        }
-        else {
-            fps = OUTER_FPS_DEFAULT;
-        }
+        this.fps = 1;
     }
 
     public double decrease() {

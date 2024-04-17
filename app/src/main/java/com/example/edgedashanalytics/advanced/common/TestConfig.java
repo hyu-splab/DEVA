@@ -21,11 +21,13 @@ import java.util.StringTokenizer;
 
 public class TestConfig {
     public boolean isCoordinator;
+    public boolean isWorker;
     public int testNum;
     public String innerResultFile, outerResultFile;
 
-    public TestConfig(boolean isCoordinator, int testNum, String innerResultFile, String outerResultFile) {
+    public TestConfig(boolean isCoordinator, boolean isWorker, int testNum, String innerResultFile, String outerResultFile) {
         this.isCoordinator = isCoordinator;
+        this.isWorker = isWorker;
         this.testNum = testNum;
         this.innerResultFile = innerResultFile;
         this.outerResultFile = outerResultFile;
@@ -83,6 +85,8 @@ public class TestConfig {
 
         String innerResultFile = null, outerResultFile = null;
 
+        boolean isWorker = false;
+
         while ((line = br.readLine()) != null) {
             if (first) {
                 first = false;
@@ -100,6 +104,9 @@ public class TestConfig {
                 for (int i = 0; i < numWorkers; i++) {
                     connectionTimestamps[i] = new ArrayList<>();
                     workerNameList[i] = rs(st);
+                    if (whoAmI.equals(workerNameList[i])) {
+                        isWorker = true;
+                    }
                     int numTimestamps = ri(st);
                     for (int j = 0; j < numTimestamps; j++) {
                         int ts = ri(st);
@@ -123,7 +130,7 @@ public class TestConfig {
         //}
         tempFile.delete();
 
-        return new TestConfig(whoAmI.equals(coordinatorID), testNum, dir + "/" + innerResultFile, dir + "/" + outerResultFile);
+        return new TestConfig(whoAmI.equals(coordinatorID), isWorker, testNum, dir + "/" + innerResultFile, dir + "/" + outerResultFile);
     }
 
     static int ri(StringTokenizer st) {
