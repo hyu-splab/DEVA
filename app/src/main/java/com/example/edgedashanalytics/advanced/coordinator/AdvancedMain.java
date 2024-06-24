@@ -321,7 +321,7 @@ public class AdvancedMain {
             p6.put("s22", "192.168." + p6IP + ".6");
         } // pixel6
 
-        int exp = 7;
+        int exp = 4;
         switch (exp) {
             case 1:
                 allDevices = new String[]{"oneplus", "oppo", "s22", "lineage2"};
@@ -329,6 +329,7 @@ public class AdvancedMain {
                 outerCamIP = p6.get("pixel5");
                 break;
             case 2:
+            case 4:
                 allDevices = new String[]{"lineage2", "lineage", "pixel5"};
                 innerCamIP = p6.get("oneplus");
                 outerCamIP = p6.get("oppo");

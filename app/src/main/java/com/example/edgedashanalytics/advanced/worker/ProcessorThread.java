@@ -50,7 +50,7 @@ public class ProcessorThread extends Thread {
                 else {
                     if (AdvancedMain.isBusy) {
                         img = FrameData.getMeaninglessFrame();
-                        Log.v(TAG, "Busy thread working!!!");
+                        //Log.v(TAG, "Busy thread working!!!");
                     }
                     else {
                         try {

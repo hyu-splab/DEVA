@@ -31,7 +31,7 @@ public abstract class VideoAnalysis {
     private static final String TAG = VideoAnalysis.class.getSimpleName();
     private static final boolean DEFAULT_VERBOSE = false;
 
-    final static int TF_THREAD_NUM = 4;
+    final static int TF_THREAD_NUM = -1;
     final static int THREAD_NUM = 2;
 
     final boolean verbose;
