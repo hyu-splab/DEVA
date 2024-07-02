@@ -80,4 +80,8 @@ public class WorkerStatus {
             return DEFAULT_OUTER_PROCESS_TIME;
         return outerHistory.processTime;
     }
+
+    public double getAverage() {
+        return (getAverageInnerProcessTime() + getAverageOuterProcessTime()) / 2;
+    }
 }

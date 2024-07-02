@@ -2,12 +2,14 @@ package com.example.edgedashanalytics.advanced.coordinator;
 
 import static com.example.edgedashanalytics.advanced.coordinator.AdvancedMain.communicator;
 import static com.example.edgedashanalytics.advanced.coordinator.AdvancedMain.testConfig;
+import static com.example.edgedashanalytics.advanced.coordinator.Communicator.availableWorkers;
 import static com.example.edgedashanalytics.advanced.coordinator.DeviceLogger.DeviceLog;
 import static com.example.edgedashanalytics.advanced.coordinator.DeviceLogger.DeviceLog.IndividualDeviceLog;
 
 import android.os.HardwarePropertiesManager;
 import android.util.Log;
 
+import com.example.edgedashanalytics.advanced.common.AnalysisResult;
 import com.example.edgedashanalytics.advanced.common.WorkerStatus;
 import com.example.edgedashanalytics.page.main.MainActivity;
 
@@ -16,6 +18,8 @@ import java.util.List;
 
 public class Controller extends Thread {
     private static final String TAG = "Controller";
+    private static final double QSIZE_LARGE = 1.0;
+    private static final double QSIZE_SMALL = 0.2;
     public static int queueWarn;
     private final EDACam innerCam, outerCam;
     private long prevTotalDataSize;
@@ -57,7 +61,7 @@ public class Controller extends Thread {
                 long curTime = System.currentTimeMillis();
                 if (checkNeeded || curTime >= nextCheckpoint) {
                     if (testConfig.isCoordinator) {
-                        adjustCamSettingsV4();
+                        adjustCamSettingsV5();
                     }
                     checkNeeded = false;
                     if (curTime >= nextCheckpoint) {
@@ -73,7 +77,105 @@ public class Controller extends Thread {
     }
 
     /*
-    19/02/2014: Resolution and Quality are fixed, only modify frame rate
+    28/06/2024: Queue size calculated through the average in the history, rather than the latest one
+     */
+    public void adjustCamSettingsV5() {
+        long pendingDataSize = communicator.pendingDataSize;
+        long totalDataSize = communicator.totalDataSize;
+
+        long totalQueueSize = 0;
+        long numRecords = 0;
+        // If connection status is changed, force-set FPS to something reasonably safe
+        if (connectionChanged) {
+            setDefaultFPSV2(innerCamParameter, outerCamParameter);
+            connectionChanged = false;
+        }
+
+        else {
+            for (EDAWorker worker : workers) {
+                WorkerStatus status = worker.status;
+
+                if (status.isConnected) {
+                    numRecords += status.innerHistory.history.size();
+                    for (AnalysisResult res : status.innerHistory.history) {
+                        totalQueueSize += res.queueSize;
+                    }
+                    numRecords += status.outerHistory.history.size();
+                    for (AnalysisResult res : status.outerHistory.history) {
+                        totalQueueSize += res.queueSize;
+                    }
+                }
+            }
+
+            double averageQueueSize = (double) totalQueueSize / numRecords;
+
+            boolean levelLo = queueWarn == 2 || averageQueueSize > QSIZE_LARGE;
+            /* 2 */
+            boolean levelHi = queueWarn == 0 && averageQueueSize < QSIZE_SMALL;
+
+            double currentFPS = innerCamParameter.fps + outerCamParameter.fps;
+
+            Log.v(TAG, "FPS = " + currentFPS + ", available = " + availableWorkers + ", queueSize = " + averageQueueSize);
+
+            if (queueWarn != 0) {
+                Log.w(TAG, "queueWarn level " + queueWarn);
+            }
+
+            if (levelLo) {
+                if (lastAction != -1) {
+                    lastAction = -1;
+                    innerCamParameter.decrease();
+                    outerCamParameter.decrease();
+                }
+                else
+                    lastAction = 0;
+            } else if (levelHi) {
+                if (lastAction != 1) {
+                    lastAction = 1;
+                    innerCamParameter.increase();
+                    outerCamParameter.increase();
+                }
+                else
+                    lastAction = 0;
+            } else {
+                lastAction = 0;
+            }
+
+            prevPendingDataSize = pendingDataSize;
+            long sizeDelta = totalDataSize - prevTotalDataSize;
+            prevTotalDataSize = totalDataSize;
+
+            int networkLevel = (levelLo ? 0 : levelHi ? 2 : 1);
+
+            StatusLogger.log(innerCam, outerCam, workers, nextCheckpoint - startTime, sizeDelta, networkLevel);
+
+        }
+
+        if (innerCam.outStream != null) {
+            innerCam.sendSettings(innerCam.outStream);
+        }
+        if (outerCam.outStream != null) {
+            outerCam.sendSettings(outerCam.outStream);
+        }
+
+        ArrayList<IndividualDeviceLog> logs = new ArrayList<>();
+        for (EDAWorker worker : workers) {
+            worker.status.innerHistory.removeOldResults();
+            worker.status.outerHistory.removeOldResults();
+            worker.status.calcNetworkTime();
+
+            IndividualDeviceLog log = new IndividualDeviceLog(worker.status.temperatures, worker.status.frequencies);
+            logs.add(log);
+        }
+        DeviceLogger.addLog(new DeviceLog(nextCheckpoint - startTime, logs));
+
+        if (sensitive > 0)
+            sensitive--;
+        queueWarn = 0;
+    }
+
+    /*
+    19/02/2024: Resolution and Quality are fixed, only modify frame rate
      */
     public void adjustCamSettingsV4() {
         int availableWorkers = Communicator.availableWorkers;
@@ -177,6 +279,21 @@ public class Controller extends Thread {
         if (sensitive > 0)
             sensitive--;
         queueWarn = 0;
+    }
+
+    private void setDefaultFPSV2(Parameter innerCamParameter, Parameter outerCamParameter) {
+        double totalFPS = innerCamParameter.fps + outerCamParameter.fps;
+
+        if (performanceLostRatio > 0) {
+            totalFPS = Math.max(5, totalFPS * (1 - performanceLostRatio));
+        }
+
+        totalFPS += deviceAdded * 5;
+
+        innerCamParameter.fps = totalFPS / 2;
+        outerCamParameter.fps = totalFPS / 2;
+
+        sensitive = 10;
     }
 
     private void setDefaultFPS(Parameter innerCamParameter, Parameter outerCamParameter) {

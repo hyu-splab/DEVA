@@ -308,7 +308,7 @@ public class AdvancedMain {
             splab.put("s22", "192.168.0.108");
         } // splab
 
-        final int p6IP = 59;
+        final int p6IP = 228;
         {
             p6 = new HashMap<>();
             p6.put("self", "127.0.0.1");
@@ -321,7 +321,7 @@ public class AdvancedMain {
             p6.put("s22", "192.168." + p6IP + ".6");
         } // pixel6
 
-        int exp = 4;
+        int exp = -1;
         switch (exp) {
             case 1:
                 allDevices = new String[]{"oneplus", "oppo", "s22", "lineage2"};
@@ -345,7 +345,10 @@ public class AdvancedMain {
                 outerCamIP = p6.get("pixel5");
                 break;
             default:
-                throw new RuntimeException();
+                allDevices = new String[]{"lineage2", "pixel5", "oneplus", "oppo"};
+                innerCamIP = p6.get("lineage");
+                outerCamIP = p6.get("s22");
+                break;
         }
     }
 
@@ -369,7 +372,7 @@ public class AdvancedMain {
             int numWorker = communicator.workers.size();
             double[] workerPriority = new double[numWorker];
 
-            ArrayList<Double> workerWeight = calculateWorkerWeight();
+            ArrayList<Double> workerWeight = calculateWorkerWeightV2();
             double weightSum = 0;
             for (Double d : workerWeight)
                 weightSum += d;
@@ -407,6 +410,25 @@ public class AdvancedMain {
                     if (i == 0)
                         weight *= 0.8;
                     weight *= Math.max(0.5, 1.0 - status.latestQueueSize * 0.1);
+                    weights.add(weight);
+                }
+                else {
+                    weights.add(0.0);
+                }
+            }
+
+            return weights;
+        }
+
+        private ArrayList<Double> calculateWorkerWeightV2() {
+            ArrayList<Double> weights = new ArrayList<>();
+            for (int i = 0; i < communicator.workers.size(); i++) {
+                EDAWorker w = communicator.workers.get(i);
+                if (w.status.isConnected) {
+                    WorkerStatus status = w.status;
+
+                    double avg = status.getAverage();
+                    double weight = 1.0 / (avg * (status.latestQueueSize + 1));
                     weights.add(weight);
                 }
                 else {
