@@ -15,11 +15,25 @@ import com.example.edgedashanalytics.page.main.MainActivity;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public class Controller extends Thread {
     private static final String TAG = "Controller";
+
+    private static final double NETWORK_BANDWIDTH = 100000000 / 8.0; // unit: bytes per second
+    public static final double TARGET_LATENCY = 0.2; // unit: s
+    private static final double EXTRA_LATENCY = 0.00; // unit: s
+    private static final double AVERAGE_FRAME_SIZE = 150000.0; // unit: bytes
+    private static final double AVERAGE_RESULT_SIZE = 1000.0; // unit: bytes
+    private static final double DEFAULT_ANALYSIS_LATENCY = 0.05;
+
     private static final double QSIZE_LARGE = 1.0;
     private static final double QSIZE_SMALL = 0.2;
+    private static final double DECREASE_MULTIPLIER = 0.9;
+    private static final double INCREASE_RATE = 0.5;
+
+    private static final double CHANGE_RATIO = 1.05;
+
     public static int queueWarn;
     private final EDACam innerCam, outerCam;
     private long prevTotalDataSize;
@@ -49,6 +63,8 @@ public class Controller extends Thread {
     private long startTime, nextCheckpoint;
     public static int sensitive;
 
+    private boolean notUpdated;
+
     @Override
     public void run() {
         checkNeeded = false;
@@ -59,9 +75,9 @@ public class Controller extends Thread {
             Thread.sleep(CAMERA_ADJUSTMENT_PERIOD);
             while (true) {
                 long curTime = System.currentTimeMillis();
-                if (checkNeeded || curTime >= nextCheckpoint) {
+                if (/*checkNeeded || */curTime >= nextCheckpoint) {
                     if (testConfig.isCoordinator) {
-                        adjustCamSettingsV5();
+                        MM1();
                     }
                     checkNeeded = false;
                     if (curTime >= nextCheckpoint) {
@@ -74,6 +90,347 @@ public class Controller extends Thread {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    private void MM1() {
+        long pendingDataSize = communicator.pendingDataSize;
+        long totalDataSize = communicator.totalDataSize;
+
+        // If connection status is changed, force-set FPS to something reasonably safe
+        if (connectionChanged) {
+            //setDefaultFPSV2(innerCamParameter, outerCamParameter);
+            connectionChanged = false;
+        }
+        /*else*/ {
+            final double dp = 2;
+
+            double fpsNew = 0.0;
+
+            /*ArrayList<Double> averages = new ArrayList<>();
+
+            double maxAverage = 0.0;
+            for (EDAWorker worker : workers) {
+                WorkerStatus status = worker.status;
+                if (!status.isConnected) {
+                    continue;
+                }
+                double average = status.getAverageOuterProcessTime();
+                if (average > maxAverage) {
+                    maxAverage = average;
+                }
+                averages.add(average);
+            }
+            for (int i = 0; i < averages.size(); i++) {
+                if (averages.get(i) == WorkerStatus.DEFAULT_OUTER_PROCESS_TIME) {
+                    averages.set(i, maxAverage);
+                    Log.w(TAG, "Default time found, setting to average");
+                }
+            }
+
+            for (Double average : averages) {
+
+                double first = dp / (average / 1000.0);
+
+                double lg = TARGET_LATENCY;
+                double transfer = estimateTrasferTime();
+
+                double second = 1.0 / (lg - transfer);
+                fpsNew += first - second;
+                //Log.w(TAG, "first = " + first + ", second = " + second + ", sub = " + (first - second));
+            }*/
+
+            for (EDAWorker worker : workers) {
+                WorkerStatus status = worker.status;
+                if (!status.isConnected) {
+                    continue;
+                }
+                double average = status.getAverageOuterProcessTime();
+                double first = dp / (average / 1000.0);
+
+                double lg = TARGET_LATENCY;
+                double transfer = estimateTrasferTime();
+
+                double second = 1.0 / (lg - transfer);
+                fpsNew += first - second;
+                Log.w(TAG, "first = " + first + ", second = " + second + ", sub = " + (first - second));
+            }
+
+            fpsNew /= 2.0; // Inner and outer
+
+            Log.w(TAG, "fps = " + fpsNew);
+
+            fpsNew = Math.max(fpsNew, 1.0);
+            fpsNew = Math.min(fpsNew, 30.0);
+            innerCamParameter.fps = fpsNew;
+            outerCamParameter.fps = fpsNew;
+
+            prevPendingDataSize = pendingDataSize;
+            long sizeDelta = totalDataSize - prevTotalDataSize;
+            prevTotalDataSize = totalDataSize;
+
+            StatusLogger.log(innerCam, outerCam, workers, nextCheckpoint - startTime, sizeDelta, -1);
+        }
+
+        if (innerCam.outStream != null) {
+            innerCam.sendSettings();
+        }
+        if (outerCam.outStream != null) {
+            outerCam.sendSettings();
+        }
+
+        ArrayList<IndividualDeviceLog> logs = new ArrayList<>();
+        for (EDAWorker worker : workers) {
+            worker.status.innerHistory.removeOldResults();
+            worker.status.outerHistory.removeOldResults();
+            worker.status.calcNetworkTime();
+
+            IndividualDeviceLog log = new IndividualDeviceLog(worker.status.temperatures, worker.status.frequencies);
+            logs.add(log);
+        }
+        DeviceLogger.addLog(new DeviceLog(nextCheckpoint - startTime, logs));
+    }
+
+
+
+    public double findMaximumAllowedQueueSize() {
+        double lo = 0, hi = 20;
+        for (int loop = 0; loop < 20; loop++) {
+            double mid = (lo + hi) / 2;
+            double averageLatency = 0.0;
+
+            double analysisLatency = 0.0;
+            double numWorkers = 0;
+            double sumLatency = 0;
+            for (EDAWorker worker : workers) {
+                WorkerStatus status = worker.status;
+                if (status.isConnected) {
+                    numWorkers++;
+                    sumLatency += status.getLatencyWithQueueSize(mid);
+                }
+            }
+
+            sumLatency /= 1000; // ms to s
+            if (sumLatency == 0.0)
+                analysisLatency = DEFAULT_ANALYSIS_LATENCY;
+            else
+                analysisLatency = sumLatency / numWorkers;
+
+            averageLatency = estimateTrasferTime() + analysisLatency + EXTRA_LATENCY;
+            if (averageLatency > TARGET_LATENCY)
+                hi = mid;
+            else
+                lo = mid;
+        }
+        return hi;
+    }
+
+    public static double estimateTrasferTime() {
+        double frameTransferTime = AVERAGE_FRAME_SIZE / NETWORK_BANDWIDTH;
+        double resultTransferTime = AVERAGE_RESULT_SIZE / NETWORK_BANDWIDTH;
+        return 2 * frameTransferTime + resultTransferTime;
+    }
+
+    public double estimateLatency() {
+        double averageLatency = 0.0;
+
+        double analysisLatency = 0.0;
+
+        double numWorkers = 0;
+        double sumLatency = 0;
+        long sumQueueSize = 0;
+        notUpdated = false;
+        for (EDAWorker worker : workers) {
+            WorkerStatus status = worker.status;
+            if (status.isConnected) {
+                if (status.lastUpdated == status.lastChecked)
+                    notUpdated = true;
+                status.lastChecked = status.lastUpdated;
+                numWorkers++;
+                double weight = status.getWeight();
+                sumQueueSize += status.latestQueueSize;
+                sumLatency += 1.0 / weight;
+            }
+        }
+
+        sumLatency /= 1000; // ms to s
+        if (sumLatency == 0.0)
+            analysisLatency = DEFAULT_ANALYSIS_LATENCY;
+        else
+            analysisLatency = sumLatency / numWorkers;
+
+        averageLatency = estimateTrasferTime() + analysisLatency + EXTRA_LATENCY;
+
+        Log.w(TAG, "notUpdated = " + notUpdated + ", Latency = " + averageLatency + ", sumQueueSize = " + sumQueueSize);
+
+        return averageLatency;
+    }
+
+    /*
+    28/07/2024: new strategy
+     */
+    public void adjustCamSettingsV7() {
+        long pendingDataSize = communicator.pendingDataSize;
+        long totalDataSize = communicator.totalDataSize;
+
+        // If connection status is changed, force-set FPS to something reasonably safe
+        if (connectionChanged) {
+            setDefaultFPSV2(innerCamParameter, outerCamParameter);
+            connectionChanged = false;
+        }
+
+        else {
+            double maximumAllowedQueueSize = findMaximumAllowedQueueSize();
+
+            long numWorkers = 0;
+            double sumQueueSize = 0.0;
+
+            for (EDAWorker worker : workers) {
+                WorkerStatus status = worker.status;
+                if (status.isConnected) {
+                    numWorkers++;
+                    sumQueueSize += status.getAverageQueueSize();
+                }
+            }
+
+            double averageQueueSize = (numWorkers == 0 ? 0.0 : sumQueueSize / numWorkers);
+
+            final double DO_DECREASE = maximumAllowedQueueSize * 0.5;
+            final double CAN_INCREASE = 0.1;
+
+            double currentFPS = innerCamParameter.fps;
+            double newFPS;
+
+            if (averageQueueSize > DO_DECREASE) {
+                newFPS = currentFPS / CHANGE_RATIO;
+            }
+            else if (averageQueueSize <= CAN_INCREASE && CAN_INCREASE < DO_DECREASE) {
+                newFPS = currentFPS * CHANGE_RATIO;
+            }
+            else {
+                newFPS = currentFPS;
+            }
+
+            newFPS = Math.max(newFPS, 1.0);
+            newFPS = Math.min(newFPS, 30.0);
+
+            StringBuilder sb = new StringBuilder();
+            sb.append("num = ").append(numWorkers);
+            sb.append(", max = ").append(String.format(Locale.ENGLISH, "%.02f", maximumAllowedQueueSize));
+            sb.append(", cur = ").append(String.format(Locale.ENGLISH, "%.02f", averageQueueSize));
+            sb.append(", latency = ").append(String.format(Locale.ENGLISH, "%.02f", estimateLatency()));
+            sb.append(", fps = ").append(newFPS);
+            Log.w(TAG, sb.toString());
+
+            //newFPS += 1e-9; // To avoid undesired rounding down in any case
+
+
+            innerCamParameter.fps = newFPS;
+            outerCamParameter.fps = newFPS;
+
+
+            /*Log.v(TAG, "FPS = " + newFPS + ", available = " + availableWorkers);
+            if (queueWarn != 0) {
+                Log.w(TAG, "queueWarn level " + queueWarn);
+            }*/
+
+            prevPendingDataSize = pendingDataSize;
+            long sizeDelta = totalDataSize - prevTotalDataSize;
+            prevTotalDataSize = totalDataSize;
+
+            StatusLogger.log(innerCam, outerCam, workers, nextCheckpoint - startTime, sizeDelta, -1);
+        }
+
+        if (innerCam.outStream != null) {
+            innerCam.sendSettings();
+        }
+        if (outerCam.outStream != null) {
+            outerCam.sendSettings();
+        }
+
+        ArrayList<IndividualDeviceLog> logs = new ArrayList<>();
+        for (EDAWorker worker : workers) {
+            worker.status.innerHistory.removeOldResults();
+            worker.status.outerHistory.removeOldResults();
+            worker.status.calcNetworkTime();
+
+            IndividualDeviceLog log = new IndividualDeviceLog(worker.status.temperatures, worker.status.frequencies);
+            logs.add(log);
+        }
+        DeviceLogger.addLog(new DeviceLog(nextCheckpoint - startTime, logs));
+    }
+
+    /*
+    04/07/2024: Using latency model
+     */
+    public void adjustCamSettingsV6() {
+        long pendingDataSize = communicator.pendingDataSize;
+        long totalDataSize = communicator.totalDataSize;
+
+        // If connection status is changed, force-set FPS to something reasonably safe
+        if (connectionChanged) {
+            setDefaultFPSV2(innerCamParameter, outerCamParameter);
+            connectionChanged = false;
+        }
+
+        else {
+            double averageLatency = estimateLatency();
+
+            double currentFPS = innerCamParameter.fps;
+            double newFPS;
+
+            double quiescent = 0.9;
+
+            if (averageLatency > TARGET_LATENCY) {
+                //newFPS = currentFPS * DECREASE_MULTIPLIER;
+                newFPS = currentFPS / CHANGE_RATIO;
+            }
+            else if (averageLatency < quiescent * TARGET_LATENCY && (!notUpdated || currentFPS <= 10)) {
+                //newFPS = currentFPS + INCREASE_RATE;
+                newFPS = currentFPS * CHANGE_RATIO;
+            }
+            else {
+                newFPS = currentFPS;
+            }
+
+            newFPS = Math.max(newFPS, 1.0);
+            newFPS = Math.min(newFPS, 30.0);
+
+            //newFPS += 1e-9; // To avoid undesired rounding down in any case
+
+
+            innerCamParameter.fps = newFPS;
+            outerCamParameter.fps = newFPS;
+
+
+            /*Log.v(TAG, "FPS = " + newFPS + ", available = " + availableWorkers);
+            if (queueWarn != 0) {
+                Log.w(TAG, "queueWarn level " + queueWarn);
+            }*/
+
+            prevPendingDataSize = pendingDataSize;
+            long sizeDelta = totalDataSize - prevTotalDataSize;
+            prevTotalDataSize = totalDataSize;
+
+            StatusLogger.log(innerCam, outerCam, workers, nextCheckpoint - startTime, sizeDelta, -1);
+        }
+
+        if (innerCam.outStream != null) {
+            innerCam.sendSettings();
+        }
+        if (outerCam.outStream != null) {
+            outerCam.sendSettings();
+        }
+
+        ArrayList<IndividualDeviceLog> logs = new ArrayList<>();
+        for (EDAWorker worker : workers) {
+            worker.status.innerHistory.removeOldResults();
+            worker.status.outerHistory.removeOldResults();
+            worker.status.calcNetworkTime();
+
+            IndividualDeviceLog log = new IndividualDeviceLog(worker.status.temperatures, worker.status.frequencies);
+            logs.add(log);
+        }
+        DeviceLogger.addLog(new DeviceLog(nextCheckpoint - startTime, logs));
     }
 
     /*
@@ -97,13 +454,9 @@ public class Controller extends Thread {
 
                 if (status.isConnected) {
                     numRecords += status.innerHistory.history.size();
-                    for (AnalysisResult res : status.innerHistory.history) {
-                        totalQueueSize += res.queueSize;
-                    }
+                    totalQueueSize += status.innerHistory.getSumQueueSize();
                     numRecords += status.outerHistory.history.size();
-                    for (AnalysisResult res : status.outerHistory.history) {
-                        totalQueueSize += res.queueSize;
-                    }
+                    totalQueueSize += status.outerHistory.getSumQueueSize();
                 }
             }
 
@@ -115,7 +468,7 @@ public class Controller extends Thread {
 
             double currentFPS = innerCamParameter.fps + outerCamParameter.fps;
 
-            Log.v(TAG, "FPS = " + currentFPS + ", available = " + availableWorkers + ", queueSize = " + averageQueueSize);
+            Log.v(TAG, "FPS = " + currentFPS + ", available = " + availableWorkers + ", queueSize = " + averageQueueSize + " (" + totalQueueSize + "/" + numRecords + ")");
 
             if (queueWarn != 0) {
                 Log.w(TAG, "queueWarn level " + queueWarn);
@@ -282,18 +635,18 @@ public class Controller extends Thread {
     }
 
     private void setDefaultFPSV2(Parameter innerCamParameter, Parameter outerCamParameter) {
-        double totalFPS = innerCamParameter.fps + outerCamParameter.fps;
+        double totalFPS = innerCamParameter.fps;// + outerCamParameter.fps;
 
         if (performanceLostRatio > 0) {
             totalFPS = Math.max(5, totalFPS * (1 - performanceLostRatio));
         }
 
-        totalFPS += deviceAdded * 5;
+        totalFPS += deviceAdded * 3;
 
-        innerCamParameter.fps = totalFPS / 2;
-        outerCamParameter.fps = totalFPS / 2;
+        innerCamParameter.fps = totalFPS;
+        outerCamParameter.fps = totalFPS;
 
-        sensitive = 10;
+        //sensitive = 10;
     }
 
     private void setDefaultFPS(Parameter innerCamParameter, Parameter outerCamParameter) {
@@ -317,10 +670,10 @@ public class Controller extends Thread {
 
     public void sendRestartMessages(EDACam innerCam, EDACam outerCam) {
         try {
-            innerCam.outStream.writeInt(-1);
+            innerCam.outStream.writeDouble(-1);
             innerCam.outStream.flush();
             innerCam.outStream.reset();
-            outerCam.outStream.writeInt(-1);
+            outerCam.outStream.writeDouble(-1);
             outerCam.outStream.flush();
             outerCam.outStream.reset();
         } catch (Exception e) {

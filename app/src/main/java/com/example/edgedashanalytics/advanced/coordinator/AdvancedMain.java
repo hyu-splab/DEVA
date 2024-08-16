@@ -33,13 +33,15 @@ public class AdvancedMain {
     private static final String TAG = "AdvancedMain";
     public static Communicator communicator;
     public static boolean isFinished = false;
-    public static HashMap<String, String> s22, splab, p6;
+    public static HashMap<String, String> s22, splab, p6, oneplus, lineage2;
+    public static HashMap<String, String> hotSpot;
     public static String[] allDevices;
     public static boolean connectionChanged = false;
 
     public static EDACam innerCam, outerCam;
     public static Controller controller;
     public static long EXPERIMENT_DURATION = (long)1e9; // should be overwritten by testconfig.txt
+    public static long REAL_EXPERIMENT_DURATION = (long)1e9;
 
     public static String[] workerNameList;
     public static ArrayList<Integer>[] connectionTimestamps;
@@ -49,12 +51,31 @@ public class AdvancedMain {
     private static String innerCamIP, outerCamIP;
     public static boolean isBusy;
     public static Distributer distributer;
+    public static DistributerV2 distributerV2;
 
     public static void createVideoAnalysisData(Context context) {
         try {
             new Thread(() -> {
                 VideoTest2.test("video2.mp4", "inner_lightning.txt", context, true);
                 VideoTest2.test("video.mov", "outer_mobilenet_v1.txt", context, false);
+            }).start();
+            return;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void testInnerVideo(Context context) {
+        try {
+            new Thread(() -> {
+                final Size[] resolutions = {
+                        new Size(1280, 720)
+                };
+
+                final Integer[] qualities = {
+                        20, 30, 40, 50, 60, 70, 80, 90, 100
+                };
+                VideoTest.testInnerAnalysisAccuracy(context, "inner.mp4", Arrays.asList(qualities), Arrays.asList(resolutions));
             }).start();
             return;
         } catch (Exception e) {
@@ -72,15 +93,15 @@ public class AdvancedMain {
                         /*new Size(880, 495),
                         new Size(960, 540),
                         new Size(1040, 585),*/
-                        new Size(1120, 630),
-                        new Size(1200, 675),
+                        //new Size(1120, 630),
+                        //new Size(1200, 675),
                         new Size(1280, 720)
                 };
 
                 final Integer[] qualities = {
                         20, 30, 40, 50, 60, 70, 80, 90, 100
                 };
-                VideoTest.testOuterAnalysisAccuracy(context, "video.mov", Arrays.asList(qualities), Arrays.asList(resolutions), 0, 200);
+                VideoTest.testOuterAnalysisAccuracy(context, "outer.mov", Arrays.asList(qualities), Arrays.asList(resolutions));
             }).start();
             return;
         } catch (Exception e) {
@@ -91,7 +112,7 @@ public class AdvancedMain {
     public static void calculateDataSize(Context context) {
         try {
             new Thread(() -> {
-                VideoTest.calculateDataSizes(context, "video.mov", "size.txt");
+                VideoTest.calculateDataSizes(context, "inner.mp4", "inner-size.txt");
             }).start();
             return;
         } catch (Exception e) {
@@ -110,12 +131,22 @@ public class AdvancedMain {
     }
 
     public static void advancedMain(Context context) {
+
+        if (false) {
+            testInnerVideo(context);
+            //testOuterVideo(context);
+            //calculateDataSize(context);
+            return;
+        }
+
+
+
         try {
             Thread.sleep(500);
             testConfig = TestConfig.readConfigs(context);
 
-            makeBaseInnerResult(testConfig.innerResultFile);
-            makeBaseOuterResult(testConfig.outerResultFile);
+            makeBaseInnerResult(context.getExternalFilesDir(null) + "/inner_lightning.txt");
+            makeBaseOuterResult(context.getExternalFilesDir(null) + "/outer_mobilenet_v1.txt");
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -123,7 +154,7 @@ public class AdvancedMain {
         workerStart();
 
         // If the test is running but it's not a participant, do some warmup while it's done
-        if (/*true || */(testConfig.testNum != -1 && !testConfig.isWorker)) { testAnalysisSpeed(context, 100, 99999999); return; }
+        //if (/*true || */(testConfig.testNum != -1 && !testConfig.isWorker)) { testAnalysisSpeed(context, 100, 99999999); return; }
 
         if (testConfig.isCoordinator) {
             run(context);
@@ -251,6 +282,7 @@ public class AdvancedMain {
 
     private static void connectToDashCam() {
         distributer = new Distributer();
+        //distributerV2 = new DistributerV2();
         // Inner DashCam
         innerCam = new EDACam(innerCamIP, true);
         innerCam.start();
@@ -265,19 +297,18 @@ public class AdvancedMain {
     public static void connectToWorkers() {
         // This device is the client side
         // Replace this part with actual finding process eventually
-        HashMap<String, String> p = p6;
 
         communicator = new Communicator();
         int workerNum = 0;
         HashSet<String> workerNames = new HashSet<>();
         for (String name : workerNameList) {
             workerNames.add(name);
-            communicator.addWorker(workerNum++, p.get(name));
+            communicator.addWorker(workerNum++, hotSpot.get(name));
         }
 
         for (String deviceName : allDevices) {
             if (!workerNames.contains(deviceName)) {
-                communicator.addOther(p.get(deviceName));
+                communicator.addOther(hotSpot.get(deviceName));
             }
         }
 
@@ -285,16 +316,19 @@ public class AdvancedMain {
     }
 
     public static void createDeviceList() {
+        final int s22IP = 94;
+        final String h = "192.168";
+        final String hs = h + "." + s22IP + ".";
         {
             s22 = new HashMap<>();
             s22.put("self", "127.0.0.1");
-            s22.put("lineage", "192.168.118.32");
-            s22.put("oneplus", "192.168.118.172");
-            s22.put("pixel6", "192.168.118.79");
-            s22.put("oppo", "192.168.118.230");
-            s22.put("pixel5", "192.168.118.145");
-            s22.put("lineage2", "192.168.118.72");
-            s22.put("s22", "192.168.118.159");
+            s22.put("lineage", hs + 32);
+            s22.put("oneplus", hs + 172);
+            s22.put("pixel6", hs + 79);
+            s22.put("oppo", hs + 230);
+            s22.put("pixel5", hs + 145);
+            s22.put("lineage2", hs + 72);
+            s22.put("s22", "127.0.0.1");
         } // s22
         {
             splab = new HashMap<>();
@@ -321,35 +355,44 @@ public class AdvancedMain {
             p6.put("s22", "192.168." + p6IP + ".6");
         } // pixel6
 
-        int exp = -1;
-        switch (exp) {
-            case 1:
-                allDevices = new String[]{"oneplus", "oppo", "s22", "lineage2"};
-                innerCamIP = p6.get("lineage");
-                outerCamIP = p6.get("pixel5");
-                break;
-            case 2:
-            case 4:
-                allDevices = new String[]{"lineage2", "lineage", "pixel5"};
-                innerCamIP = p6.get("oneplus");
-                outerCamIP = p6.get("oppo");
-                break;
-            case 3:
-                allDevices = new String[]{"oneplus", "lineage2", "pixel5"};
-                innerCamIP = p6.get("lineage");
-                outerCamIP = p6.get("oppo");
-                break;
-            case 7:
-                allDevices = new String[]{"oneplus", "oppo", "s22"};
-                innerCamIP = p6.get("lineage");
-                outerCamIP = p6.get("pixel5");
-                break;
-            default:
-                allDevices = new String[]{"lineage2", "pixel5", "oneplus", "oppo"};
-                innerCamIP = p6.get("lineage");
-                outerCamIP = p6.get("s22");
-                break;
+        final int oneplusIP = 194;
+        final String ho = h + "." + oneplusIP + ".";
+        {
+            oneplus = new HashMap<>();
+            oneplus.put("self", "127.0.0.1");
+            oneplus.put("lineage", ho + 143);
+            oneplus.put("oneplus", "127.0.0.1");
+            oneplus.put("oppo", ho + 87);
+            oneplus.put("pixel5", ho + 193);
+            oneplus.put("lineage2", ho + 253);
+            oneplus.put("s22", ho + 204);
+            oneplus.put("pixel6", ho + 14);
         }
+
+        final int lineage2IP = 141;
+        final String hl = h + "." + lineage2IP + ".";
+        {
+            lineage2 = new HashMap<>();
+            lineage2.put("self", "127.0.0.1");
+            lineage2.put("lineage", hl + 253);
+            lineage2.put("oneplus", hl + 178);
+            lineage2.put("oppo", hl + 14);
+            lineage2.put("pixel5", hl + 55);
+            lineage2.put("lineage2", "127.0.0.1");
+            lineage2.put("s22", hl + 78);
+            lineage2.put("pixel6", hl + 122);
+        }
+
+        hotSpot = (testConfig.myName.equals("oneplus") ? oneplus : testConfig.myName.equals("lineage2") ? lineage2 :
+                testConfig.myName.equals("s22") ? s22 : null);
+        if (hotSpot == null) {
+            throw new RuntimeException("WTF??? My name is " + testConfig.myName);
+        }
+        innerCamIP = hotSpot.get(testConfig.innerCamName);
+        outerCamIP = hotSpot.get(testConfig.outerCamName);
+
+        //allDevices = new String[]{"oneplus", "oppo"};
+        allDevices = new String[]{/*"lineage2", "pixel5", "lineage"*/};
     }
 
     public static void workerStart() {
@@ -357,8 +400,70 @@ public class AdvancedMain {
         workerThread.start();
     }
 
+    static class DistributerV2 {
+        private static final int MAX_WORKERS = 5;
+        private double[] innerPriority, outerPriority;
+
+        public DistributerV2() {
+            innerPriority = new double[MAX_WORKERS];
+            outerPriority = new double[MAX_WORKERS];
+        }
+
+        public int getNextWorker(boolean isInner) {
+            if (Communicator.availableWorkers == 0) {
+                Log.v(TAG, "No available workers!");
+                return -2;
+            }
+            if (connectionChanged) {
+                // reset to 0
+                Arrays.fill(innerPriority, 0.0);
+                Arrays.fill(outerPriority, 0.0);
+            }
+            return (isInner ? runAlgorithm(innerPriority) : runAlgorithm(outerPriority));
+        }
+
+        private int runAlgorithm(double[] priority) {
+            int numWorker = communicator.workers.size();
+            ArrayList<Double> workerWeight = calculateNormalizedWorkerWeight();
+
+            double maxPriority = -1;
+            int maxIndex = -1;
+            for (int j = 0; j < numWorker; j++) {
+                priority[j] += workerWeight.get(j);
+                if (priority[j] > maxPriority) {
+                    maxPriority = priority[j];
+                    maxIndex = j;
+                }
+            }
+            priority[maxIndex] -= 1.0;
+            return maxIndex;
+        }
+
+        private ArrayList<Double> calculateNormalizedWorkerWeight() {
+            int numWorkers = communicator.workers.size();
+            Double[] weights = new Double[numWorkers];
+            double sum = 0.0;
+            for (int i = 0; i < numWorkers; i++) {
+                EDAWorker w = communicator.workers.get(i);
+                if (w.status.isConnected) {
+                    double weight = w.status.getWeight();
+                    sum += weight;
+                    weights[i] = weight;
+                }
+            }
+
+            if (sum != 0.0) {
+                for (int i = 0; i < numWorkers; i++) {
+                    weights[i] /= sum;
+                }
+            }
+
+            return new ArrayList<Double>(Arrays.asList(weights));
+        }
+    }
+
     static class Distributer {
-        private static final int sequenceLength = 20; // tentative
+        private static final int sequenceLength = 10; // tentative
         private ArrayList<Integer> innerSequence, outerSequence;
         private int innerSequenceIndex, outerSequenceIndex;
 
@@ -394,6 +499,14 @@ public class AdvancedMain {
                 workerPriority[maxIndex] -= weightSum;
             }
 
+            /*int[] cnt = new int[3];
+            StringBuilder sb = new StringBuilder("Distribution: ");
+            for (int i = 0; i < sequenceLength; i++)
+                cnt[sequence.get(i)]++;
+            for (int i = 0; i < cnt.length; i++)
+                sb.append(cnt[i]).append(" ");
+            Log.w(TAG, sb.toString());*/
+
             DistributionLogger.addLog(workerWeight, sequence);
 
             return sequence;
@@ -425,16 +538,17 @@ public class AdvancedMain {
             for (int i = 0; i < communicator.workers.size(); i++) {
                 EDAWorker w = communicator.workers.get(i);
                 if (w.status.isConnected) {
-                    WorkerStatus status = w.status;
-
-                    double avg = status.getAverage();
-                    double weight = 1.0 / (avg * (status.latestQueueSize + 1));
-                    weights.add(weight);
+                    weights.add(w.status.getWeight());
                 }
                 else {
                     weights.add(0.0);
                 }
             }
+
+            /*StringBuilder sb = new StringBuilder("weights: ");
+            for (Double weight : weights)
+                sb.append((double)weight).append(" ");
+            Log.w(TAG, sb.toString());*/
 
             return weights;
         }

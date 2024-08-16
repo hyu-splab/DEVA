@@ -19,6 +19,8 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.nio.ByteBuffer;
+import java.nio.MappedByteBuffer;
 import java.util.List;
 
 public class VideoTest {
@@ -84,17 +86,15 @@ public class VideoTest {
         }
     }
 
-    public static void test2(Context context, String fileName, List<Integer> qualities, List<Size> resolutions, int frameStart, int frameEnd) {
+    public static void test2(Context context, String fileName, List<Integer> qualities, List<Size> resolutions) {
         String videoPath = context.getExternalFilesDir(null) + "/" + fileName;
         MediaMetadataRetriever retriever = new MediaMetadataRetriever();
         retriever.setDataSource(videoPath);
         String totalFramesString = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_FRAME_COUNT);
         int totalFrames = Integer.parseInt(totalFramesString);
 
-        if (frameStart == -1) {
-            frameStart = 0;
-            frameEnd = totalFrames - 1;
-        }
+        int frameStart = 0;
+        int frameEnd = totalFrames - 1;
 
         StringBuilder sb = new StringBuilder();
 
@@ -131,17 +131,15 @@ public class VideoTest {
     /*
     Test for outer analysis accuracy
      */
-    public static void testOuterAnalysisAccuracy(Context context, String fileName, List<Integer> qualities, List<Size> resolutions, int frameStart, int frameEnd) {
+    public static void testOuterAnalysisAccuracy(Context context, String fileName, List<Integer> qualities, List<Size> resolutions) {
         String videoPath = context.getExternalFilesDir(null) + "/" + fileName;
         MediaMetadataRetriever retriever = new MediaMetadataRetriever();
         retriever.setDataSource(videoPath);
         String totalFramesString = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_FRAME_COUNT);
         int totalFrames = Integer.parseInt(totalFramesString);
 
-        if (frameStart == -1) {
-            frameStart = 0;
-            frameEnd = totalFrames - 1;
-        }
+        int frameStart = 0;
+        int frameEnd = totalFrames - 1;
 
         String videoWidthString = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH);
         String videoHeightString = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT);
@@ -170,12 +168,12 @@ public class VideoTest {
         for (int i = frameStart; i <= frameEnd; i++) {
             Bitmap bitmap = retriever.getFrameAtIndex(i);
 
-            BitmapFactory.Options ops = new BitmapFactory.Options();
+            /*BitmapFactory.Options ops = new BitmapFactory.Options();
             ops.inMutable = true;
             ByteArrayOutputStream outStream = new ByteArrayOutputStream();
             bitmap.compress(Bitmap.CompressFormat.JPEG, 100, outStream);
             ByteArrayInputStream inStream = new ByteArrayInputStream(outStream.toByteArray());
-            bitmap = BitmapFactory.decodeStream(inStream, null, ops);
+            bitmap = BitmapFactory.decodeStream(inStream, null, ops);*/
 
             Frame frame = analyzer.analyse(Bitmap.createScaledBitmap(bitmap, scaledWidth, scaledHeight, false), i, scaleFactor).get(0);
             baseResult.addResult(i, frame);
@@ -210,6 +208,92 @@ public class VideoTest {
 
         Log.w(TAG, sb.toString());
     }
+
+
+
+    /*
+Test for outer analysis accuracy
+ */
+    public static void testInnerAnalysisAccuracy(Context context, String fileName, List<Integer> qualities, List<Size> resolutions) {
+        String videoPath = context.getExternalFilesDir(null) + "/" + fileName;
+        MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+        retriever.setDataSource(videoPath);
+        String totalFramesString = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_FRAME_COUNT);
+        int totalFrames = Integer.parseInt(totalFramesString);
+
+        int frameStart = 0;
+        int frameEnd = totalFrames - 1;
+
+        String videoWidthString = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH);
+        String videoHeightString = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT);
+        int videoWidth = Integer.parseInt(videoWidthString);
+        int videoHeight = Integer.parseInt(videoHeightString);
+
+        String rotationString = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION);
+        int rotation = Integer.parseInt(rotationString);
+        Log.v(TAG, "rotation = " + rotation);
+
+        if (rotation == 270 || rotation == 90) {
+            int temp = videoWidth;
+            videoWidth = videoHeight;
+            videoHeight = temp;
+        }
+
+        StringBuilder sb = new StringBuilder();
+
+        InnerAnalysis analyzer = new InnerAnalysis(context);
+
+        float scaleFactor = videoWidth / 512f;
+        int scaledWidth = (int) (videoWidth / scaleFactor);
+        int scaledHeight = (int) (videoHeight / scaleFactor);
+        // Calculate base things first
+        InnerAnalysisResult baseResult = new InnerAnalysisResult();
+        for (int i = frameStart; i <= frameEnd; i++) {
+            Bitmap bitmap = retriever.getFrameAtIndex(i);
+
+            /*BitmapFactory.Options ops = new BitmapFactory.Options();
+            ops.inMutable = true;
+            ByteArrayOutputStream outStream = new ByteArrayOutputStream();
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 100, outStream);
+            ByteArrayInputStream inStream = new ByteArrayInputStream(outStream.toByteArray());
+            bitmap = BitmapFactory.decodeStream(inStream, null, ops);*/
+
+            Frame frame = analyzer.analyse(Bitmap.createScaledBitmap(bitmap, scaledWidth, scaledHeight, false), i, scaleFactor).get(0);
+            baseResult.addResult(i, frame);
+        }
+
+        for (Integer quality : qualities) {
+            for (Size resolution : resolutions) {
+                InnerAnalysisResult result = new InnerAnalysisResult();
+                for (int i = frameStart; i <= frameEnd; i++) {
+                    Bitmap bitmap = retriever.getFrameAtIndex(i);
+
+                    if (resolution.getWidth() < 1280) {
+                        bitmap = Bitmap.createScaledBitmap(bitmap, resolution.getWidth(), resolution.getHeight(), true);
+                    }
+
+                    BitmapFactory.Options ops = new BitmapFactory.Options();
+                    ops.inMutable = true;
+                    ByteArrayOutputStream outStream = new ByteArrayOutputStream();
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, quality, outStream);
+                    ByteArrayInputStream inStream = new ByteArrayInputStream(outStream.toByteArray());
+                    bitmap = BitmapFactory.decodeStream(inStream, null, ops);
+
+                    Frame frame = analyzer.analyse(Bitmap.createScaledBitmap(bitmap, scaledWidth, scaledHeight, false), i, scaleFactor).get(0);
+                    result.addResult(i, frame);
+                }
+
+                sb.append(quality).append(" ").append(resolution.getWidth()).append(" ").append(resolution.getHeight())
+                        .append(": ").append(result.calcAccuracy(baseResult)).append("\n");
+            }
+        }
+        sb.append("\n");
+
+        Log.w(TAG, sb.toString());
+    }
+
+
+
 
     public static void testAnalysisSpeed(Context context, int numFrames, Size resolution, int quality, int numTest) {
         final String innerVideoFileName = "video2.mp4";
@@ -252,7 +336,7 @@ public class VideoTest {
         Log.v(TAG, "outer-only test");
         startTime = System.currentTimeMillis();
         for (int i = 0; i < numTest; i++) {
-            FrameData image = new FrameData(false, i, i, outerBitmaps[i % numFrames], false);
+            FrameData image = new FrameData(false, i, outerBitmaps[i % numFrames], false);
             image.isTesting = true;
             try {
                 while (ProcessorThread.queue.size() > 10) {
@@ -340,13 +424,13 @@ public class VideoTest {
                 /*new Size(880, 495),
                 new Size(960, 540),
                 new Size(1040, 585),*/
-                new Size(1120, 630),
-                new Size(1200, 675),
+                //new Size(1120, 630),
+                //new Size(1200, 675),
                 new Size(1280, 720)
         };
 
         final int[] qualities = {
-                20, 30, 40, 50, 60, 70, 80, 90, 100
+                /*20, 30, 40, 50, 60, 70, 80, 90,*/ 100
         };
 
         StringBuilder sb = new StringBuilder();
@@ -354,20 +438,25 @@ public class VideoTest {
         for (Size resolution : resolutions) {
             for (int quality : qualities) {
                 long totalSize = 0;
+                Log.w(TAG, resolution.getWidth() + "x" + resolution.getHeight() + ", " + quality);
                 for (int i = 0; i < totalFrames; i++) {
                     Bitmap bitmap = retriever.getFrameAtIndex(i);
                     bitmap = Bitmap.createScaledBitmap(bitmap, resolution.getWidth(), resolution.getHeight(), true);
                     BitmapFactory.Options ops = new BitmapFactory.Options();
                     ops.inMutable = true;
                     ByteArrayOutputStream outStream = new ByteArrayOutputStream();
+
+
+
                     bitmap.compress(Bitmap.CompressFormat.JPEG, quality, outStream);
 
                     byte[] data = outStream.toByteArray();
                     totalSize += data.length;
+                    //totalSize += bitmap.getByteCount();
                 }
-                sb.append(totalSize / totalFrames).append(",");
+                sb.append(resolution.getWidth()).append("x").append(resolution.getHeight()).append(", ").append(quality).append(" = ");
+                sb.append(totalSize).append(" / ").append(totalFrames).append("\n");
             }
-            sb.deleteCharAt(sb.length() - 1).append("\n");
         }
 
         File outFile = new File(context.getExternalFilesDir(null) + "/" + resFileName);

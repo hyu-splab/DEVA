@@ -24,8 +24,6 @@ public class WorkerServer {
     private Handler inHandler;
     private final Thread thread;
 
-    public static long innerCount = 0, outerCount = 0;
-
     // We only need one instance of this server as it will 1 to 1 connect to the central device
     // so no need to provide additional information
 
@@ -62,10 +60,6 @@ public class WorkerServer {
                         public void handleMessage(Message msg) {
                             try {
                                 WorkerResult res = (WorkerResult) msg.obj;
-                                if (res.isInner)
-                                    innerCount++;
-                                else
-                                    outerCount++;
 
                                 outstream.writeObject(res);
                                 outstream.flush();
@@ -103,7 +97,8 @@ public class WorkerServer {
                             AdvancedMain.isBusy = image.isBusy;
                         }
 
-                        image.workerStartTime = System.currentTimeMillis();
+                        long workerStartTime = System.currentTimeMillis();
+                        ProcessorThread.workerStartTimeMap.put(image.frameNum, workerStartTime);
                         if (AdvancedMain.isFinished)
                             continue;
 

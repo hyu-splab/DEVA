@@ -1,6 +1,7 @@
 package com.example.edgedashanalytics.advanced.common;
 
 import static com.example.edgedashanalytics.advanced.coordinator.AdvancedMain.EXPERIMENT_DURATION;
+import static com.example.edgedashanalytics.advanced.coordinator.AdvancedMain.REAL_EXPERIMENT_DURATION;
 import static com.example.edgedashanalytics.advanced.coordinator.AdvancedMain.workerNameList;
 import static com.example.edgedashanalytics.advanced.coordinator.AdvancedMain.connectionTimestamps;
 
@@ -23,14 +24,16 @@ public class TestConfig {
     public boolean isCoordinator;
     public boolean isWorker;
     public int testNum;
-    public String innerResultFile, outerResultFile;
+    public String innerCamName, outerCamName;
+    public String myName;
 
-    public TestConfig(boolean isCoordinator, boolean isWorker, int testNum, String innerResultFile, String outerResultFile) {
+    public TestConfig(boolean isCoordinator, boolean isWorker, int testNum, String innerCamName, String outerCamName, String myName) {
         this.isCoordinator = isCoordinator;
         this.isWorker = isWorker;
         this.testNum = testNum;
-        this.innerResultFile = innerResultFile;
-        this.outerResultFile = outerResultFile;
+        this.innerCamName = innerCamName;
+        this.outerCamName = outerCamName;
+        this.myName = myName;
     }
     private static final String TAG = "TestConfig";
 
@@ -73,17 +76,24 @@ public class TestConfig {
         BufferedWriter bw = new BufferedWriter(new FileWriter(tempFile));
 
         String line;
+        StringTokenizer st;
         boolean first = true;
 
         // It's common that ~2s of log at the end is missing because of various preparation phases
-        EXPERIMENT_DURATION = (ri(new StringTokenizer(br.readLine())) + 5) * 1000L;
+        long duration = ri(new StringTokenizer(br.readLine()));
+        EXPERIMENT_DURATION = (duration + 5) * 1000L;
+        REAL_EXPERIMENT_DURATION = duration * 1000L;
         bw.write(EXPERIMENT_DURATION / 1000 + "\n");
+
+        line = br.readLine();
+        st = new StringTokenizer(line);
+        String innerCamName = st.nextToken();
+        String outerCamName = st.nextToken();
+        bw.write(line + "\n");
 
         int testNum = -1;
         String coordinatorID = null;
         int numWorkers;
-
-        String innerResultFile = null, outerResultFile = null;
 
         boolean isWorker = false;
 
@@ -91,12 +101,8 @@ public class TestConfig {
             if (first) {
                 first = false;
 
-                StringTokenizer st = new StringTokenizer(line);
+                st = new StringTokenizer(line);
                 testNum = ri(st);
-                coordinatorID = rs(st);
-
-                innerResultFile = rs(st);
-                outerResultFile = rs(st);
 
                 numWorkers = ri(st);
                 workerNameList = new String[numWorkers];
@@ -104,6 +110,9 @@ public class TestConfig {
                 for (int i = 0; i < numWorkers; i++) {
                     connectionTimestamps[i] = new ArrayList<>();
                     workerNameList[i] = rs(st);
+                    if (i == 0) {
+                        coordinatorID = workerNameList[i];
+                    }
                     if (whoAmI.equals(workerNameList[i])) {
                         isWorker = true;
                     }
@@ -130,7 +139,7 @@ public class TestConfig {
         //}
         tempFile.delete();
 
-        return new TestConfig(whoAmI.equals(coordinatorID), isWorker, testNum, dir + "/" + innerResultFile, dir + "/" + outerResultFile);
+        return new TestConfig(whoAmI.equals(coordinatorID), isWorker, testNum, innerCamName, outerCamName, whoAmI);
     }
 
     static int ri(StringTokenizer st) {

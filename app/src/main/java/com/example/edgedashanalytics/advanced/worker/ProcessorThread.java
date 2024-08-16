@@ -1,5 +1,7 @@
 package com.example.edgedashanalytics.advanced.worker;
 
+import static com.example.edgedashanalytics.advanced.common.WorkerStatus.DEFAULT_INNER_PROCESS_TIME;
+import static com.example.edgedashanalytics.advanced.common.WorkerStatus.DEFAULT_OUTER_PROCESS_TIME;
 import static com.example.edgedashanalytics.advanced.worker.WorkerThread.N_THREAD;
 
 import android.graphics.Bitmap;
@@ -9,24 +11,29 @@ import android.os.HardwarePropertiesManager;
 import android.os.Message;
 import android.util.Log;
 
+import androidx.collection.CircularArray;
+
 import com.example.edgedashanalytics.advanced.common.FrameData;
 import com.example.edgedashanalytics.advanced.common.WorkerResult;
 import com.example.edgedashanalytics.advanced.coordinator.AdvancedMain;
 import com.example.edgedashanalytics.advanced.coordinator.Communicator;
+import com.example.edgedashanalytics.advanced.coordinator.Controller;
 import com.example.edgedashanalytics.page.main.MainActivity;
 import com.example.edgedashanalytics.util.hardware.PowerMonitor;
 
 import java.io.ByteArrayInputStream;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 
 public class ProcessorThread extends Thread {
     private static final String TAG = "ProcessorThread";
+    public static final HashMap<Integer, Long> workerStartTimeMap = new HashMap<>();
+    private static final int MIN_RECORDS = 50;
     static public ArrayBlockingQueue<FrameData> queue = new ArrayBlockingQueue<>(100);
     static public Handler handler;
-
-    public static final int QUEUE_FULL = 100; // per thread
 
     public int tid = 0;
     public int workCount = 0;
@@ -38,19 +45,38 @@ public class ProcessorThread extends Thread {
     public static final int maxListCount = 50;
     public static int debugCount = 0;
 
+    public static long innerAnalysisTimeSum = 0, outerAnalysisTimeSum = 0;
+    public static double averageInnerAnalysisTime = DEFAULT_INNER_PROCESS_TIME, averageOuterAnalysisTime = DEFAULT_OUTER_PROCESS_TIME;
+
+    private static final ArrayDeque<Long> innerHistory = new ArrayDeque<>(), outerHistory = new ArrayDeque<>();
+    private static long busyCnt = 0;
     @Override
     public void run() {
         FrameProcessor frameProcessor = null;
+        long total = 0, dropped = 0;
         while (true) {
+
             try {
                 FrameData img;
-                if (tid != N_THREAD) {
+                if (tid < N_THREAD) {
                     img = queue.take();
                 }
                 else {
                     if (AdvancedMain.isBusy) {
                         img = FrameData.getMeaninglessFrame();
-                        //Log.v(TAG, "Busy thread working!!!");
+                        Bitmap bitmap = uncompress(img.data);
+
+                        boolean isInner = img.isInner;
+
+                        frameProcessor = (isInner) ? innerProcessor : outerProcessor;
+
+                        frameProcessor.setFrame(bitmap);
+
+                        //long startTime = System.currentTimeMillis();
+                        FrameProcessor.ProcessResult result = frameProcessor.run();
+                        busyCnt++;
+                        Log.v(TAG, "Busy count: " + busyCnt);
+                        continue;
                     }
                     else {
                         try {
@@ -61,32 +87,70 @@ public class ProcessorThread extends Thread {
                         continue;
                     }
                 }
+                total++;
 
-                if (!img.isTesting && queue.size() >= QUEUE_FULL * N_THREAD) {
+                long startTime = System.currentTimeMillis();
+
+                /*if (!img.isTesting && queue.size() >= QUEUE_FULL * N_THREAD) {
                     Log.v(TAG, "sending failed message " + img.isInner);
-                    sendFailedResult(img.isInner, img.dataSize, queue.size());
+                    sendFailedResult(queue.size());
                     continue;
+                }*/
+                long queueTime = startTime - workerStartTimeMap.get(img.frameNum);
+                int historyCount = (img.isInner ? innerHistory.size() : outerHistory.size());
+
+                boolean useDropping = false;
+                // Decide whether to drop only when we have enough history records to judge reasonably
+                if (useDropping && historyCount >= MIN_RECORDS) {
+                    double overallLatency = estimateOverallLatency(queueTime, img.isInner);
+                    if (overallLatency > Controller.TARGET_LATENCY) {
+                        dropped++;
+                        long estimatedAnalysisTime = (long) (img.isInner ? averageInnerAnalysisTime : averageOuterAnalysisTime);
+                        Log.w(TAG, "Dropped " + dropped + "/" + total + ", latency = " + overallLatency + ", avg = " + averageInnerAnalysisTime + " " + averageOuterAnalysisTime);
+                        sendFailedResult(img.frameNum, queue.size(), estimatedAnalysisTime, queueTime + estimatedAnalysisTime);
+                        continue;
+                    }
                 }
 
                 Bitmap bitmap = uncompress(img.data);
 
-                int cameraFrameNum = img.cameraFrameNum;
+
                 int frameNum = img.frameNum;
                 boolean isInner = img.isInner;
 
                 frameProcessor = (isInner) ? innerProcessor : outerProcessor;
 
                 frameProcessor.setFrame(bitmap);
-                frameProcessor.setCameraFrameNum(img.cameraFrameNum);
 
-                long startTime = System.currentTimeMillis();
+                //long startTime = System.currentTimeMillis();
                 FrameProcessor.ProcessResult result = frameProcessor.run();
                 long endTime = System.currentTimeMillis();
 
-                if (!img.isTesting && tid != N_THREAD) {
-                    sendResult(isInner, img.coordinatorStartTime, frameNum, cameraFrameNum,
-                            endTime - startTime, endTime - img.workerStartTime, result.msg, img.dataSize, queue.size(),
-                            result.isDistracted, result.hazards);
+                if (!img.isTesting && tid < N_THREAD) {
+                    long processTime = endTime - startTime;
+
+                    synchronized (innerHistory) {
+                        if (img.isInner) {
+                            innerHistory.addLast(processTime);
+                            innerAnalysisTimeSum += processTime;
+                        }
+                        else {
+                            outerHistory.addLast(processTime);
+                            outerAnalysisTimeSum += processTime;
+                        }
+                        removeOldResults();
+                        calculateAverageAnalysisTime();
+
+                        //Log.w(TAG, "inner = " + innerAnalysisTimeSum + " " + innerHistory.size() + " " + averageInnerAnalysisTime);
+                        //Log.w(TAG, "outer = " + outerAnalysisTimeSum + " " + outerHistory.size() + " " + averageOuterAnalysisTime);
+                    }
+
+                    /*if (!img.isInner) {
+                        Log.w(TAG, "Done outer: " + processTime);
+                    }*/
+
+                    sendResult(frameNum, processTime, endTime - workerStartTimeMap.get(frameNum),
+                            result.msg, queue.size(), result.isDistracted, result.hazards);
                 }
                 else if (img.isTesting) {
                     synchronized (processingTimeList) {
@@ -108,12 +172,36 @@ public class ProcessorThread extends Thread {
         }
     }
 
-    private void sendFailedResult(boolean isInner, long dataSize, long queueSize) {
-        Message retMsg = Message.obtain();
-        retMsg.obj = WorkerResult.createFailedResult(
-                isInner, dataSize, queueSize, MainActivity.startBatteryLevel - PowerMonitor.getBatteryLevel(MainActivity.context),
-                MainActivity.latestTemperatures, MainActivity.latestFrequencies);
-        handler.sendMessage(retMsg);
+    // Call this WITHIN synchronized (innerHistory) block
+    private void removeOldResults() {
+        if (innerHistory.size() > MIN_RECORDS) {
+            long history = innerHistory.pop();
+            innerAnalysisTimeSum -= history;
+        }
+
+        if (outerHistory.size() > MIN_RECORDS) {
+            long history = outerHistory.pop();
+            outerAnalysisTimeSum -= history;
+        }
+    }
+
+    // Call this WITHIN synchronized (innerHistory) block
+    private void calculateAverageAnalysisTime() {
+        if (!innerHistory.isEmpty())
+            averageInnerAnalysisTime = innerAnalysisTimeSum / (double)innerHistory.size();
+        else
+            averageInnerAnalysisTime = DEFAULT_INNER_PROCESS_TIME;
+
+        if (!outerHistory.isEmpty())
+            averageOuterAnalysisTime = outerAnalysisTimeSum / (double)outerHistory.size();
+        else
+            averageOuterAnalysisTime = DEFAULT_OUTER_PROCESS_TIME;
+    }
+
+    private double estimateOverallLatency(long queueTime, boolean isInner) {
+        double transferTime = Controller.estimateTrasferTime();
+        //Log.w(TAG, "transferTime = " + transferTime);
+        return transferTime + (queueTime + (isInner ? averageInnerAnalysisTime : averageOuterAnalysisTime)) / 1000.0;
     }
 
     private Bitmap uncompress(byte[] data) {
@@ -124,14 +212,19 @@ public class ProcessorThread extends Thread {
         return bitmap;
     }
 
-    public static void sendResult(boolean isInner, long coordinatorStartTime, int frameNum, int cameraFrameNum,
-                                  long processTime, long totalTime, String resultString, long dataSize, long queueSize,
-                                  boolean isDistracted, List<String> hazards) {
+    private void sendFailedResult(int frameNum, long queueSize, long processTime, long totalTime) {
+        Message retMsg = Message.obtain();
+        retMsg.obj = WorkerResult.createFailedResult(frameNum, queueSize, processTime, totalTime, MainActivity.latestTemperatures, MainActivity.latestFrequencies);
+        handler.sendMessage(retMsg);
+    }
+
+
+    public static void sendResult(int frameNum, long processTime, long totalTime, String resultString,
+                                  long queueSize, boolean isDistracted, List<String> hazards) {
         Message retMsg = Message.obtain();
         retMsg.obj = WorkerResult.createResult(
-                isInner, coordinatorStartTime, frameNum, cameraFrameNum, processTime,
-                totalTime, resultString, dataSize, queueSize, isDistracted, hazards,
-                MainActivity.startBatteryLevel - PowerMonitor.getBatteryLevel(MainActivity.context),
+                frameNum, processTime,
+                totalTime, resultString, queueSize, isDistracted, hazards,
                 MainActivity.latestTemperatures, MainActivity.latestFrequencies);
         handler.sendMessage(retMsg);
     }

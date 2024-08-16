@@ -10,20 +10,14 @@ import java.io.Serializable;
 public class FrameData implements Serializable {
     public boolean isInner;
     public int frameNum;
-    public int cameraFrameNum;
-    public long coordinatorStartTime;
-    public long workerStartTime;
     public byte[] data;
-    public long dataSize;
     public boolean isTesting = false;
     public boolean isBusy;
 
-    public FrameData(boolean isInner, int frameNum, int cameraFrameNum, byte[] data, boolean isBusy) {
+    public FrameData(boolean isInner, int frameNum, byte[] data, boolean isBusy) {
         this.isInner = isInner;
         this.frameNum = frameNum;
-        this.cameraFrameNum = cameraFrameNum;
         this.data = data;
-        this.dataSize = data.length;
         this.isBusy = isBusy;
     }
 
@@ -36,7 +30,7 @@ public class FrameData implements Serializable {
             ByteArrayOutputStream outStream = new ByteArrayOutputStream();
             bitmap.compress(Bitmap.CompressFormat.JPEG, 100, outStream);
             byte[] data = outStream.toByteArray();
-            meaninglessFrame = new FrameData(false, -1, -1, data, true);
+            meaninglessFrame = new FrameData(false, -1, data, true);
         }
         return meaninglessFrame;
     }

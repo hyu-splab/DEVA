@@ -5,9 +5,9 @@ import java.util.ArrayList;
 public class WorkerStatus {
     private static final String TAG = "WorkerStatus";
     // 20 for lightning, 50 for thunder
-    private static final double DEFAULT_INNER_PROCESS_TIME = 80;
+    public static final double DEFAULT_INNER_PROCESS_TIME = 40;
     // 20 for mobilenet_v1, 30, 50, 70, 110, 230 for efficientdet-lite0-4
-    private static final double DEFAULT_OUTER_PROCESS_TIME = 200;
+    public static final double DEFAULT_OUTER_PROCESS_TIME = 100;
     public WorkerHistory innerHistory, outerHistory;
     public int innerWaiting, outerWaiting;
     public long latestQueueSize;
@@ -15,6 +15,8 @@ public class WorkerStatus {
     public boolean isConnected;
     public ArrayList<Integer> temperatures;
     public ArrayList<Integer> frequencies;
+    public long lastUpdated;
+    public long lastChecked;
 
     public WorkerStatus() {
         innerHistory = new WorkerHistory((int)DEFAULT_INNER_PROCESS_TIME);
@@ -33,12 +35,14 @@ public class WorkerStatus {
         outerWaiting = org.outerWaiting;
         networkTime = org.networkTime;
         isConnected = org.isConnected;
+        latestQueueSize = org.latestQueueSize;
     }
 
     public synchronized void addResult(AnalysisResult result) {
         WorkerHistory history = result.isInner ? innerHistory : outerHistory;
         history.addResult(result);
         calcNetworkTime();
+        lastUpdated = result.timestamp;
     }
 
     public synchronized void calcNetworkTime() {
@@ -70,18 +74,50 @@ public class WorkerStatus {
     }
 
     public double getAverageInnerProcessTime() {
+        innerHistory.removeOldResults();
         if (innerHistory.history.isEmpty())
             return DEFAULT_INNER_PROCESS_TIME;
         return innerHistory.processTime;
     }
 
     public double getAverageOuterProcessTime() {
+        outerHistory.removeOldResults();
         if (outerHistory.history.isEmpty())
             return DEFAULT_OUTER_PROCESS_TIME;
         return outerHistory.processTime;
     }
 
     public double getAverage() {
+        return getAverageOuterProcessTime();
+        //return (getAverageInnerProcessTime() + getAverageOuterProcessTime()) / 2;
+    }
+
+    public double getAverageForReal() {
         return (getAverageInnerProcessTime() + getAverageOuterProcessTime()) / 2;
+    }
+
+    public double getWeight() {
+        return getWeightByAverageQueueSize();
+    }
+
+    public double getLatencyWithQueueSize(double queueSize) {
+        return getAverage() * (queueSize + 1);
+    }
+
+    public double getAverageQueueSize() {
+        innerHistory.removeOldResults();
+        outerHistory.removeOldResults();
+        long totalQueueSize = innerHistory.getSumQueueSize() + outerHistory.getSumQueueSize();
+        long totalHistoryCount = innerHistory.history.size() + outerHistory.history.size();
+        return (totalHistoryCount == 0 ? 0.0 : (double)totalQueueSize / totalHistoryCount);
+    }
+
+    private double getWeightByAverageQueueSize() {
+        double averageQueueSize = getAverageQueueSize();
+        return 1.0 / (getAverage() * (averageQueueSize + 1.0));
+    }
+
+    public double getWeightByLatestQueueSize() {
+        return 1.0 / (getAverage() * (latestQueueSize + 1));
     }
 }

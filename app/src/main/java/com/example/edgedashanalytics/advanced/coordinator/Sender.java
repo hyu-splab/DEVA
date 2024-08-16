@@ -28,7 +28,7 @@ public class Sender extends Thread {
     public ObjectInputStream instream;
 
     Deque<Long> recentTime;
-    HashMap<Long, Long> startTime;
+    //HashMap<Long, Long> startTime;
     long delay;
     final int DEQUE_CAPACITY = 3;
 
@@ -36,7 +36,7 @@ public class Sender extends Thread {
         this.ip = ip;
         this.workerNum = workerNum;
         recentTime = new ArrayDeque<>(DEQUE_CAPACITY);
-        startTime = new HashMap<>();
+        //startTime = new HashMap<>();
         handler = null;
         delay = 0;
     }
@@ -85,7 +85,7 @@ public class Sender extends Thread {
                 try {
                     WorkerResult res = (WorkerResult) instream.readObject();
 
-                    long endTime = System.currentTimeMillis();
+                    /*long endTime = System.currentTimeMillis();
                     if (recentTime.size() == DEQUE_CAPACITY)
                         recentTime.pop();
                     try {
@@ -96,7 +96,7 @@ public class Sender extends Thread {
                     long total = 0;
                     for (Long t : recentTime)
                         total += t;
-                    delay = total / recentTime.size();
+                    delay = total / recentTime.size();*/
 
                 } catch (Exception e) {
                     e.printStackTrace();

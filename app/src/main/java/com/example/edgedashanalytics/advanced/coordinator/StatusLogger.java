@@ -1,5 +1,8 @@
 package com.example.edgedashanalytics.advanced.coordinator;
 
+//import static com.example.edgedashanalytics.advanced.coordinator.AdvancedMain.EXPERIMENT_DURATION;
+import static com.example.edgedashanalytics.advanced.coordinator.AdvancedMain.REAL_EXPERIMENT_DURATION;
+
 import android.content.Context;
 import android.util.Log;
 
@@ -11,6 +14,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public class StatusLogger {
     private static final String TAG = "StatusLogger";
@@ -55,6 +59,45 @@ public class StatusLogger {
             } catch (Exception e) {
                 e.printStackTrace();
             }
+
+            writeSimplifiedLogs(context, testNum);
+        }
+    }
+
+    private static void writeSimplifiedLogs(Context context, int testNum) {
+        long startTime = statusLogs.get(0).timestamp;
+
+        StringBuilder sb = new StringBuilder();
+
+        String filename = testNum + "_fps.txt";
+
+        File file = new File(context.getExternalFilesDir(null), filename);
+
+        for (StatusLog log : statusLogs) {
+            if (log.timestamp - startTime > REAL_EXPERIMENT_DURATION)
+                break;
+            sb.append(log.timestamp - startTime).append("\t");
+            sb.append(log.innerF).append("\t");
+
+            double sum = 0, cnt = 0;
+
+            for (WorkerStatusLog status : log.workerStatuses) {
+                if (status.isConnected) {
+                    cnt++;
+                    sum += status.latestQueueSize;
+                }
+            }
+            if (cnt != 0)
+                sum /= cnt;
+
+            sb.append(String.format(Locale.ENGLISH, "%.02f", sum));
+            sb.append("\n");
+        }
+
+        try (FileOutputStream fos = new FileOutputStream(file)) {
+            fos.write(sb.toString().getBytes());
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -62,19 +105,33 @@ public class StatusLogger {
         StringBuilder sb = new StringBuilder();
         long startTime = statusLogs.get(0).timestamp;
 
-        sb.append("Index,Time,innerF,outerF,innerWaiting,outerWaiting,pendingSize,sizeDelta,networkLevel,W0.con,W0.iw,W0.ip,W0.ow,W0.op,W1.con,W1.iw,W1.ip,W1.ow,W1.op,W2.con,W2.iw,W2.ip,W2.ow,W2.op\n");
+        //sb.append("Index,Time,innerF,outerF,innerWaiting,outerWaiting,pendingSize,sizeDelta,networkLevel,W0.con,W0.iw,W0.ip,W0.ow,W0.op,W1.con,W1.iw,W1.ip,W1.ow,W1.op,W2.con,W2.iw,W2.ip,W2.ow,W2.op\n");
 
         for (StatusLog log : statusLogs) {
+            if (log.timestamp - startTime > REAL_EXPERIMENT_DURATION)
+                break;
             sb.append(log.index).append(",").append(log.timestamp - startTime).append(",");
-            sb.append(log.innerF).append(",").append(log.outerF).append(",");
-            sb.append(log.innerWaiting).append(",").append(log.outerWaiting).append(",");
+            sb.append(log.innerF).append(",");//.append(log.outerF).append(",");
+            //sb.append(log.innerWaiting).append(",").append(log.outerWaiting).append(",");
             sb.append(log.pendingDataSize).append(",").append(log.sizeDelta).append(",");
-            sb.append(log.statusLevel).append(",");
+            //sb.append(log.statusLevel).append(",");
+            double sum = 0, cnt = 0;
             for (WorkerStatusLog status : log.workerStatuses) {
                 sb.append(status.isConnected ? 1 : 0).append(",");
-                sb.append(status.innerWaiting).append(",").append(status.innerProcessTime).append(",");
-                sb.append(status.outerWaiting).append(",").append(status.outerProcessTime).append(",");
+                //sb.append(status.innerWaiting).append(",");
+                sb.append(status.innerProcessTime).append(",");
+                //sb.append(status.outerWaiting).append(",");;
+                sb.append(status.outerProcessTime).append(",");
+                sb.append(status.latestQueueSize).append(",");
+
+                if (status.isConnected) {
+                    cnt++;
+                    sum += status.latestQueueSize;
+                }
             }
+            if (cnt != 0)
+                sum /= cnt;
+            sb.append(String.format(Locale.ENGLISH, "%.2f", sum));
             sb.append("\n");
         }
         return sb.toString();
@@ -116,12 +173,14 @@ public class StatusLogger {
         int innerWaiting, outerWaiting;
         double innerProcessTime, outerProcessTime;
         boolean isConnected;
+        long latestQueueSize;
         public WorkerStatusLog(WorkerStatus status) {
             this.innerWaiting = status.innerWaiting;
             this.innerProcessTime = status.innerHistory.processTime;
             this.outerWaiting = status.outerWaiting;
             this.outerProcessTime = status.outerHistory.processTime;
             this.isConnected = status.isConnected;
+            this.latestQueueSize = status.latestQueueSize;
         }
     }
 }

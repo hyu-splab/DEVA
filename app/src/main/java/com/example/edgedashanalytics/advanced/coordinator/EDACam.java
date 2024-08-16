@@ -14,6 +14,9 @@ import java.net.Socket;
 
 public class EDACam extends Thread {
     static final String TAG = "EDACam";
+    private static final int PORT_INNER = 5555;
+    private static final int PORT_OUTER = 5556;
+
 
     private final String ip;
     private final int msgCode;
@@ -52,7 +55,7 @@ public class EDACam extends Thread {
     private void setup() throws Exception {
         while (true) {
             try {
-                socket = new Socket(ip, 5555);
+                socket = new Socket(ip, isInner ? PORT_INNER : PORT_OUTER);
             } catch (Exception e) {
                 Log.v(TAG, "cannot connect to camera " + ip + "yet, retrying in 1s...");
                 Thread.sleep(1000);
@@ -77,7 +80,7 @@ public class EDACam extends Thread {
             byte[] data = (byte[]) inStream.readObject();
             int waiting = inStream.readInt();
 
-            int mx = Math.max(waiting, Communicator.msgQueue.size());
+            /*int mx = Math.max(waiting, Communicator.msgQueue.size());
 
             if (mx >= 2) {
                 if (mx >= 4) {
@@ -87,20 +90,24 @@ public class EDACam extends Thread {
                     Controller.queueWarn = 1;
                 }
                 continue;
-            }
+            }*/
 
             CommunicatorMessage msg = new CommunicatorMessage(1, isInner, frameNum, data, System.currentTimeMillis());
             Communicator.msgQueue.put(msg);
         }
     }
 
-    public void sendSettings(ObjectOutputStream outputStream) {
-        sendSettings(outputStream, (int) Math.round(camParameter.fps));
+    public void sendSettings() {
+        sendSettings(outStream, camParameter.fps);
     }
 
-    public static void sendSettings(ObjectOutputStream outputStream, int frameRate) {
+    public void sendSettings(ObjectOutputStream outputStream) {
+        sendSettings(outputStream, camParameter.fps);
+    }
+
+    public static void sendSettings(ObjectOutputStream outputStream, double frameRate) {
         try {
-            outputStream.writeInt(frameRate);
+            outputStream.writeDouble(frameRate);
             outputStream.flush();
             outputStream.reset();
         } catch (Exception e) {

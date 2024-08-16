@@ -106,7 +106,7 @@ public class InnerProcessor extends FrameProcessor {
 
         for (Frame f : result) {
             InnerFrame frame = (InnerFrame) f;
-            res = new AnalysisResult(cameraFrameNum, frame.getDistracted());
+            res = new AnalysisResult(frame.getDistracted());
         }
 
         analysisResults.add(res);
@@ -133,8 +133,8 @@ public class InnerProcessor extends FrameProcessor {
         public int frameNum;
         public Boolean isDistracted;
 
-        public AnalysisResult(int frameNum, boolean isDistracted) {
-            this.frameNum = frameNum;
+        public AnalysisResult(boolean isDistracted) {
+            this.frameNum = 1;
             this.isDistracted = isDistracted;
         }
     }

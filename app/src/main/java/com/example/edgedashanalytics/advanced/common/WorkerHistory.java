@@ -1,12 +1,15 @@
 package com.example.edgedashanalytics.advanced.common;
 
+import android.util.Log;
+
 import java.util.ArrayDeque;
 import java.util.Deque;
 
 public class WorkerHistory {
     private static final String TAG = "WorkerHistory";
     public Deque<AnalysisResult> history;
-    public static final long HISTORY_DURATION = 2000;
+    // Should be removed
+    public static final long MAX_HISTORY_DURATION = 1000;
 
     public double processTime;
 
@@ -34,9 +37,20 @@ public class WorkerHistory {
         calcProcessTime();
     }
 
+    public synchronized long getSumQueueSize() {
+        long sum = 0;
+        for (AnalysisResult res : history) {
+            sum += res.queueSize;
+        }
+        return sum;
+    }
+
     public synchronized void removeOldResults() {
         long curTime = System.currentTimeMillis();
-        while (!history.isEmpty() && curTime - history.peek().timestamp > HISTORY_DURATION) {
+        while (!history.isEmpty() && curTime - history.peekFirst().timestamp > MAX_HISTORY_DURATION) {
+            StringBuilder sb = new StringBuilder();
+            //sb.append("Removing ").append(history.peekFirst().processTime).append(" ").append(history.peekFirst().timestamp).append(" ").append(curTime).append(" (").append(curTime - history.peekFirst().timestamp).append(")");
+            //Log.w(TAG, sb.toString());
             AnalysisResult old = history.pop();
             totalProcessTime -= old.processTime;
             totalNetworkTime -= old.networkTime;
@@ -47,7 +61,13 @@ public class WorkerHistory {
 
     private void calcProcessTime() {
         int sz = history.size();
-        if (sz != 0)
+        //StringBuilder sb = new StringBuilder();
+        if (sz != 0) {
+            /*for (AnalysisResult res : history) {
+                sb.append(res.processTime).append(" ");
+            }*/
             processTime = (double) totalProcessTime / sz;
+        }
+        //Log.w(TAG, sb.toString());
     }
 }

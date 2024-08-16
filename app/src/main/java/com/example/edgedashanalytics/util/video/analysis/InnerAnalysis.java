@@ -54,8 +54,8 @@ public class InnerAnalysis extends VideoAnalysis {
     //private static final BlockingQueue<ImageProcessor> processorQueue = new LinkedBlockingQueue<>(THREAD_NUM);
 
     private static final int[] models = {
-            //R.string.movenet_lightning_key,
-            R.string.movenet_thunder_key
+            R.string.movenet_lightning_key,
+            //R.string.movenet_thunder_key
     };
 
     public int inputWidth, inputHeight;
