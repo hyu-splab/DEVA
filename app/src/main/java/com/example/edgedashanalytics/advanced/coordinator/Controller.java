@@ -106,7 +106,7 @@ public class Controller extends Thread {
 
             double fpsNew = 0.0;
 
-            /*ArrayList<Double> averages = new ArrayList<>();
+            ArrayList<Double> averages = new ArrayList<>();
 
             double maxAverage = 0.0;
             for (EDAWorker worker : workers) {
@@ -123,7 +123,7 @@ public class Controller extends Thread {
             for (int i = 0; i < averages.size(); i++) {
                 if (averages.get(i) == WorkerStatus.DEFAULT_OUTER_PROCESS_TIME) {
                     averages.set(i, maxAverage);
-                    Log.w(TAG, "Default time found, setting to average");
+                    Log.w(TAG, "Default time found, setting to maximum");
                 }
             }
 
@@ -137,9 +137,9 @@ public class Controller extends Thread {
                 double second = 1.0 / (lg - transfer);
                 fpsNew += first - second;
                 //Log.w(TAG, "first = " + first + ", second = " + second + ", sub = " + (first - second));
-            }*/
+            }
 
-            for (EDAWorker worker : workers) {
+            /*for (EDAWorker worker : workers) {
                 WorkerStatus status = worker.status;
                 if (!status.isConnected) {
                     continue;
@@ -153,7 +153,7 @@ public class Controller extends Thread {
                 double second = 1.0 / (lg - transfer);
                 fpsNew += first - second;
                 Log.w(TAG, "first = " + first + ", second = " + second + ", sub = " + (first - second));
-            }
+            }*/
 
             fpsNew /= 2.0; // Inner and outer
 
