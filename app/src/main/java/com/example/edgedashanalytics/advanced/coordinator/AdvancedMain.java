@@ -240,42 +240,27 @@ public class AdvancedMain {
 
         controller.start();
 
-        // Finish experiment and restart
+        // Experiment finish
         new Timer().schedule(new TimerTask() {
             @Override
             public void run() {
-                /*
-                1. TODO: stop every process (is this needed to avoid crashes?)
-                2. write logs
-                3. send cameras restart message
-                4. send every worker (including non-workers) restart message
-                 */
-
-                // 1
+                // TODO: Is this option needed?
                 isFinished = true;
 
-                Log.v(TAG, "Stopping experiment");
-                // 2
+                // Write logs
                 StatusLogger.writeLogs(context, testConfig.testNum);
                 FrameLogger.writeLogs(context, testConfig.testNum);
                 DistributionLogger.writeLogs(context, testConfig.testNum);
-                //DeviceLogger.writeLogs(context, testConfig.testNum);
 
-                Log.v(TAG, "Wrote logs");
-
-                // 4
+                // Tell dashcams that the experiment is finished
                 controller.sendRestartMessages(innerCam, outerCam);
 
-                Log.v(TAG, "Sent cameras restart message");
-
-                // 3
+                // Send workers restart message
                 try {
                     Communicator.msgQueue.put(new CommunicatorMessage(-1));
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
-
-                Log.v(TAG, "Sent workers restart message");
             }
         }, EXPERIMENT_DURATION);
     }
