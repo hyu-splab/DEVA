@@ -397,7 +397,7 @@ public class AdvancedMain {
             int numWorker = communicator.workers.size();
             double[] workerPriority = new double[numWorker];
 
-            ArrayList<Double> workerWeight = calculateWorkerWeightV2();
+            ArrayList<Double> workerWeight = calculateWorkerWeight();
             double weightSum = 0;
             for (Double d : workerWeight)
                 weightSum += d;
@@ -425,27 +425,6 @@ public class AdvancedMain {
         }
 
         private ArrayList<Double> calculateWorkerWeight() {
-            ArrayList<Double> weights = new ArrayList<>();
-            for (int i = 0; i < communicator.workers.size(); i++) {
-                EDAWorker w = communicator.workers.get(i);
-                if (w.status.isConnected) {
-                    WorkerStatus status = w.status;
-
-                    double weight = status.getPerformance();
-                    if (i == 0)
-                        weight *= 0.8;
-                    weight *= Math.max(0.5, 1.0 - status.latestQueueSize * 0.1);
-                    weights.add(weight);
-                }
-                else {
-                    weights.add(0.0);
-                }
-            }
-
-            return weights;
-        }
-
-        private ArrayList<Double> calculateWorkerWeightV2() {
             ArrayList<Double> weights = new ArrayList<>();
             for (int i = 0; i < communicator.workers.size(); i++) {
                 EDAWorker w = communicator.workers.get(i);
