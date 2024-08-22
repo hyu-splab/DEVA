@@ -51,7 +51,6 @@ public class AdvancedMain {
     private static String innerCamIP, outerCamIP;
     public static boolean isBusy;
     public static Distributer distributer;
-    public static DistributerV2 distributerV2;
 
     public static void createVideoAnalysisData(Context context) {
         try {
@@ -267,7 +266,6 @@ public class AdvancedMain {
 
     private static void connectToDashCam() {
         distributer = new Distributer();
-        //distributerV2 = new DistributerV2();
         // Inner DashCam
         innerCam = new EDACam(innerCamIP, true);
         innerCam.start();
@@ -382,68 +380,6 @@ public class AdvancedMain {
     public static void workerStart() {
         WorkerThread workerThread = new WorkerThread();
         workerThread.start();
-    }
-
-    static class DistributerV2 {
-        private static final int MAX_WORKERS = 5;
-        private double[] innerPriority, outerPriority;
-
-        public DistributerV2() {
-            innerPriority = new double[MAX_WORKERS];
-            outerPriority = new double[MAX_WORKERS];
-        }
-
-        public int getNextWorker(boolean isInner) {
-            if (Communicator.availableWorkers == 0) {
-                Log.v(TAG, "No available workers!");
-                return -2;
-            }
-            if (connectionChanged) {
-                // reset to 0
-                Arrays.fill(innerPriority, 0.0);
-                Arrays.fill(outerPriority, 0.0);
-            }
-            return (isInner ? runAlgorithm(innerPriority) : runAlgorithm(outerPriority));
-        }
-
-        private int runAlgorithm(double[] priority) {
-            int numWorker = communicator.workers.size();
-            ArrayList<Double> workerWeight = calculateNormalizedWorkerWeight();
-
-            double maxPriority = -1;
-            int maxIndex = -1;
-            for (int j = 0; j < numWorker; j++) {
-                priority[j] += workerWeight.get(j);
-                if (priority[j] > maxPriority) {
-                    maxPriority = priority[j];
-                    maxIndex = j;
-                }
-            }
-            priority[maxIndex] -= 1.0;
-            return maxIndex;
-        }
-
-        private ArrayList<Double> calculateNormalizedWorkerWeight() {
-            int numWorkers = communicator.workers.size();
-            Double[] weights = new Double[numWorkers];
-            double sum = 0.0;
-            for (int i = 0; i < numWorkers; i++) {
-                EDAWorker w = communicator.workers.get(i);
-                if (w.status.isConnected) {
-                    double weight = w.status.getWeight();
-                    sum += weight;
-                    weights[i] = weight;
-                }
-            }
-
-            if (sum != 0.0) {
-                for (int i = 0; i < numWorkers; i++) {
-                    weights[i] /= sum;
-                }
-            }
-
-            return new ArrayList<Double>(Arrays.asList(weights));
-        }
     }
 
     static class Distributer {
