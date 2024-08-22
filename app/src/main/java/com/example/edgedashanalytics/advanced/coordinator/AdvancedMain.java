@@ -391,8 +391,7 @@ public class AdvancedMain {
         innerCamIP = hotSpot.get(testConfig.innerCamName);
         outerCamIP = hotSpot.get(testConfig.outerCamName);
 
-        //allDevices = new String[]{"oneplus", "oppo"};
-        allDevices = new String[]{/*"lineage2", "pixel5", "lineage"*/};
+        allDevices = new String[]{};
     }
 
     public static void workerStart() {
@@ -463,7 +462,7 @@ public class AdvancedMain {
     }
 
     static class Distributer {
-        private static final int sequenceLength = 10; // tentative
+        private static final int sequenceLength = 10;
         private ArrayList<Integer> innerSequence, outerSequence;
         private int innerSequenceIndex, outerSequenceIndex;
 
@@ -498,14 +497,6 @@ public class AdvancedMain {
                 sequence.add(maxIndex);
                 workerPriority[maxIndex] -= weightSum;
             }
-
-            /*int[] cnt = new int[3];
-            StringBuilder sb = new StringBuilder("Distribution: ");
-            for (int i = 0; i < sequenceLength; i++)
-                cnt[sequence.get(i)]++;
-            for (int i = 0; i < cnt.length; i++)
-                sb.append(cnt[i]).append(" ");
-            Log.w(TAG, sb.toString());*/
 
             DistributionLogger.addLog(workerWeight, sequence);
 
@@ -544,11 +535,6 @@ public class AdvancedMain {
                     weights.add(0.0);
                 }
             }
-
-            /*StringBuilder sb = new StringBuilder("weights: ");
-            for (Double weight : weights)
-                sb.append((double)weight).append(" ");
-            Log.w(TAG, sb.toString());*/
 
             return weights;
         }
