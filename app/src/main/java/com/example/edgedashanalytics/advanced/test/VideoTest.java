@@ -8,7 +8,6 @@ import android.util.Log;
 import android.util.Size;
 
 import com.example.edgedashanalytics.advanced.common.FrameData;
-import com.example.edgedashanalytics.advanced.coordinator.AdvancedMain;
 import com.example.edgedashanalytics.advanced.worker.ProcessorThread;
 import com.example.edgedashanalytics.util.video.analysis.Frame;
 import com.example.edgedashanalytics.util.video.analysis.InnerAnalysis;
@@ -19,8 +18,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.nio.ByteBuffer;
-import java.nio.MappedByteBuffer;
 import java.util.List;
 
 public class VideoTest {

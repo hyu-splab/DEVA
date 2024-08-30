@@ -1,9 +1,6 @@
 package com.example.edgedashanalytics.advanced.common;
 
-import static com.example.edgedashanalytics.advanced.coordinator.AdvancedMain.EXPERIMENT_DURATION;
-import static com.example.edgedashanalytics.advanced.coordinator.AdvancedMain.REAL_EXPERIMENT_DURATION;
-import static com.example.edgedashanalytics.advanced.coordinator.AdvancedMain.workerNameList;
-import static com.example.edgedashanalytics.advanced.coordinator.AdvancedMain.connectionTimestamps;
+import static com.example.edgedashanalytics.advanced.coordinator.MainRoutine.Experiment.*;
 
 import android.content.Context;
 import android.util.Log;
@@ -14,9 +11,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.nio.file.Files;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Scanner;
 import java.util.StringTokenizer;
 
@@ -81,9 +76,9 @@ public class TestConfig {
 
         // It's common that ~2s of log at the end is missing because of various preparation phases
         long duration = ri(new StringTokenizer(br.readLine()));
-        EXPERIMENT_DURATION = (duration + 5) * 1000L;
-        REAL_EXPERIMENT_DURATION = duration * 1000L;
-        bw.write(EXPERIMENT_DURATION / 1000 + "\n");
+        E_EXPERIMENT_DURATION = (duration + 5) * 1000L;
+        E_REAL_EXPERIMENT_DURATION = duration * 1000L;
+        bw.write(E_EXPERIMENT_DURATION / 1000 + "\n");
 
         line = br.readLine();
         st = new StringTokenizer(line);
@@ -105,22 +100,22 @@ public class TestConfig {
                 testNum = ri(st);
 
                 numWorkers = ri(st);
-                workerNameList = new String[numWorkers];
-                connectionTimestamps = new ArrayList[numWorkers];
+                E_workerNameList = new String[numWorkers];
+                E_connectionTimestamps = new ArrayList[numWorkers];
                 for (int i = 0; i < numWorkers; i++) {
-                    connectionTimestamps[i] = new ArrayList<>();
-                    workerNameList[i] = rs(st);
+                    E_connectionTimestamps[i] = new ArrayList<>();
+                    E_workerNameList[i] = rs(st);
                     if (i == 0) {
-                        coordinatorID = workerNameList[i];
+                        coordinatorID = E_workerNameList[i];
                     }
-                    if (whoAmI.equals(workerNameList[i])) {
+                    if (whoAmI.equals(E_workerNameList[i])) {
                         isWorker = true;
                     }
                     int numTimestamps = ri(st);
                     for (int j = 0; j < numTimestamps; j++) {
                         int ts = ri(st);
                         Log.v(TAG, "timestamp = " + ts);
-                        connectionTimestamps[i].add(ts * 1000);
+                        E_connectionTimestamps[i].add(ts * 1000);
                     }
                 }
             }

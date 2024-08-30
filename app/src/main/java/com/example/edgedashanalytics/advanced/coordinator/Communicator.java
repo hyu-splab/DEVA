@@ -6,9 +6,9 @@ Still can't figure out why certain devices show extra heavy network delays,
 but hopefully this integrated Sender would solve such issues.
  */
 
-import static com.example.edgedashanalytics.advanced.coordinator.AdvancedMain.REAL_EXPERIMENT_DURATION;
-import static com.example.edgedashanalytics.advanced.coordinator.AdvancedMain.controller;
-import static com.example.edgedashanalytics.advanced.coordinator.AdvancedMain.distributer;
+import static com.example.edgedashanalytics.advanced.coordinator.MainRoutine.Experiment.*;
+import static com.example.edgedashanalytics.advanced.coordinator.MainRoutine.controller;
+import static com.example.edgedashanalytics.advanced.coordinator.MainRoutine.distributer;
 
 import android.os.Looper;
 import android.util.Log;
@@ -74,11 +74,11 @@ public class Communicator extends Thread {
         allDevices = new ArrayList<>();
         pendingDataSize = 0;
 
-        int numDevices = AdvancedMain.connectionTimestamps.length;
+        int numDevices = E_connectionTimestamps.length;
 
         connectionTimestamps = new ArrayList<>();
         for (int i = 0; i < numDevices; i++) {
-            List<Integer> cur = AdvancedMain.connectionTimestamps[i];
+            List<Integer> cur = E_connectionTimestamps[i];
             for (Integer timestamp : cur)
                 connectionTimestamps.add(new ConnectionTimestamp(i, timestamp));
         }
@@ -247,7 +247,7 @@ public class Communicator extends Thread {
                     Log.v(TAG, String.format(Locale.ENGLISH, "Lost ratio: %.4f / %.4f = %.4f", performanceLost, performanceSum, Controller.performanceLostRatio));
                     Controller.deviceAdded = devicesAdded;
 
-                    AdvancedMain.connectionChanged = true;
+                    MainRoutine.connectionChanged = true;
                     Controller.connectionChanged = true;
 
                     controller.checkNeeded = true;
@@ -262,7 +262,7 @@ public class Communicator extends Thread {
                     if (workerNum == -2)
                         continue;
 
-                    if (AdvancedMain.isFinished)
+                    if (E_isFinished)
                         continue;
 
                     EDAWorker worker = workers.get(workerNum);
@@ -359,7 +359,7 @@ public class Communicator extends Thread {
                         startTime = System.currentTimeMillis();
                     if (!res.success) {
                         Log.v(TAG, "Got a failed frame");
-                        if (endTime - startTime <= REAL_EXPERIMENT_DURATION) {
+                        if (endTime - startTime <= E_REAL_EXPERIMENT_DURATION) {
                             failed++;
                         }
                     }

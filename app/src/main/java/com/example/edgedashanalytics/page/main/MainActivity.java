@@ -13,7 +13,6 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
-import android.os.HardwarePropertiesManager;
 import android.os.Message;
 import android.provider.Settings;
 import android.util.Log;
@@ -31,7 +30,6 @@ import androidx.fragment.app.FragmentManager;
 
 import com.example.edgedashanalytics.BuildConfig;
 import com.example.edgedashanalytics.R;
-import com.example.edgedashanalytics.advanced.coordinator.DeviceLogger;
 import com.example.edgedashanalytics.advanced.coordinator.FrameLogger;
 import com.example.edgedashanalytics.advanced.coordinator.StatusLogger;
 import com.example.edgedashanalytics.data.result.ResultRepository;
@@ -43,7 +41,7 @@ import com.example.edgedashanalytics.model.Video;
 import com.example.edgedashanalytics.page.adapter.ProcessingAdapter;
 import com.example.edgedashanalytics.page.adapter.RawAdapter;
 import com.example.edgedashanalytics.page.setting.SettingsActivity;
-import com.example.edgedashanalytics.advanced.coordinator.AdvancedMain;
+import com.example.edgedashanalytics.advanced.coordinator.MainRoutine;
 import com.example.edgedashanalytics.util.dashcam.DashCam;
 import com.example.edgedashanalytics.util.file.FileManager;
 import com.example.edgedashanalytics.util.hardware.PowerMonitor;
@@ -306,7 +304,7 @@ public class MainActivity extends AppCompatActivity implements
         findFrequencyFiles();
 
         startBatteryLevel = PowerMonitor.getBatteryLevel(context);
-        AdvancedMain.advancedMain(getApplicationContext());
+        MainRoutine.Experiment.experimentMain(getApplicationContext());
     }
 
     private void runTests() {

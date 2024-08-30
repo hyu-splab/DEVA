@@ -1,7 +1,6 @@
 package com.example.edgedashanalytics.advanced.coordinator;
 
-//import static com.example.edgedashanalytics.advanced.coordinator.AdvancedMain.EXPERIMENT_DURATION;
-import static com.example.edgedashanalytics.advanced.coordinator.AdvancedMain.REAL_EXPERIMENT_DURATION;
+import static com.example.edgedashanalytics.advanced.coordinator.MainRoutine.Experiment.*;
 import static com.example.edgedashanalytics.advanced.coordinator.Communicator.recordMap;
 
 import android.content.Context;
@@ -71,7 +70,7 @@ public class FrameLogger {
 
             synchronized (recordMap) {
                 for (AnalysisResult result : results) {
-                    if (result.timestamp - startTime > REAL_EXPERIMENT_DURATION)
+                    if (result.timestamp - startTime > E_REAL_EXPERIMENT_DURATION)
                         break;
                     totalWorkerTime += result.workerTime;
                     totalProcessTime += result.processTime;
@@ -109,7 +108,7 @@ public class FrameLogger {
                         .append(inCount).append(",").append(outCount).append("\n");
 
                 for (AnalysisResult result : results) {
-                    if (result.timestamp - startTime > REAL_EXPERIMENT_DURATION)
+                    if (result.timestamp - startTime > E_REAL_EXPERIMENT_DURATION)
                         break;
                     RecordC rc = recordMap.get(result.frameNum);
                     sb.append(rc.cameraFrameNum).append(",")
@@ -148,7 +147,7 @@ public class FrameLogger {
             long startTime = results.get(0).timestamp;
 
             for (AnalysisResult result : results) {
-                if (result.timestamp - startTime > REAL_EXPERIMENT_DURATION)
+                if (result.timestamp - startTime > E_REAL_EXPERIMENT_DURATION)
                     break;
                 StringBuilder sb = (result.isInner ? sbIn : sbOut);
 

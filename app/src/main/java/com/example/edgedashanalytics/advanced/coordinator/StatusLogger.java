@@ -1,7 +1,6 @@
 package com.example.edgedashanalytics.advanced.coordinator;
 
-//import static com.example.edgedashanalytics.advanced.coordinator.AdvancedMain.EXPERIMENT_DURATION;
-import static com.example.edgedashanalytics.advanced.coordinator.AdvancedMain.REAL_EXPERIMENT_DURATION;
+import static com.example.edgedashanalytics.advanced.coordinator.MainRoutine.Experiment.*;
 
 import android.content.Context;
 import android.util.Log;
@@ -10,8 +9,6 @@ import com.example.edgedashanalytics.advanced.common.WorkerStatus;
 
 import java.io.File;
 import java.io.FileOutputStream;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -33,7 +30,7 @@ public class StatusLogger {
 
         StatusLog log = new StatusLog(statusLogs.size() + 1, timestamp,
                 innerCam.camParameter, outerCam.camParameter,
-                workerInnerCount, workerOuterCount, AdvancedMain.communicator.pendingDataSize,
+                workerInnerCount, workerOuterCount, MainRoutine.communicator.pendingDataSize,
                 sizeDelta, networkLevel, workerStatuses);
 
         synchronized (statusLogs) {
@@ -74,7 +71,7 @@ public class StatusLogger {
         File file = new File(context.getExternalFilesDir(null), filename);
 
         for (StatusLog log : statusLogs) {
-            if (log.timestamp - startTime > REAL_EXPERIMENT_DURATION)
+            if (log.timestamp - startTime > E_REAL_EXPERIMENT_DURATION)
                 break;
             sb.append(log.timestamp - startTime).append("\t");
             sb.append(log.innerF).append("\t");
@@ -108,7 +105,7 @@ public class StatusLogger {
         //sb.append("Index,Time,innerF,outerF,innerWaiting,outerWaiting,pendingSize,sizeDelta,networkLevel,W0.con,W0.iw,W0.ip,W0.ow,W0.op,W1.con,W1.iw,W1.ip,W1.ow,W1.op,W2.con,W2.iw,W2.ip,W2.ow,W2.op\n");
 
         for (StatusLog log : statusLogs) {
-            if (log.timestamp - startTime > REAL_EXPERIMENT_DURATION)
+            if (log.timestamp - startTime > E_REAL_EXPERIMENT_DURATION)
                 break;
             sb.append(log.index).append(",").append(log.timestamp - startTime).append(",");
             sb.append(log.innerF).append(",");//.append(log.outerF).append(",");

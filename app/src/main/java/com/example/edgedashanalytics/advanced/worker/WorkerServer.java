@@ -1,5 +1,7 @@
 package com.example.edgedashanalytics.advanced.worker;
 
+import static com.example.edgedashanalytics.advanced.coordinator.MainRoutine.Experiment.*;
+
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
@@ -7,11 +9,11 @@ import android.util.Log;
 
 import com.example.edgedashanalytics.advanced.common.CoordinatorMessage;
 import com.example.edgedashanalytics.advanced.common.WorkerInitialInfo;
-import com.example.edgedashanalytics.advanced.coordinator.AdvancedMain;
 import com.example.edgedashanalytics.page.main.MainActivity;
 import com.example.edgedashanalytics.util.Constants;
 import com.example.edgedashanalytics.advanced.common.FrameData;
 import com.example.edgedashanalytics.advanced.common.WorkerResult;
+
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -92,14 +94,14 @@ public class WorkerServer {
 
                         FrameData image = (FrameData) cMsg.data;
 
-                        if (image.isBusy != AdvancedMain.isBusy) {
+                        if (image.isBusy != E_isBusy) {
                             Log.v(TAG, "isBusy status changed to " + (image.isBusy ? "busy" : "free"));
-                            AdvancedMain.isBusy = image.isBusy;
+                            E_isBusy = image.isBusy;
                         }
 
                         long workerStartTime = System.currentTimeMillis();
                         ProcessorThread.workerStartTimeMap.put(image.frameNum, workerStartTime);
-                        if (AdvancedMain.isFinished)
+                        if (E_isFinished)
                             continue;
 
                         ProcessorThread.queue.offer(image);

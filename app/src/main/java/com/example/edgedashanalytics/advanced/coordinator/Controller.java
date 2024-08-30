@@ -1,15 +1,13 @@
 package com.example.edgedashanalytics.advanced.coordinator;
 
-import static com.example.edgedashanalytics.advanced.coordinator.AdvancedMain.communicator;
-import static com.example.edgedashanalytics.advanced.coordinator.AdvancedMain.testConfig;
+import static com.example.edgedashanalytics.advanced.coordinator.MainRoutine.communicator;
+import static com.example.edgedashanalytics.advanced.coordinator.MainRoutine.Experiment.*;
 import static com.example.edgedashanalytics.advanced.coordinator.Communicator.availableWorkers;
 import static com.example.edgedashanalytics.advanced.coordinator.DeviceLogger.DeviceLog;
 import static com.example.edgedashanalytics.advanced.coordinator.DeviceLogger.DeviceLog.IndividualDeviceLog;
 
-import android.os.HardwarePropertiesManager;
 import android.util.Log;
 
-import com.example.edgedashanalytics.advanced.common.AnalysisResult;
 import com.example.edgedashanalytics.advanced.common.WorkerStatus;
 import com.example.edgedashanalytics.page.main.MainActivity;
 
@@ -76,7 +74,7 @@ public class Controller extends Thread {
             while (true) {
                 long curTime = System.currentTimeMillis();
                 if (/*checkNeeded || */curTime >= nextCheckpoint) {
-                    if (testConfig.isCoordinator) {
+                    if (E_testConfig.isCoordinator) {
                         MM1();
                     }
                     checkNeeded = false;

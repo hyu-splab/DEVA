@@ -3,23 +3,19 @@ package com.example.edgedashanalytics.advanced.worker;
 import static com.example.edgedashanalytics.advanced.common.WorkerStatus.DEFAULT_INNER_PROCESS_TIME;
 import static com.example.edgedashanalytics.advanced.common.WorkerStatus.DEFAULT_OUTER_PROCESS_TIME;
 import static com.example.edgedashanalytics.advanced.worker.WorkerThread.N_THREAD;
+import static com.example.edgedashanalytics.advanced.coordinator.MainRoutine.Experiment.*;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Handler;
-import android.os.HardwarePropertiesManager;
 import android.os.Message;
 import android.util.Log;
 
-import androidx.collection.CircularArray;
-
 import com.example.edgedashanalytics.advanced.common.FrameData;
 import com.example.edgedashanalytics.advanced.common.WorkerResult;
-import com.example.edgedashanalytics.advanced.coordinator.AdvancedMain;
-import com.example.edgedashanalytics.advanced.coordinator.Communicator;
+import com.example.edgedashanalytics.advanced.coordinator.MainRoutine;
 import com.example.edgedashanalytics.advanced.coordinator.Controller;
 import com.example.edgedashanalytics.page.main.MainActivity;
-import com.example.edgedashanalytics.util.hardware.PowerMonitor;
 
 import java.io.ByteArrayInputStream;
 import java.util.ArrayDeque;
@@ -62,7 +58,7 @@ public class ProcessorThread extends Thread {
                     img = queue.take();
                 }
                 else {
-                    if (AdvancedMain.isBusy) {
+                    if (E_isBusy) {
                         img = FrameData.getMeaninglessFrame();
                         Bitmap bitmap = uncompress(img.data);
 
