@@ -216,6 +216,11 @@ public class MainRoutine {
     }
 
 
+    // Main routine for the coordinator
+    public static void mainRoutine() {
+
+    }
+
 
     static class Distributer {
         private static final int sequenceLength = 10;

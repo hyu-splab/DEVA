@@ -249,13 +249,7 @@ public class Communicator extends Thread {
 
                     MainRoutine.connectionChanged = true;
                     Controller.connectionChanged = true;
-
-                    controller.checkNeeded = true;
                 }
-
-                /*if ((++totalCnt % 100) == 0) {
-                    Log.v(TAG, "totalCnt = " + totalCnt + ", msgQueue size = " + msgQueue.size());
-                }*/
 
                 try {
                     // No available workers, just to change connection statuses
