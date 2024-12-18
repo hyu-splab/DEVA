@@ -20,6 +20,8 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class WorkerServer {
     private static final String TAG = "WorkerServer";
@@ -61,8 +63,8 @@ public class WorkerServer {
                         @Override
                         public void handleMessage(Message msg) {
                             try {
-                                WorkerResult res = (WorkerResult) msg.obj;
-
+                                WorkerResult res;
+                                res = (WorkerResult) msg.obj;
                                 outstream.writeObject(res);
                                 outstream.flush();
                             } catch (IOException e) {
@@ -73,6 +75,10 @@ public class WorkerServer {
                     Looper.loop();
                 });
                 resThread.start();
+
+                // For stealing experiment only
+
+                ///////////////////////////////
 
                 try {
                     while (true) {

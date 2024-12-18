@@ -1,10 +1,13 @@
 package com.example.edgedashanalytics.advanced.coordinator;
 
+import static com.example.edgedashanalytics.advanced.coordinator.Communicator.queueSizeStealing;
+
 import android.content.Context;
 import android.util.Log;
 
 import com.example.edgedashanalytics.advanced.common.TestConfig;
 import com.example.edgedashanalytics.advanced.worker.WorkerThread;
+import com.example.edgedashanalytics.page.main.MainActivity;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -18,7 +21,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 public class MainRoutine {
-    public static final boolean EXPERIMENTING = false;
+    public static final boolean EXPERIMENTING = true;
     private static final String TAG = "MainRoutine";
     public static Communicator communicator;
     public static boolean connectionChanged = false;
@@ -26,10 +29,18 @@ public class MainRoutine {
     public static EDACam innerCam, outerCam;
     public static Controller controller;
     public static Distributer distributer;
+    public static long received = 0;
+    public static long processed = 0;
 
 
     // All experiment-specific things go here
     public static class Experiment {
+
+        // For comparison to work stealing experiment
+        public static boolean E_stealing = false;
+        public static final int E_STEALING_CHUNK_SIZE = 2;
+
+
         public static boolean E_isFinished = false;
         public static HashMap<String, String> E_hotSpot;
         public static String[] E_allDevices;
@@ -143,24 +154,31 @@ public class MainRoutine {
             new Timer().schedule(new TimerTask() {
                 @Override
                 public void run() {
-                    // TODO: Is this option needed?
-                    E_isFinished = true;
-
-                    // Write logs
-                    StatusLogger.writeLogs(context, E_testConfig.testNum);
-                    FrameLogger.writeLogs(context, E_testConfig.testNum);
-                    DistributionLogger.writeLogs(context, E_testConfig.testNum);
-                    // Tell dashcams that the experiment is finished
-                    controller.sendRestartMessages(innerCam, outerCam);
-
-                    // Send workers restart message
-                    try {
-                        Communicator.msgQueue.put(new CommunicatorMessage(-1));
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
+                    finishExperiments();
                 }
             }, E_EXPERIMENT_DURATION);
+        }
+
+        public static void finishExperiments() {
+            if (E_isFinished)
+                return;
+            E_isFinished = true;
+
+            Context context = MainActivity.context;
+
+            // Write logs
+            StatusLogger.writeLogs(context, E_testConfig.testNum);
+            FrameLogger.writeLogs(context, E_testConfig.testNum);
+            DistributionLogger.writeLogs(context, E_testConfig.testNum);
+            // Tell dashcams that the experiment is finished
+            controller.sendRestartMessages(innerCam, outerCam);
+
+            // Send workers restart message
+            try {
+                Communicator.msgQueue.put(new CommunicatorMessage(-1));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
 
         private static void connectToDashCam() {
@@ -280,6 +298,10 @@ public class MainRoutine {
         }
 
         public int getNextWorker(boolean isInner) {
+            if (Experiment.E_stealing) {
+                return getNextWorkerStealing();
+            }
+
             if (Communicator.availableWorkers == 0) {
                 Log.v(TAG, "No available workers!");
                 return -2;
@@ -298,6 +320,38 @@ public class MainRoutine {
                 connectionChanged = false;
             }
             return (isInner ? innerSequence.get(innerSequenceIndex++) : outerSequence.get(outerSequenceIndex++));
+        }
+
+        static int lastWorker = 0;
+        public int getNextWorkerStealing() {
+            while (true)
+            {
+                if (queueSizeStealing[lastWorker] > 0) {
+                    queueSizeStealing[lastWorker]--;
+                    return lastWorker;
+                }
+                for (int i = 0; i < queueSizeStealing.length; i++)
+                {
+                    lastWorker = (lastWorker + 1) % queueSizeStealing.length;
+                    if (queueSizeStealing[lastWorker] > 0) {
+                        if (Communicator.msgQueue.size() > 0) {
+                            queueSizeStealing[lastWorker]--;
+                            return lastWorker;
+                        }
+                        else {
+                            queueSizeStealing[lastWorker] = 0;
+                            int ret = lastWorker;
+                            lastWorker = (lastWorker + 1) % queueSizeStealing.length;
+                            return ret;
+                        }
+                    }
+                }
+                try {
+                    Thread.sleep(1);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
         }
     }
 }

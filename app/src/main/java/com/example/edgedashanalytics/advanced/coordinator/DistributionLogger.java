@@ -22,7 +22,7 @@ public class DistributionLogger {
     public static void writeLogs(Context context, int testNum) {
         synchronized (logs) {
             if (logs.isEmpty()) {
-                Log.w(TAG, "No frame logs available");
+                Log.w(TAG, "No distribution logs available");
                 return;
             }
 

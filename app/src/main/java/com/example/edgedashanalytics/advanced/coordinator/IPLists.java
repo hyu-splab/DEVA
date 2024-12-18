@@ -45,32 +45,32 @@ public class IPLists {
             p6.put("s22", "192.168." + p6IP + ".6");
         } // pixel6
 
-        final int oneplusIP = 194;
+        final int oneplusIP = 175;
         final String ho = h + "." + oneplusIP + ".";
         {
             oneplus = new HashMap<>();
             oneplus.put("self", "127.0.0.1");
-            oneplus.put("lineage", ho + 143);
+            oneplus.put("lineage", ho + 253);
             oneplus.put("oneplus", "127.0.0.1");
             oneplus.put("oppo", ho + 87);
             oneplus.put("pixel5", ho + 193);
-            oneplus.put("lineage2", ho + 253);
+            oneplus.put("lineage2", ho + 169);
             oneplus.put("s22", ho + 204);
             oneplus.put("pixel6", ho + 14);
         } // oneplus
 
-        final int lineage2IP = 141;
+        final int lineage2IP = 124;
         final String hl = h + "." + lineage2IP + ".";
         {
             lineage2 = new HashMap<>();
             lineage2.put("self", "127.0.0.1");
-            lineage2.put("lineage", hl + 253);
-            lineage2.put("oneplus", hl + 178);
+            lineage2.put("lineage", hl + 64);
+            lineage2.put("oneplus", hl + 61);
             lineage2.put("oppo", hl + 14);
-            lineage2.put("pixel5", hl + 55);
+            lineage2.put("pixel5", hl + 50);
             lineage2.put("lineage2", "127.0.0.1");
             lineage2.put("s22", hl + 78);
-            lineage2.put("pixel6", hl + 122);
+            lineage2.put("pixel6", hl + 96);
         } // lineage2
     }
 

@@ -136,14 +136,8 @@ public class ProcessorThread extends Thread {
                         }
                         removeOldResults();
                         calculateAverageAnalysisTime();
-
-                        //Log.w(TAG, "inner = " + innerAnalysisTimeSum + " " + innerHistory.size() + " " + averageInnerAnalysisTime);
-                        //Log.w(TAG, "outer = " + outerAnalysisTimeSum + " " + outerHistory.size() + " " + averageOuterAnalysisTime);
                     }
 
-                    /*if (!img.isInner) {
-                        Log.w(TAG, "Done outer: " + processTime);
-                    }*/
 
                     sendResult(frameNum, processTime, endTime - workerStartTimeMap.get(frameNum),
                             result.msg, queue.size(), result.isDistracted, result.hazards);
@@ -224,4 +218,5 @@ public class ProcessorThread extends Thread {
                 MainActivity.latestTemperatures, MainActivity.latestFrequencies);
         handler.sendMessage(retMsg);
     }
+
 }

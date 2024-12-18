@@ -1,5 +1,6 @@
 package com.example.edgedashanalytics.advanced.common;
 
+import static com.example.edgedashanalytics.advanced.coordinator.Communicator.queueSizeStealing;
 import static com.example.edgedashanalytics.advanced.coordinator.MainRoutine.Experiment.*;
 
 import android.content.Context;
@@ -102,6 +103,11 @@ public class TestConfig {
                 numWorkers = ri(st);
                 E_workerNameList = new String[numWorkers];
                 E_connectionTimestamps = new ArrayList[numWorkers];
+
+                if (E_stealing) {
+                    queueSizeStealing = new long[numWorkers];
+                }
+
                 for (int i = 0; i < numWorkers; i++) {
                     E_connectionTimestamps[i] = new ArrayList<>();
                     E_workerNameList[i] = rs(st);

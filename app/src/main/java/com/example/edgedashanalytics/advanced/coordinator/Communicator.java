@@ -7,8 +7,8 @@ but hopefully this integrated Sender would solve such issues.
  */
 
 import static com.example.edgedashanalytics.advanced.coordinator.MainRoutine.Experiment.*;
-import static com.example.edgedashanalytics.advanced.coordinator.MainRoutine.controller;
 import static com.example.edgedashanalytics.advanced.coordinator.MainRoutine.distributer;
+import static com.example.edgedashanalytics.advanced.coordinator.MainRoutine.processed;
 
 import android.os.Looper;
 import android.util.Log;
@@ -33,7 +33,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 
 public class Communicator extends Thread {
     private static final String TAG = "Communicator";
-    public static ArrayBlockingQueue<CommunicatorMessage> msgQueue = new ArrayBlockingQueue<>(100);
+    public static ArrayBlockingQueue<CommunicatorMessage> msgQueue = new ArrayBlockingQueue<>(300);
     public final static HashMap<Integer, RecordC> recordMap = new HashMap<>();
 
     public ArrayList<EDAWorker> workers;
@@ -48,6 +48,8 @@ public class Communicator extends Thread {
     public static int availableWorkers;
     public long startTime;
     public static long failed;
+
+    public static long[] queueSizeStealing;
 
     static class ConnectionTimestamp implements Comparable<ConnectionTimestamp> {
         int type;
@@ -128,6 +130,7 @@ public class Communicator extends Thread {
 
                     outstream = new ObjectOutputStream(socket.getOutputStream());
                     instream = new ObjectInputStream(socket.getInputStream());
+
                 } catch (Exception e) {
                     e.printStackTrace();
                     Log.w(TAG, "Retrying for " + ip + "...");
@@ -150,6 +153,11 @@ public class Communicator extends Thread {
             try {
                 WorkerInitialInfo info = (WorkerInitialInfo) worker.instream.readObject();
                 DeviceLogger.devices.add(new DeviceLogger.DeviceInfo(info.temperatureNames, info.frequencyNames));
+
+                if (E_stealing) {
+                    queueSizeStealing[i] = E_STEALING_CHUNK_SIZE;
+                }
+
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -197,6 +205,10 @@ public class Communicator extends Thread {
                 }
 
                 int workerNum = distributer.getNextWorker(msg.isInner);
+
+                if (E_stealing) {
+                    //queueSizeStealing[workerNum]++; // don't over-send frames, unless the worker itself sends another ok sign
+                }
 
                 long curTime = System.currentTimeMillis() - startTime;
 
@@ -320,6 +332,15 @@ public class Communicator extends Thread {
                 try {
                     WorkerResult res = (WorkerResult) worker.instream.readObject();
                     long endTime = System.currentTimeMillis();
+
+                    if (E_stealing) {
+                        if (res.queueSize == 0 && queueSizeStealing[worker.workerNum] == 0) {
+                            queueSizeStealing[worker.workerNum] = E_STEALING_CHUNK_SIZE;
+                        }
+                    }
+
+
+                    processed++;
 
                     worker.status.latestQueueSize = res.queueSize;
 

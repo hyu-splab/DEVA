@@ -55,7 +55,12 @@ public class Controller extends Thread {
                 long curTime = System.currentTimeMillis();
                 if (curTime >= nextCheckpoint) {
                     if (E_testConfig.isCoordinator) {
-                        MM1();
+                        if (E_stealing) {
+                            fixTo30FPS();
+                        }
+                        else {
+                            MM1();
+                        }
                     }
                     if (curTime >= nextCheckpoint) {
                         nextCheckpoint += CAMERA_ADJUSTMENT_PERIOD;
@@ -65,6 +70,18 @@ public class Controller extends Thread {
             }
         } catch (Exception e) {
             e.printStackTrace();
+        }
+    }
+
+    // For work stealing experiment
+    private void fixTo30FPS() {
+        innerCamParameter.fps = 30;
+        outerCamParameter.fps = 30;
+        if (innerCam.outStream != null) {
+            innerCam.sendSettings();
+        }
+        if (outerCam.outStream != null) {
+            outerCam.sendSettings();
         }
     }
 

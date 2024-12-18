@@ -1,5 +1,7 @@
 package com.example.edgedashanalytics.advanced.coordinator;
 
+import static com.example.edgedashanalytics.advanced.coordinator.MainRoutine.Experiment.finishExperiments;
+
 import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
@@ -78,21 +80,20 @@ public class EDACam extends Thread {
         while (true) {
             int frameNum = inStream.readInt();
             byte[] data = (byte[]) inStream.readObject();
-            int waiting = inStream.readInt();
+            int waiting = inStream.readInt(); // not used yet, can remove later along with dashcam
 
-            /*int mx = Math.max(waiting, Communicator.msgQueue.size());
+            MainRoutine.received++;
 
-            if (mx >= 2) {
-                if (mx >= 4) {
-                    Controller.queueWarn = 2;
-                }
-                else if (Controller.queueWarn == 0) {
-                    Controller.queueWarn = 1;
-                }
-                continue;
-            }*/
+            if (MainRoutine.received % 100 == 0) {
+                Log.v(TAG, "Processed: " + MainRoutine.processed + "/" + MainRoutine.received + "(" + MainRoutine.processed * 100 / (double) MainRoutine.received + "%)");
+            }
 
             CommunicatorMessage msg = new CommunicatorMessage(1, isInner, frameNum, data, System.currentTimeMillis());
+            if (Communicator.msgQueue.remainingCapacity() == 0) {
+                Log.e(TAG, "Message queue full! Stopping experiment...");
+                finishExperiments();
+                return;
+            }
             Communicator.msgQueue.put(msg);
         }
     }
