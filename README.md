@@ -11,6 +11,5 @@ Download these models and place them in `app/src/main/assets/`:
 
 Datasets used in evaluation:
 
-- [PETS2009](http://cs.binghamton.edu/~mrldata/pets2009)
 - [BDD100K](https://bdd-data.berkeley.edu/)
 - [DMD](https://dmd.vicomtech.org/)
