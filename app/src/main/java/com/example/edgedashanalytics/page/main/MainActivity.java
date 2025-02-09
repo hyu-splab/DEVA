@@ -138,121 +138,7 @@ public class MainActivity extends AppCompatActivity implements
         activeFragment = newFragment;
     }
 
-    static private ArrayList<Integer> temperatureIndices = new ArrayList<>();
-    static public ArrayList<String> temperatureNames = new ArrayList<>();
-    static public ArrayList<String> frequencyNames = new ArrayList<>();
-    static public ArrayList<Integer> latestTemperatures;
-    static public ArrayList<Integer> latestFrequencies;
     static public final long timeStart = System.currentTimeMillis();
-
-    private void findTemperatureFiles() {
-        if (true) return;
-        HashSet<String> names = new HashSet<>();
-
-        for (int i = 0; i < 20; i++) {
-            for (int j = 0; j < 20; j++) {
-                names.add("cpu-" + i + "-" + j + "-usr");
-                names.add("cpu-" + i + "-" + j);
-            }
-        }
-
-        names.add("battery");
-
-        try {
-            for (int i = 0; i < 200; i++) {
-                Process process = Runtime.getRuntime().exec("cat /sys/class/thermal/thermal_zone" + i + "/type");
-                process.waitFor();
-
-                BufferedReader br = new BufferedReader(new InputStreamReader(process.getInputStream()));
-                String type = br.readLine();
-                br.close();
-
-                Log.v(TAG, i + ": " + type);
-
-                if (names.contains(type)) {
-                    temperatureNames.add(type);
-                    temperatureIndices.add(i);
-                }
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void findFrequencyFiles() {
-        if (true) return;
-        try {
-            for (int i = 0; i < 20; i++) {
-                Process process = Runtime.getRuntime().exec("cat /sys/devices/system/cpu/cpu" + i + "/cpufreq/scaling_cur_freq");
-                process.waitFor();
-
-                try {
-                    BufferedReader br = new BufferedReader(new InputStreamReader(process.getInputStream()));
-                    String freq = br.readLine();
-                    br.close();
-                    Integer.parseInt(freq);
-                } catch (Exception e) {
-                    continue;
-                }
-
-                frequencyNames.add("cpu" + i);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    public static void readDeviceStatus(long timestamp) {
-        if (true) return;
-        ArrayList<Integer> temperatures = new ArrayList<>();
-        for (Integer temperatureIndex : temperatureIndices) {
-            try {
-                Process process = Runtime.getRuntime().exec("cat /sys/class/thermal/thermal_zone" + temperatureIndex + "/temp");
-                process.waitFor();
-
-                BufferedReader br = new BufferedReader(new InputStreamReader(process.getInputStream()));
-                String line = br.readLine();
-                if (line == null) {
-                    br.close();
-                    Log.w(TAG, "What? CPU temperature information is not available!");
-                    return;
-                }
-
-                int temp = Integer.parseInt(line);
-                br.close();
-
-                temperatures.add(temp);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-
-        ArrayList<Integer> frequencies = new ArrayList<>();
-        for (String frequencyName : frequencyNames) {
-            try {
-                Process process = Runtime.getRuntime().exec("cat /sys/devices/system/cpu/" + frequencyName + "/cpufreq/scaling_cur_freq");
-                process.waitFor();
-
-                BufferedReader br = new BufferedReader(new InputStreamReader(process.getInputStream()));
-                String line = br.readLine();
-                if (line == null) {
-                    br.close();
-                    Log.w(TAG, "What? CPU frequency information is not available!");
-                    return;
-                }
-
-                int freq = Integer.parseInt(line);
-                br.close();
-
-                frequencies.add(freq);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-
-        latestFrequencies = frequencies;
-        latestTemperatures = temperatures;
-    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -264,7 +150,6 @@ public class MainActivity extends AppCompatActivity implements
         mainHandler = new MainHandler();
 
         TextView textViewTimer = findViewById(R.id.textViewTimer);
-        //TextView textViewStatus = findViewById(R.id.textViewStatus);
 
         new Timer().schedule(new TimerTask() {
             @Override
@@ -300,32 +185,8 @@ public class MainActivity extends AppCompatActivity implements
         storeLogsInFile();
         DashCam.setup(this);
 
-        findTemperatureFiles();
-        findFrequencyFiles();
-
         startBatteryLevel = PowerMonitor.getBatteryLevel(context);
         MainRoutine.Experiment.experimentMain(getApplicationContext());
-    }
-
-    private void runTests() {
-        /*Integer[] qualities = {0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100};
-        Size[] resolutions = {
-                new Size(640, 360),
-                new Size(854, 480),
-                new Size(960, 540),
-                new Size(1280, 720)
-        };
-        new Thread(() -> VideoTest.test(getApplicationContext(), "video2.mp4", true,
-                Arrays.asList(qualities), 0, 499, new Size(640, 360))).start();
-
-        new Thread(() -> VideoTest.test2(getApplicationContext(), "video.mov",
-                Arrays.asList(qualities), Arrays.asList(resolutions), 0, 499)).start();
-
-
-        new Thread(() -> VideoTest.testOuterAnalysisAccuracy(getApplicationContext(), "video.mov",
-                Arrays.asList(qualities), Arrays.asList(resolutions), 0, 499)).start();*/
-
-        //new Thread(() -> VideoTest.testAnalysisSpeed(getApplicationContext(), 500, new Size(1280, 720), 50)).start();
     }
 
     @Override

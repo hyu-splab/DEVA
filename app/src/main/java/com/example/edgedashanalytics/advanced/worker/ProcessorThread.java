@@ -32,23 +32,20 @@ public class ProcessorThread extends Thread {
     static public Handler handler;
 
     public int tid = 0;
-    public int workCount = 0;
 
     public InnerProcessor innerProcessor = new InnerProcessor();
     public OuterProcessor outerProcessor = new OuterProcessor();
 
     public static final ArrayList<Integer> processingTimeList = new ArrayList<>();
     public static final int maxListCount = 50;
-    public static int debugCount = 0;
 
     public static long innerAnalysisTimeSum = 0, outerAnalysisTimeSum = 0;
     public static double averageInnerAnalysisTime = DEFAULT_INNER_PROCESS_TIME, averageOuterAnalysisTime = DEFAULT_OUTER_PROCESS_TIME;
 
     private static final ArrayDeque<Long> innerHistory = new ArrayDeque<>(), outerHistory = new ArrayDeque<>();
-    private static long busyCnt = 0;
     @Override
     public void run() {
-        FrameProcessor frameProcessor = null;
+        FrameProcessor frameProcessor;
         long total = 0, dropped = 0;
         while (true) {
 
@@ -68,10 +65,7 @@ public class ProcessorThread extends Thread {
 
                         frameProcessor.setFrame(bitmap);
 
-                        //long startTime = System.currentTimeMillis();
                         FrameProcessor.ProcessResult result = frameProcessor.run();
-                        busyCnt++;
-                        Log.v(TAG, "Busy count: " + busyCnt);
                         continue;
                     }
                     else {
@@ -87,11 +81,6 @@ public class ProcessorThread extends Thread {
 
                 long startTime = System.currentTimeMillis();
 
-                /*if (!img.isTesting && queue.size() >= QUEUE_FULL * N_THREAD) {
-                    Log.v(TAG, "sending failed message " + img.isInner);
-                    sendFailedResult(queue.size());
-                    continue;
-                }*/
                 long queueTime = startTime - workerStartTimeMap.get(img.frameNum);
                 int historyCount = (img.isInner ? innerHistory.size() : outerHistory.size());
 
@@ -118,7 +107,6 @@ public class ProcessorThread extends Thread {
 
                 frameProcessor.setFrame(bitmap);
 
-                //long startTime = System.currentTimeMillis();
                 FrameProcessor.ProcessResult result = frameProcessor.run();
                 long endTime = System.currentTimeMillis();
 
@@ -149,13 +137,10 @@ public class ProcessorThread extends Thread {
                             int sum = 0;
                             for (Integer x : processingTimeList)
                                 sum += x;
-                            Log.v(TAG, debugCount * maxListCount + " ~ " + ((debugCount + 1) * maxListCount - 1) + ": " + ((double)sum / maxListCount));
-                            debugCount++;
                             processingTimeList.clear();
                         }
                     }
                 }
-                workCount++;
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -190,7 +175,6 @@ public class ProcessorThread extends Thread {
 
     private double estimateOverallLatency(long queueTime, boolean isInner) {
         double transferTime = Controller.estimateTrasferTime();
-        //Log.w(TAG, "transferTime = " + transferTime);
         return transferTime + (queueTime + (isInner ? averageInnerAnalysisTime : averageOuterAnalysisTime)) / 1000.0;
     }
 
@@ -204,7 +188,7 @@ public class ProcessorThread extends Thread {
 
     private void sendFailedResult(int frameNum, long queueSize, long processTime, long totalTime) {
         Message retMsg = Message.obtain();
-        retMsg.obj = WorkerResult.createFailedResult(frameNum, queueSize, processTime, totalTime, MainActivity.latestTemperatures, MainActivity.latestFrequencies);
+        retMsg.obj = WorkerResult.createFailedResult(frameNum, queueSize, processTime, totalTime);
         handler.sendMessage(retMsg);
     }
 
@@ -214,8 +198,7 @@ public class ProcessorThread extends Thread {
         Message retMsg = Message.obtain();
         retMsg.obj = WorkerResult.createResult(
                 frameNum, processTime,
-                totalTime, resultString, queueSize, isDistracted, hazards,
-                MainActivity.latestTemperatures, MainActivity.latestFrequencies);
+                totalTime, resultString, queueSize, isDistracted, hazards);
         handler.sendMessage(retMsg);
     }
 

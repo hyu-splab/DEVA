@@ -2,13 +2,7 @@ package com.example.edgedashanalytics.advanced.coordinator;
 
 import static com.example.edgedashanalytics.advanced.coordinator.MainRoutine.Experiment.finishExperiments;
 
-import android.os.Handler;
-import android.os.Message;
 import android.util.Log;
-import android.util.Size;
-
-import com.example.edgedashanalytics.page.main.MainActivity;
-import com.example.edgedashanalytics.util.Constants;
 
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -21,7 +15,6 @@ public class EDACam extends Thread {
 
 
     private final String ip;
-    private final int msgCode;
 
     public ObjectInputStream inStream;
     public ObjectOutputStream outStream;
@@ -32,7 +25,6 @@ public class EDACam extends Thread {
     public EDACam(String ip, boolean isInner) {
         this.ip = ip;
         this.isInner = isInner;
-        this.msgCode = isInner ? Constants.IMAGE_INNER : Constants.IMAGE_OUTER;
         this.socket = null;
         camParameter = new Parameter(isInner);
     }

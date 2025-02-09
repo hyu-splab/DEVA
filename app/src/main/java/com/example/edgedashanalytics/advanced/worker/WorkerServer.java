@@ -55,7 +55,7 @@ public class WorkerServer {
                 ObjectInputStream instream = new ObjectInputStream(socket.getInputStream());
                 ObjectOutputStream outstream = new ObjectOutputStream(socket.getOutputStream());
 
-                outstream.writeObject(new WorkerInitialInfo(MainActivity.temperatureNames, MainActivity.frequencyNames));
+                outstream.writeObject(new WorkerInitialInfo());
 
                 Thread resThread = new Thread(() -> {
                     Looper.prepare();
@@ -75,10 +75,6 @@ public class WorkerServer {
                     Looper.loop();
                 });
                 resThread.start();
-
-                // For stealing experiment only
-
-                ///////////////////////////////
 
                 try {
                     while (true) {

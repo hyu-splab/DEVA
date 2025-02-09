@@ -3,7 +3,6 @@ package com.example.edgedashanalytics.advanced.common;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.Serializable;
 

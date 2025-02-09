@@ -3,18 +3,13 @@ package com.example.edgedashanalytics.advanced.coordinator;
 import static com.example.edgedashanalytics.advanced.coordinator.MainRoutine.EXPERIMENTING;
 import static com.example.edgedashanalytics.advanced.coordinator.MainRoutine.communicator;
 import static com.example.edgedashanalytics.advanced.coordinator.MainRoutine.Experiment.*;
-import static com.example.edgedashanalytics.advanced.coordinator.Communicator.availableWorkers;
-import static com.example.edgedashanalytics.advanced.coordinator.DeviceLogger.DeviceLog;
-import static com.example.edgedashanalytics.advanced.coordinator.DeviceLogger.DeviceLog.IndividualDeviceLog;
 
 import android.util.Log;
 
 import com.example.edgedashanalytics.advanced.common.WorkerStatus;
-import com.example.edgedashanalytics.page.main.MainActivity;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 public class Controller extends Thread {
     private static final String TAG = "Controller";
@@ -47,7 +42,6 @@ public class Controller extends Thread {
     @Override
     public void run() {
         startTime = System.currentTimeMillis();
-        MainActivity.readDeviceStatus(startTime);
         nextCheckpoint = startTime + CAMERA_ADJUSTMENT_PERIOD;
         try {
             Thread.sleep(CAMERA_ADJUSTMENT_PERIOD);
@@ -152,19 +146,10 @@ public class Controller extends Thread {
             outerCam.sendSettings();
         }
 
-        ArrayList<IndividualDeviceLog> logs = new ArrayList<>();
         for (EDAWorker worker : workers) {
             worker.status.innerHistory.removeOldResults();
             worker.status.outerHistory.removeOldResults();
             worker.status.calcNetworkTime();
-
-            if (EXPERIMENTING) {
-                IndividualDeviceLog log = new IndividualDeviceLog(worker.status.temperatures, worker.status.frequencies);
-                logs.add(log);
-            }
-        }
-        if (EXPERIMENTING) {
-            DeviceLogger.addLog(new DeviceLog(nextCheckpoint - startTime, logs));
         }
     }
 

@@ -15,16 +15,12 @@ public class WorkerResult implements Serializable {
     public boolean isDistracted; // Used only for inner
     public List<String> hazards; // Used only for outer
 
-    public ArrayList<Integer> temperatures;
-    public ArrayList<Integer> frequencies;
-
     public WorkerResult() {
 
     }
 
     public static WorkerResult createResult(int frameNum, long processTime, long totalTime, String msg,
-                                            long queueSize, boolean isDistracted, List<String> hazards,
-                                            ArrayList<Integer> temperatures, ArrayList<Integer> frequencies) {
+                                            long queueSize, boolean isDistracted, List<String> hazards) {
         WorkerResult res = new WorkerResult();
         res.success = true;
         res.frameNum = frameNum;
@@ -34,20 +30,16 @@ public class WorkerResult implements Serializable {
         res.queueSize = queueSize;
         res.isDistracted = isDistracted;
         res.hazards = hazards;
-        res.temperatures = temperatures;
-        res.frequencies = frequencies;
         return res;
     }
 
-    public static WorkerResult createFailedResult(int frameNum, long queueSize, long processTime, long totalTime, ArrayList<Integer> temperatures, ArrayList<Integer> frequencies) {
+    public static WorkerResult createFailedResult(int frameNum, long queueSize, long processTime, long totalTime) {
         WorkerResult res = new WorkerResult();
         res.frameNum = frameNum;
         res.processTime = processTime;
         res.totalTime = totalTime;
         res.success = false;
         res.queueSize = queueSize;
-        res.temperatures = temperatures;
-        res.frequencies = frequencies;
         return res;
     }
 }

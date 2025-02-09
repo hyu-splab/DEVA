@@ -8,7 +8,7 @@ import java.util.List;
 
 public class InnerAnalysisResult extends AnalysisResult {
     private static final String TAG = "InnerAnalysisResult";
-    private List<Result> results;
+    private final List<Result> results;
     public InnerAnalysisResult() {
         results = new ArrayList<>();
     }
@@ -23,7 +23,6 @@ public class InnerAnalysisResult extends AnalysisResult {
     public String getResultString() {
         StringBuilder sb = new StringBuilder();
         for (Result res : results) {
-            // Log.v(TAG, "adding result " + res.frameNum + " " + res.isDistracted);
             sb.append(res.frameNum).append(",").append(res.isDistracted ? "1" : "0").append("\n");
         }
         return sb.toString();

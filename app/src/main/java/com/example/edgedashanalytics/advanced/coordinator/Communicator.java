@@ -1,11 +1,5 @@
 package com.example.edgedashanalytics.advanced.coordinator;
 
-/*
-Re-implementing Sender to resolve network-related issues.
-Still can't figure out why certain devices show extra heavy network delays,
-but hopefully this integrated Sender would solve such issues.
- */
-
 import static com.example.edgedashanalytics.advanced.coordinator.MainRoutine.Experiment.*;
 import static com.example.edgedashanalytics.advanced.coordinator.MainRoutine.distributer;
 import static com.example.edgedashanalytics.advanced.coordinator.MainRoutine.processed;
@@ -23,7 +17,6 @@ import com.example.edgedashanalytics.advanced.common.WorkerResult;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -115,7 +108,6 @@ public class Communicator extends Thread {
     }
 
     private void connect() {
-        Log.v(TAG, "allDevices.size() = " + allDevices.size());
         for (int i = 0; i < allDevices.size(); i++) {
             EDAWorker worker = allDevices.get(i);
             String ip = worker.ip;
@@ -152,7 +144,6 @@ public class Communicator extends Thread {
             // read initial device status
             try {
                 WorkerInitialInfo info = (WorkerInitialInfo) worker.instream.readObject();
-                DeviceLogger.devices.add(new DeviceLogger.DeviceInfo(info.temperatureNames, info.frequencyNames));
 
                 if (E_stealing) {
                     queueSizeStealing[i] = E_STEALING_CHUNK_SIZE;
@@ -172,8 +163,6 @@ public class Communicator extends Thread {
         private int connectionTimestampIndex = 0;
         private long totalCnt = 0;
 
-        private long coordinatorTimeTotal = 0;
-        private ArrayDeque<Long> coordinatorTime = new ArrayDeque<>();
         @Override
         public void run() {
             while (true) {
@@ -205,10 +194,6 @@ public class Communicator extends Thread {
                 }
 
                 int workerNum = distributer.getNextWorker(msg.isInner);
-
-                if (E_stealing) {
-                    //queueSizeStealing[workerNum]++; // don't over-send frames, unless the worker itself sends another ok sign
-                }
 
                 long curTime = System.currentTimeMillis() - startTime;
 
@@ -293,20 +278,10 @@ public class Communicator extends Thread {
                     RecordC rc = new RecordC(msg.isInner, msg.frameNum, msg.receivedTime, data.data.length);
 
                     synchronized (recordMap) {
-                        //Log.w(TAG, "frame num " + rc.cameraFrameNum + " is " + (rc.isInner ? "inner" : "outer"));
                         recordMap.put((int)totalCnt, rc);
                     }
 
                     cMsg = new CoordinatorMessage(1, data);
-
-                    long tt = (System.currentTimeMillis() - msg.receivedTime);
-                    coordinatorTimeTotal += tt;
-                    coordinatorTime.push(tt);
-                    if (coordinatorTime.size() == 100) {
-                        //Log.v(TAG, "Average time spent in coordinator: " + (double) coordinatorTimeTotal / 100);
-                        coordinatorTimeTotal = 0;
-                        coordinatorTime.clear();
-                    }
 
                     outStream.writeObject(cMsg);
                     outStream.flush();
@@ -339,14 +314,12 @@ public class Communicator extends Thread {
                         }
                     }
 
-
                     processed++;
 
                     worker.status.latestQueueSize = res.queueSize;
 
                     RecordC rc;
                     synchronized (recordMap) {
-                        //Log.w(TAG, "getting frame num " + res.frameNum);
                         rc = recordMap.get(res.frameNum);
                     }
 
@@ -364,9 +337,6 @@ public class Communicator extends Thread {
                     long networkTime = (endTime - rc.receivedTime) - res.totalTime;
                     long turnaround = endTime - rc.receivedTime;
 
-                    //if (!rc.isInner)
-                    //    Log.w(TAG, "processTime = " + res.processTime);
-
                     AnalysisResult result = new AnalysisResult(
                             endTime, res.frameNum, worker.workerNum, rc.isInner,
                             res.totalTime, res.processTime, networkTime, turnaround, res.queueSize);
@@ -382,9 +352,6 @@ public class Communicator extends Thread {
                         FrameLogger.addResult(result, res.isDistracted, res.hazards, rc.dataSize);
                     }
                     worker.status.addResult(result);
-
-                    worker.status.temperatures = res.temperatures;
-                    worker.status.frequencies = res.frequencies;
 
                 } catch(Exception e){
                     try {

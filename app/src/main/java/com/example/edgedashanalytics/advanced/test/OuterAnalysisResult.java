@@ -12,7 +12,7 @@ import java.util.List;
 
 public class OuterAnalysisResult extends AnalysisResult {
     private static final String TAG = "OuterAnalysisResult";
-    private List<Result> results;
+    private final List<Result> results;
     public OuterAnalysisResult() {
         results = new ArrayList<>();
     }

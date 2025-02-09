@@ -19,7 +19,6 @@ public class InnerResult {
     public String getResultString() {
         StringBuilder sb = new StringBuilder();
         for (Result res : results) {
-            // Log.v(TAG, "adding result " + res.frameNum + " " + res.isDistracted);
             sb.append(res.frameNum).append(",").append(res.isDistracted ? "1" : "0").append("\n");
         }
         return sb.toString();

@@ -13,10 +13,6 @@ public class WorkerStatus {
     public long latestQueueSize;
     public double networkTime;
     public boolean isConnected;
-    public ArrayList<Integer> temperatures;
-    public ArrayList<Integer> frequencies;
-    public long lastUpdated;
-    public long lastChecked;
 
     public WorkerStatus() {
         innerHistory = new WorkerHistory((int)DEFAULT_INNER_PROCESS_TIME);
@@ -27,8 +23,6 @@ public class WorkerStatus {
     }
 
     public WorkerStatus(WorkerStatus org) {
-        temperatures = org.temperatures;
-        frequencies = org.frequencies;
         innerHistory = new WorkerHistory(org.innerHistory);
         outerHistory = new WorkerHistory(org.outerHistory);
         innerWaiting = org.innerWaiting;
@@ -42,17 +36,14 @@ public class WorkerStatus {
         WorkerHistory history = result.isInner ? innerHistory : outerHistory;
         history.addResult(result);
         calcNetworkTime();
-        lastUpdated = result.timestamp;
     }
 
     public synchronized void calcNetworkTime() {
-        //Log.d(TAG, "size = " + innerHistory.history.size() + ", " + outerHistory.history.size());
         if (innerHistory.history.size() + outerHistory.history.size() == 0)
             networkTime = 0;
         else
             networkTime = (double) (innerHistory.totalNetworkTime + outerHistory.totalNetworkTime)
                 / (innerHistory.history.size() + outerHistory.history.size());
-        //Log.d(TAG, "networkTime = " + networkTime);
     }
 
     public double innerProcessTime() {
@@ -65,12 +56,6 @@ public class WorkerStatus {
 
     public double getPerformance() {
         return 1.0 / (getAverageInnerProcessTime() + getAverageOuterProcessTime());
-        /*int totalWaiting = innerWaiting + outerWaiting;
-        if (totalWaiting == 0)
-            return DEFAULT_PERFORMANCE;
-
-        return totalWaiting / (((innerWaiting * getAverageInnerProcessTime())
-                + (outerWaiting * getAverageOuterProcessTime())) / 2.0);*/
     }
 
     public double getAverageInnerProcessTime() {
@@ -89,19 +74,10 @@ public class WorkerStatus {
 
     public double getAverage() {
         return getAverageOuterProcessTime();
-        //return (getAverageInnerProcessTime() + getAverageOuterProcessTime()) / 2;
-    }
-
-    public double getAverageForReal() {
-        return (getAverageInnerProcessTime() + getAverageOuterProcessTime()) / 2;
     }
 
     public double getWeight() {
         return getWeightByAverageQueueSize();
-    }
-
-    public double getLatencyWithQueueSize(double queueSize) {
-        return getAverage() * (queueSize + 1);
     }
 
     public double getAverageQueueSize() {
@@ -115,9 +91,5 @@ public class WorkerStatus {
     private double getWeightByAverageQueueSize() {
         double averageQueueSize = getAverageQueueSize();
         return 1.0 / (getAverage() * (averageQueueSize + 1.0));
-    }
-
-    public double getWeightByLatestQueueSize() {
-        return 1.0 / (getAverage() * (latestQueueSize + 1));
     }
 }
